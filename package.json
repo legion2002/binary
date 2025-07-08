@@ -1,0 +1,24 @@
+{
+  "name": "binary",
+  "version": "1.0.0",
+  "author": "0xtanishk",
+  "description": "**Price feeds from the future.**",
+  "homepage": "https://github.com/legion2002/binary#readme",
+  "bugs": {
+    "url": "https://github.com/legion2002/binary/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/legion2002/binary.git"
+  },
+  "license": "ISC",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
