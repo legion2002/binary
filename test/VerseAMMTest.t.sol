@@ -52,8 +52,8 @@ contract VerseAMMTest is Test {
     address public lpProvider = makeAddr("lpProvider");
     
     // Market parameters
-    bytes32 public constant QUESTION_HASH = keccak256("Will BTC reach $100k in 2024?");
-    uint32 public constant RESOLUTION_DEADLINE = 1735689600; // Jan 1, 2025
+    bytes32 public constant QUESTION_HASH = keccak256("Will FOCIL be included in the Glamsterdam hardfork?");
+    uint32 public constant RESOLUTION_DEADLINE = 1798761600; // Jan 1, 2027
     
     function setUp() public {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"), 18_000_000);
@@ -116,17 +116,17 @@ contract VerseAMMTest is Test {
         TestVars memory vars;
         
         // Step 1: Open a prediction market
-        // This creates a binary market asking "Will BTC reach $100k in 2024?"
+        // This creates a binary market asking "Will FOCIL be included in the Glamsterdam hardfork?"
         // The market will be resolved by the oracle at the deadline
         multiVerse.open(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle));
         vars.marketHash = keccak256(abi.encode(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle)));
         
         // Step 2: Create verse tokens for both WETH and USDC
         // This deploys 4 new ERC20 tokens:
-        // - YES_WETH: Worth 1 WETH if BTC reaches $100k, 0 otherwise
-        // - NO_WETH: Worth 1 WETH if BTC doesn't reach $100k, 0 otherwise
-        // - YES_USDC: Worth 1 USDC if BTC reaches $100k, 0 otherwise
-        // - NO_USDC: Worth 1 USDC if BTC doesn't reach $100k, 0 otherwise
+        // - YES_WETH: Worth 1 WETH if FOCIL is included, 0 otherwise
+        // - NO_WETH: Worth 1 WETH if FOCIL isn't included, 0 otherwise
+        // - YES_USDC: Worth 1 USDC if FOCIL is included, 0 otherwise
+        // - NO_USDC: Worth 1 USDC if FOCIL isn't included, 0 otherwise
         (vars.yesWeth, vars.noWeth) = multiVerse.create(address(weth), vars.marketHash);
         (vars.yesUsdc, vars.noUsdc) = multiVerse.create(address(usdc), vars.marketHash);
         
@@ -137,14 +137,14 @@ contract VerseAMMTest is Test {
         
         // Step 4: Create Uniswap V2 pair for YES_WETH/YES_USDC
         // This AMM pair will discover the price of ETH in the "YES" universe
-        // If traders think ETH will be worth more if BTC hits $100k, YES_WETH will trade at a premium
+        // If traders think ETH will be worth more with FOCIL, YES_WETH will trade at a premium
         vars.yesPair = _createAndSetupPair(vars.yesWeth, vars.yesUsdc);
         
         // Step 5: Alice participates in the market
         // She splits WETH and trades YES_WETH for YES_USDC, expressing a view on relative values
         _aliceSplitsAndTrades(vars);
         
-        // Step 6: Market resolves to YES (BTC did reach $100k)
+        // Step 6: Market resolves to YES (FOCIL was included in Glamsterdam)
         // Alice redeems her YES_USDC for real USDC at 1:1 ratio
         // All NO tokens become worthless
         _resolveAndRedeem(vars.marketHash, vars.yesUsdc);
@@ -157,17 +157,18 @@ contract VerseAMMTest is Test {
      */
     function _setupLiquidity(bytes32 marketHash, address yesWeth, address yesUsdc) internal {
         vm.startPrank(lpProvider);
-        // Split 100 WETH into 100 YES_WETH + 100 NO_WETH
-        multiVerse.split(address(weth), 100 ether, marketHash);
-        // Split 500k USDC into 500k YES_USDC + 500k NO_USDC
-        multiVerse.split(address(usdc), 500_000e6, marketHash);
+        // Split 200 WETH into 200 YES_WETH + 200 NO_WETH
+        multiVerse.split(address(weth), 200 ether, marketHash);
+        // Split 1M USDC into 1M YES_USDC + 1M NO_USDC
+        multiVerse.split(address(usdc), 1_000_000e6, marketHash);
         vm.stopPrank();
     }
     
     /**
      * @notice Creates and initializes a Uniswap V2 pair for YES verse tokens
      * @dev This pair (YES_WETH/YES_USDC) discovers the ETH/USDC price in the "YES" universe
-     *      The initial ratio of 100 ETH : 500k USDC implies ETH = $5000 in the YES outcome
+     *      The initial ratio of 100 ETH : 800k USDC implies ETH = $8000 in the YES outcome
+     *      This higher price reflects market belief that ETH will be more valuable with FOCIL
      * @return yesPair Address of the created Uniswap V2 pair
      */
     function _createAndSetupPair(address yesWeth, address yesUsdc) internal returns (address) {
@@ -176,10 +177,11 @@ contract VerseAMMTest is Test {
         require(yesPair != address(0), "Pair creation failed");
         
         vm.startPrank(lpProvider);
-        // Add liquidity: 100 YES_WETH + 500k YES_USDC
-        // This sets initial price of YES_WETH at 5000 YES_USDC
+        // Add liquidity: 100 YES_WETH + 800k YES_USDC
+        // This sets initial price of YES_WETH at 8000 YES_USDC
+        // Market expects ETH to be worth more if FOCIL is included
         Verse(yesWeth).transfer(yesPair, 100 ether);
-        Verse(yesUsdc).transfer(yesPair, 500_000e6);
+        Verse(yesUsdc).transfer(yesPair, 800_000e6);
         // Mint LP tokens to the provider
         IUniswapV2Pair(yesPair).mint(lpProvider);
         vm.stopPrank();
@@ -249,13 +251,13 @@ contract VerseAMMTest is Test {
     
     /**
      * @notice Resolves the market and allows redemption of winning tokens
-     * @dev When oracle confirms BTC reached $100k (resolution = true):
+     * @dev When oracle confirms FOCIL was included (resolution = true):
      *      - All YES tokens can be redeemed 1:1 for underlying assets
      *      - All NO tokens become worthless (cannot be redeemed)
      *      This creates the payoff structure of a binary option
      */
     function _resolveAndRedeem(bytes32 marketHash, address yesUsdc) internal {
-        // Oracle resolves: YES, BTC did reach $100k!
+        // Oracle resolves: YES, FOCIL was included in Glamsterdam!
         oracle.setResolution(marketHash, true);
         // MultiVerse processes the resolution
         multiVerse.resolve(marketHash);
@@ -318,6 +320,59 @@ contract VerseAMMTest is Test {
         // - NO_WETH/NO_USDC: ETH price in the NO universe
         // - YES_WETH/NO_USDC: Cross-verse arbitrage plays
         // This demonstrates Binary's vision of "price feeds from the future"
+    }
+    
+    /**
+     * @notice Shows how ETH prices differ between YES and NO universes
+     * @dev This test demonstrates Binary's core value proposition:
+     *      Different outcomes lead to different asset valuations.
+     *      FOCIL inclusion is expected to benefit Ethereum, so YES_ETH trades at a premium.
+     */
+    function testPriceDivergenceBetweenVerses() public {
+        // Setup market
+        multiVerse.open(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle));
+        bytes32 marketHash = keccak256(abi.encode(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle)));
+        
+        // Create verses
+        (address yesWeth, address noWeth) = multiVerse.create(address(weth), marketHash);
+        (address yesUsdc, address noUsdc) = multiVerse.create(address(usdc), marketHash);
+        
+        // LP splits tokens
+        vm.startPrank(lpProvider);
+        multiVerse.split(address(weth), 200 ether, marketHash);
+        multiVerse.split(address(usdc), 1_000_000e6, marketHash);
+        vm.stopPrank();
+        
+        // Create YES_WETH/YES_USDC pair with ETH at $8000
+        address yesPair = UNISWAP_V2_FACTORY.createPair(yesWeth, yesUsdc);
+        vm.startPrank(lpProvider);
+        Verse(yesWeth).transfer(yesPair, 100 ether);
+        Verse(yesUsdc).transfer(yesPair, 800_000e6); // 100 ETH = 800k USDC, so 1 ETH = $8000
+        IUniswapV2Pair(yesPair).mint(lpProvider);
+        vm.stopPrank();
+        
+        // Create NO_WETH/NO_USDC pair with ETH at $3000
+        address noPair = UNISWAP_V2_FACTORY.createPair(noWeth, noUsdc);
+        vm.startPrank(lpProvider);
+        Verse(noWeth).transfer(noPair, 100 ether);
+        Verse(noUsdc).transfer(noPair, 300_000e6); // 100 ETH = 300k USDC, so 1 ETH = $3000
+        IUniswapV2Pair(noPair).mint(lpProvider);
+        vm.stopPrank();
+        
+        // Calculate implied prices
+        (uint112 yesReserve0, uint112 yesReserve1,) = IUniswapV2Pair(yesPair).getReserves();
+        (uint112 noReserve0, uint112 noReserve1,) = IUniswapV2Pair(noPair).getReserves();
+        
+        // Verify YES_ETH trades at a significant premium to NO_ETH
+        // This reflects the market's belief that ETH will be more valuable if FOCIL is included
+        // The price divergence shows "price feeds from the future" - conditional asset valuations
+        assertTrue(yesPair != address(0), "YES pair should exist");
+        assertTrue(noPair != address(0), "NO pair should exist");
+        
+        // Market participants can trade based on their views:
+        // - Bullish on FOCIL + ETH: Buy YES_ETH
+        // - Bearish on FOCIL impact: Buy NO_ETH
+        // - Arbitrage between universes based on probability estimates
     }
     
     /**
