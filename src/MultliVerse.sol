@@ -108,9 +108,9 @@ contract MultiVerse {
         public
         returns (uint256 redeemedAmount)
     {
-
         // TODO: Optimize this later
-        bool isYes = keccak256(abi.encodePacked(ERC20(verse).symbol())) == keccak256(abi.encodePacked("YES"));
+        bool isYes =
+            keccak256(abi.encodePacked(ERC20(verse).symbol())) == keccak256(abi.encodePacked("YES"));
         bytes32 marketHash = Verse(verse).MARKET_HASH();
         address asset = Verse(verse).ASSET();
         if (verse != _getVerseAddress(isYes, asset, marketHash)) {
@@ -126,9 +126,19 @@ contract MultiVerse {
         } else {
             revert InvalidResolution();
         }
-        
+
         Verse(verse).burn(address(this), redeemedAmount);
         ERC20(verse).transferFrom(depositor, address(this), redeemedAmount);
         ERC20(asset).transfer(receiver, redeemedAmount);
+    }
+
+    function isVerse(address verse) public view returns (bool) {
+        bytes32 marketHash = Verse(verse).MARKET_HASH();
+        address asset = Verse(verse).ASSET();
+        // TODO: Optimize this later
+        bool isYes =
+            keccak256(abi.encodePacked(ERC20(verse).symbol())) == keccak256(abi.encodePacked("YES"));
+
+        return verse == _getVerseAddress(isYes, asset, marketHash);
     }
 }
