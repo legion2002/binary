@@ -150,6 +150,32 @@ contract MultiVerse {
         ERC20(asset).transfer(receiver, redeemedAmount);
     }
 
+    function combine(
+        address asset,
+        address depositor,
+        address receiver,
+        uint256 amount,
+        bytes32 marketHash
+    ) public {
+        // Only allow combining when market is unresolved
+        if (resolutions[marketHash] != Resolution.UNRESOLVED) {
+            revert InvalidMarketState();
+        }
+
+        (address yesVerse, address noVerse) = getVerseAddress(asset, marketHash);
+
+        // Transfer YES and NO tokens from depositor to this contract
+        ERC20(yesVerse).transferFrom(depositor, address(this), amount);
+        ERC20(noVerse).transferFrom(depositor, address(this), amount);
+
+        // Burn the YES and NO tokens
+        Verse(yesVerse).burn(address(this), amount);
+        Verse(noVerse).burn(address(this), amount);
+
+        // Transfer the underlying asset back to receiver
+        ERC20(asset).transfer(receiver, amount);
+    }
+
     function isVerse(address verse) public view returns (bool) {
         bytes32 marketHash = Verse(verse).MARKET_HASH();
         address asset = Verse(verse).ASSET();
