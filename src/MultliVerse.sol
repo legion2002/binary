@@ -87,8 +87,6 @@ contract MultiVerse {
 
     function split(
         address asset,
-        address depositor,
-        address receiver,
         uint256 amount,
         bytes32 marketHash
     ) public {
@@ -97,14 +95,14 @@ contract MultiVerse {
             revert InvalidMarketState();
         }
 
-        // Pull money
-        ERC20(asset).transferFrom(depositor, address(this), amount);
+        // Pull money from msg.sender
+        ERC20(asset).transferFrom(msg.sender, address(this), amount);
 
         (address yesVerse, address noVerse) = getVerseAddress(asset, marketHash);
 
-        // Mint split assets
-        Verse(yesVerse).mint(receiver, amount);
-        Verse(noVerse).mint(receiver, amount);
+        // Mint split assets to msg.sender
+        Verse(yesVerse).mint(msg.sender, amount);
+        Verse(noVerse).mint(msg.sender, amount);
     }
 
     function resolve(bytes32 marketHash) public {
@@ -122,7 +120,7 @@ contract MultiVerse {
         }
     }
 
-    function redeem(address depositor, address receiver, address verse, uint256 amount)
+    function redeem(address verse, uint256 amount)
         public
         returns (uint256 redeemedAmount)
     {
@@ -145,15 +143,13 @@ contract MultiVerse {
             revert InvalidResolution();
         }
 
-        ERC20(verse).transferFrom(depositor, address(this), amount);
+        ERC20(verse).transferFrom(msg.sender, address(this), amount);
         Verse(verse).burn(address(this), redeemedAmount);
-        ERC20(asset).transfer(receiver, redeemedAmount);
+        ERC20(asset).transfer(msg.sender, redeemedAmount);
     }
 
     function combine(
         address asset,
-        address depositor,
-        address receiver,
         uint256 amount,
         bytes32 marketHash
     ) public {
@@ -164,16 +160,16 @@ contract MultiVerse {
 
         (address yesVerse, address noVerse) = getVerseAddress(asset, marketHash);
 
-        // Transfer YES and NO tokens from depositor to this contract
-        ERC20(yesVerse).transferFrom(depositor, address(this), amount);
-        ERC20(noVerse).transferFrom(depositor, address(this), amount);
+        // Transfer YES and NO tokens from msg.sender to this contract
+        ERC20(yesVerse).transferFrom(msg.sender, address(this), amount);
+        ERC20(noVerse).transferFrom(msg.sender, address(this), amount);
 
         // Burn the YES and NO tokens
         Verse(yesVerse).burn(address(this), amount);
         Verse(noVerse).burn(address(this), amount);
 
-        // Transfer the underlying asset back to receiver
-        ERC20(asset).transfer(receiver, amount);
+        // Transfer the underlying asset back to msg.sender
+        ERC20(asset).transfer(msg.sender, amount);
     }
 
     function isVerse(address verse) public view returns (bool) {
