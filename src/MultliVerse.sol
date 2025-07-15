@@ -92,6 +92,11 @@ contract MultiVerse {
         uint256 amount,
         bytes32 marketHash
     ) public {
+        // Only allow splitting when market is unresolved
+        if (resolutions[marketHash] != Resolution.UNRESOLVED) {
+            revert InvalidMarketState();
+        }
+
         // Pull money
         ERC20(asset).transferFrom(depositor, address(this), amount);
 
