@@ -127,8 +127,8 @@ contract MultiVerse {
             revert InvalidResolution();
         }
 
+        ERC20(verse).transferFrom(depositor, address(this), amount);
         Verse(verse).burn(address(this), redeemedAmount);
-        ERC20(verse).transferFrom(depositor, address(this), redeemedAmount);
         ERC20(asset).transfer(receiver, redeemedAmount);
     }
 
