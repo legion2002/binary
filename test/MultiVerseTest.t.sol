@@ -92,6 +92,43 @@ contract MultiVerseTest is Test {
         assertEq(expectedNo, actualNo);
     }
 
+    function testYesAndNoVersesHaveDifferentAddresses() public {
+        bytes32 marketHash = keccak256(abi.encode(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle)));
+        
+        (address yesVerse, address noVerse) = multiVerse.create(address(asset), marketHash);
+        
+        assertTrue(yesVerse != address(0), "YES verse should not be zero address");
+        assertTrue(noVerse != address(0), "NO verse should not be zero address");
+        assertTrue(yesVerse != noVerse, "YES and NO verses must have different addresses");
+        
+        // Additional verification using getVerseAddress
+        (address expectedYes, address expectedNo) = multiVerse.getVerseAddress(address(asset), marketHash);
+        assertTrue(expectedYes != expectedNo, "Expected YES and NO verses should have different addresses");
+        
+        // Verify the addresses are deterministic and match
+        assertEq(yesVerse, expectedYes, "YES verse address should match expected");
+        assertEq(noVerse, expectedNo, "NO verse address should match expected");
+    }
+
+    function testCannotCreateVersesWhenTheyAlreadyExist() public {
+        bytes32 marketHash = keccak256(abi.encode(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle)));
+        
+        // First creation should succeed
+        (address yesVerse1, address noVerse1) = multiVerse.create(address(asset), marketHash);
+        assertTrue(yesVerse1 != address(0), "First YES verse creation should succeed");
+        assertTrue(noVerse1 != address(0), "First NO verse creation should succeed");
+        
+        // Verify verses were deployed with correct code
+        assertTrue(yesVerse1.code.length > 0, "YES verse should have code");
+        assertTrue(noVerse1.code.length > 0, "NO verse should have code");
+        
+        // Second creation attempt should revert because verses already exist at those addresses
+        // CREATE2 will fail with CreateCollision when trying to deploy to an address with existing code
+        // The EVM reverts without specific error data when CREATE2 encounters an existing contract
+        vm.expectRevert();
+        multiVerse.create(address(asset), marketHash);
+    }
+
     function testSplit() public {
         multiVerse.open(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle));
         bytes32 marketHash = keccak256(abi.encode(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle)));
