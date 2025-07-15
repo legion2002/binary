@@ -7,9 +7,17 @@ import {IOracle} from "./IOracle.sol";
 
 contract MultiVerse {
     error MarketAlreadyOpened();
-    error MarketAlreadyResolved();
+    error InvalidMarketState();
     error InvalidVerse();
     error InvalidResolution();
+
+    enum Resolution {
+        NULL,
+        UNRESOLVED,
+        YES,
+        NO,
+        EVEN
+    }
 
     struct Market {
         // After this time, the market resolves to even between YES and NO.
@@ -21,15 +29,15 @@ contract MultiVerse {
     }
 
     mapping(bytes32 marketHash => Market) public markets;
-    mapping(bytes32 marketHash => IOracle.Resolution) public resolutions;
+    mapping(bytes32 marketHash => Resolution) public resolutions;
 
     function open(bytes32 questionHash, uint32 resolutionDeadline, address oracle) public {
         bytes32 marketHash = keccak256(abi.encode(questionHash, resolutionDeadline, oracle));
-        if (resolutions[marketHash] != IOracle.Resolution.NULL) {
+        if (resolutions[marketHash] != Resolution.NULL) {
             revert MarketAlreadyOpened();
         }
 
-        resolutions[marketHash] = IOracle.Resolution.UNRESOLVED;
+        resolutions[marketHash] = Resolution.UNRESOLVED;
 
         markets[marketHash] = Market({
             resolutionDeadline: resolutionDeadline,
@@ -95,13 +103,18 @@ contract MultiVerse {
     }
 
     function resolve(bytes32 marketHash) public {
-        if (resolutions[marketHash] != IOracle.Resolution.UNRESOLVED) {
-            revert MarketAlreadyResolved();
+        if (resolutions[marketHash] != Resolution.UNRESOLVED) {
+            revert InvalidMarketState();
         }
 
-        IOracle.Resolution resolution =
-            IOracle(markets[marketHash].oracle).getResolution(marketHash);
-        resolutions[marketHash] = resolution;
+        // If past deadline, automatically resolve to EVEN
+        if (block.timestamp >= markets[marketHash].resolutionDeadline) {
+            resolutions[marketHash] = Resolution.EVEN;
+        } else {
+            // Before deadline, use oracle resolution
+            bool isYes = IOracle(markets[marketHash].oracle).getResolution(marketHash);
+            resolutions[marketHash] = isYes ? Resolution.YES : Resolution.NO;
+        }
     }
 
     function redeem(address depositor, address receiver, address verse, uint256 amount)
@@ -117,11 +130,11 @@ contract MultiVerse {
             revert InvalidVerse();
         }
 
-        if (resolutions[marketHash] == IOracle.Resolution.YES && isYes) {
+        if (resolutions[marketHash] == Resolution.YES && isYes) {
             redeemedAmount = amount;
-        } else if (resolutions[marketHash] == IOracle.Resolution.NO && !isYes) {
+        } else if (resolutions[marketHash] == Resolution.NO && !isYes) {
             redeemedAmount = amount;
-        } else if (resolutions[marketHash] == IOracle.Resolution.EVEN) {
+        } else if (resolutions[marketHash] == Resolution.EVEN) {
             redeemedAmount = amount / 2;
         } else {
             revert InvalidResolution();
