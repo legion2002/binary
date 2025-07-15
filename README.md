@@ -2,7 +2,7 @@
 
 **Price feeds from the future.**
 
-- *What will ETH trade at if “stack-too-deep” is finally fixed in Glamsterdam?*  
+- *What will ETH trade at if FOCIL is included in the Glamsterdam hardfork?*  
 - *How will GPU prices diverge if Trump is (or isn’t) re-elected?*
 
 Binary is a lean, highly-optimized prediction-market framework that spawns self-contained economies around every yes/no question.
@@ -12,7 +12,7 @@ Binary is a lean, highly-optimized prediction-market framework that spawns self-
 
 A **market** is simply an oracle answering a binary question.
 
-- **Will “stack-too-deep” be fixed in Glamsterdam?**  
+- **Will FOCIL be included in the Glamsterdam hardfork?**  
 - **Will Trump win the next U.S. presidential election?**
 
 
@@ -57,7 +57,7 @@ Each possible answer spawns its own self-contained economy. The price feeds insi
 
 Example:
 
-- **Market**: *Will “stack-too-deep” be fixed in Glamsterdam?*  
+- **Market**: *Will FOCIL be included in the Glamsterdam hardfork?*  
 - **YES_ETH / YES_USDC** quotes ETH’s expected value *if the fix happens*.  
 - **NO_ETH / NO_USDC** quotes ETH’s value *if it doesn’t*.
 
