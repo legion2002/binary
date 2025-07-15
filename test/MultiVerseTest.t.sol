@@ -103,32 +103,12 @@ contract MultiVerseTest is Test {
         uint256 splitAmount = 100e18;
         
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, splitAmount, marketHash);
+        multiVerse.split(address(asset), splitAmount, marketHash);
         
         // Check balances
         assertEq(asset.balanceOf(alice), aliceBalanceBefore - splitAmount);
         assertEq(Verse(yesVerse).balanceOf(alice), splitAmount);
         assertEq(Verse(noVerse).balanceOf(alice), splitAmount);
-    }
-
-    function testSplitToOtherReceiver() public {
-        multiVerse.open(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle));
-        bytes32 marketHash = keccak256(abi.encode(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle)));
-        
-        (address yesVerse, address noVerse) = multiVerse.create(address(asset), marketHash);
-        
-        uint256 aliceBalanceBefore = asset.balanceOf(alice);
-        uint256 splitAmount = 100e18;
-        
-        vm.prank(alice);
-        multiVerse.split(address(asset), alice, bob, splitAmount, marketHash);
-        
-        // Check balances
-        assertEq(asset.balanceOf(alice), aliceBalanceBefore - splitAmount);
-        assertEq(Verse(yesVerse).balanceOf(alice), 0);
-        assertEq(Verse(noVerse).balanceOf(alice), 0);
-        assertEq(Verse(yesVerse).balanceOf(bob), splitAmount);
-        assertEq(Verse(noVerse).balanceOf(bob), splitAmount);
     }
 
     function testCannotSplitAfterResolution() public {
@@ -143,7 +123,7 @@ contract MultiVerseTest is Test {
         // Try to split after resolution
         vm.prank(alice);
         vm.expectRevert(MultiVerse.InvalidMarketState.selector);
-        multiVerse.split(address(asset), alice, alice, 100e18, marketHash);
+        multiVerse.split(address(asset), 100e18, marketHash);
     }
 
     function testCannotSplitUnopennedMarket() public {
@@ -152,7 +132,7 @@ contract MultiVerseTest is Test {
         // Try to split on unopened market
         vm.prank(alice);
         vm.expectRevert(MultiVerse.InvalidMarketState.selector);
-        multiVerse.split(address(asset), alice, alice, 100e18, marketHash);
+        multiVerse.split(address(asset), 100e18, marketHash);
     }
 
     function testCombine() public {
@@ -163,7 +143,7 @@ contract MultiVerseTest is Test {
         
         uint256 splitAmount = 100e18;
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, splitAmount, marketHash);
+        multiVerse.split(address(asset), splitAmount, marketHash);
         
         // Check initial balances
         assertEq(Verse(yesVerse).balanceOf(alice), splitAmount);
@@ -176,7 +156,7 @@ contract MultiVerseTest is Test {
         Verse(noVerse).approve(address(multiVerse), splitAmount);
         
         // Combine tokens back to asset
-        multiVerse.combine(address(asset), alice, alice, splitAmount, marketHash);
+        multiVerse.combine(address(asset), splitAmount, marketHash);
         vm.stopPrank();
         
         // Check final balances
@@ -193,7 +173,7 @@ contract MultiVerseTest is Test {
         
         uint256 splitAmount = 100e18;
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, splitAmount, marketHash);
+        multiVerse.split(address(asset), splitAmount, marketHash);
         
         // Combine only half
         uint256 combineAmount = 50e18;
@@ -201,7 +181,7 @@ contract MultiVerseTest is Test {
         Verse(yesVerse).approve(address(multiVerse), combineAmount);
         Verse(noVerse).approve(address(multiVerse), combineAmount);
         
-        multiVerse.combine(address(asset), alice, alice, combineAmount, marketHash);
+        multiVerse.combine(address(asset), combineAmount, marketHash);
         vm.stopPrank();
         
         // Check balances
@@ -209,31 +189,6 @@ contract MultiVerseTest is Test {
         assertEq(Verse(noVerse).balanceOf(alice), splitAmount - combineAmount);
     }
 
-    function testCombineToOtherReceiver() public {
-        // Setup market and split tokens
-        multiVerse.open(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle));
-        bytes32 marketHash = keccak256(abi.encode(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle)));
-        (address yesVerse, address noVerse) = multiVerse.create(address(asset), marketHash);
-        
-        uint256 splitAmount = 100e18;
-        vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, splitAmount, marketHash);
-        
-        uint256 bobAssetBalanceBefore = asset.balanceOf(bob);
-        
-        // Alice combines tokens but sends asset to Bob
-        vm.startPrank(alice);
-        Verse(yesVerse).approve(address(multiVerse), splitAmount);
-        Verse(noVerse).approve(address(multiVerse), splitAmount);
-        
-        multiVerse.combine(address(asset), alice, bob, splitAmount, marketHash);
-        vm.stopPrank();
-        
-        // Check balances
-        assertEq(Verse(yesVerse).balanceOf(alice), 0);
-        assertEq(Verse(noVerse).balanceOf(alice), 0);
-        assertEq(asset.balanceOf(bob), bobAssetBalanceBefore + splitAmount);
-    }
 
     function testCannotCombineAfterResolution() public {
         // Setup and resolve market
@@ -242,7 +197,7 @@ contract MultiVerseTest is Test {
         (address yesVerse, address noVerse) = multiVerse.create(address(asset), marketHash);
         
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, 100e18, marketHash);
+        multiVerse.split(address(asset), 100e18, marketHash);
         
         // Resolve market
         oracle.setResolution(marketHash, true);
@@ -254,7 +209,7 @@ contract MultiVerseTest is Test {
         Verse(noVerse).approve(address(multiVerse), 100e18);
         
         vm.expectRevert(MultiVerse.InvalidMarketState.selector);
-        multiVerse.combine(address(asset), alice, alice, 100e18, marketHash);
+        multiVerse.combine(address(asset), 100e18, marketHash);
         vm.stopPrank();
     }
 
@@ -263,7 +218,7 @@ contract MultiVerseTest is Test {
         
         vm.prank(alice);
         vm.expectRevert(MultiVerse.InvalidMarketState.selector);
-        multiVerse.combine(address(asset), alice, alice, 100e18, marketHash);
+        multiVerse.combine(address(asset), 100e18, marketHash);
     }
 
     function testFuzzCombine(uint256 amount) public {
@@ -275,7 +230,7 @@ contract MultiVerseTest is Test {
         (address yesVerse, address noVerse) = multiVerse.create(address(asset), marketHash);
         
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, amount, marketHash);
+        multiVerse.split(address(asset), amount, marketHash);
         
         uint256 aliceAssetBalanceBefore = asset.balanceOf(alice);
         
@@ -284,7 +239,7 @@ contract MultiVerseTest is Test {
         Verse(yesVerse).approve(address(multiVerse), amount);
         Verse(noVerse).approve(address(multiVerse), amount);
         
-        multiVerse.combine(address(asset), alice, alice, amount, marketHash);
+        multiVerse.combine(address(asset), amount, marketHash);
         vm.stopPrank();
         
         // Check balances
@@ -341,23 +296,32 @@ contract MultiVerseTest is Test {
         // Alice splits tokens
         uint256 splitAmount = 100e18;
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, splitAmount, marketHash);
+        multiVerse.split(address(asset), splitAmount, marketHash);
         
         // Resolve market to YES
         oracle.setResolution(marketHash, true); // true = YES
         multiVerse.resolve(marketHash);
         
-        // Alice redeems YES tokens
+        // Alice redeems YES tokens (winning token)
         uint256 aliceAssetBalanceBefore = asset.balanceOf(alice);
         
         vm.startPrank(alice);
         Verse(yesVerse).approve(address(multiVerse), splitAmount);
-        uint256 redeemed = multiVerse.redeem(alice, alice, yesVerse, splitAmount);
+        uint256 redeemed = multiVerse.redeem(yesVerse, splitAmount);
         vm.stopPrank();
         
-        assertEq(redeemed, splitAmount);
-        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + splitAmount);
-        assertEq(Verse(yesVerse).balanceOf(alice), 0);
+        assertEq(redeemed, splitAmount, "YES token should redeem for full amount");
+        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + splitAmount, "Should receive full asset amount");
+        assertEq(Verse(yesVerse).balanceOf(alice), 0, "All YES tokens should be burned");
+        
+        // Try to redeem NO tokens (losing token) - should revert
+        vm.startPrank(alice);
+        Verse(noVerse).approve(address(multiVerse), splitAmount);
+        vm.expectRevert(MultiVerse.InvalidResolution.selector);
+        multiVerse.redeem(noVerse, splitAmount);
+        vm.stopPrank();
+        
+        assertEq(Verse(noVerse).balanceOf(alice), splitAmount, "NO tokens should remain unchanged");
     }
 
     function testRedeemNoWins() public {
@@ -369,23 +333,32 @@ contract MultiVerseTest is Test {
         // Alice splits tokens
         uint256 splitAmount = 100e18;
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, splitAmount, marketHash);
+        multiVerse.split(address(asset), splitAmount, marketHash);
         
         // Resolve market to NO
         oracle.setResolution(marketHash, false); // false = NO
         multiVerse.resolve(marketHash);
         
-        // Alice redeems NO tokens
+        // Alice redeems NO tokens (winning token)
         uint256 aliceAssetBalanceBefore = asset.balanceOf(alice);
         
         vm.startPrank(alice);
         Verse(noVerse).approve(address(multiVerse), splitAmount);
-        uint256 redeemed = multiVerse.redeem(alice, alice, noVerse, splitAmount);
+        uint256 redeemed = multiVerse.redeem(noVerse, splitAmount);
         vm.stopPrank();
         
-        assertEq(redeemed, splitAmount);
-        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + splitAmount);
-        assertEq(Verse(noVerse).balanceOf(alice), 0);
+        assertEq(redeemed, splitAmount, "NO token should redeem for full amount");
+        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + splitAmount, "Should receive full asset amount");
+        assertEq(Verse(noVerse).balanceOf(alice), 0, "All NO tokens should be burned");
+        
+        // Try to redeem YES tokens (losing token) - should revert
+        vm.startPrank(alice);
+        Verse(yesVerse).approve(address(multiVerse), splitAmount);
+        vm.expectRevert(MultiVerse.InvalidResolution.selector);
+        multiVerse.redeem(yesVerse, splitAmount);
+        vm.stopPrank();
+        
+        assertEq(Verse(yesVerse).balanceOf(alice), splitAmount, "YES tokens should remain unchanged");
     }
 
     function testRedeemEven() public {
@@ -397,7 +370,7 @@ contract MultiVerseTest is Test {
         // Alice splits tokens
         uint256 splitAmount = 100e18;
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, splitAmount, marketHash);
+        multiVerse.split(address(asset), splitAmount, marketHash);
         
         // Resolve market to EVEN by waiting past deadline
         vm.warp(RESOLUTION_DEADLINE + 1);
@@ -405,25 +378,32 @@ contract MultiVerseTest is Test {
         
         // Alice redeems YES tokens (gets half)
         uint256 aliceAssetBalanceBefore = asset.balanceOf(alice);
+        uint256 yesBalanceBefore = Verse(yesVerse).balanceOf(alice);
         
         vm.startPrank(alice);
         Verse(yesVerse).approve(address(multiVerse), splitAmount);
-        uint256 redeemedYes = multiVerse.redeem(alice, alice, yesVerse, splitAmount);
+        uint256 redeemedYes = multiVerse.redeem(yesVerse, splitAmount);
         vm.stopPrank();
         
-        assertEq(redeemedYes, splitAmount / 2);
-        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + splitAmount / 2);
+        assertEq(redeemedYes, splitAmount / 2, "YES token should redeem for half amount in EVEN resolution");
+        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + splitAmount / 2, "Should receive half asset amount");
+        assertEq(Verse(yesVerse).balanceOf(alice), yesBalanceBefore - splitAmount, "All YES tokens should be burned");
         
         // Alice redeems NO tokens (gets half)
         aliceAssetBalanceBefore = asset.balanceOf(alice);
+        uint256 noBalanceBefore = Verse(noVerse).balanceOf(alice);
         
         vm.startPrank(alice);
         Verse(noVerse).approve(address(multiVerse), splitAmount);
-        uint256 redeemedNo = multiVerse.redeem(alice, alice, noVerse, splitAmount);
+        uint256 redeemedNo = multiVerse.redeem(noVerse, splitAmount);
         vm.stopPrank();
         
-        assertEq(redeemedNo, splitAmount / 2);
-        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + splitAmount / 2);
+        assertEq(redeemedNo, splitAmount / 2, "NO token should redeem for half amount in EVEN resolution");
+        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + splitAmount / 2, "Should receive half asset amount");
+        assertEq(Verse(noVerse).balanceOf(alice), noBalanceBefore - splitAmount, "All NO tokens should be burned");
+        
+        // Total redeemed should equal original split amount
+        assertEq(redeemedYes + redeemedNo, splitAmount, "Total redeemed should equal original amount");
     }
 
     function testRedeemInvalidVerse() public {
@@ -437,7 +417,7 @@ contract MultiVerseTest is Test {
         multiVerse.resolve(marketHash);
         
         vm.expectRevert(MultiVerse.InvalidVerse.selector);
-        multiVerse.redeem(alice, alice, address(fakeVerse), 100e18);
+        multiVerse.redeem(address(fakeVerse), 100e18);
     }
 
     function testRedeemWithUnresolvedMarket() public {
@@ -447,13 +427,13 @@ contract MultiVerseTest is Test {
         
         // Split tokens
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, 100e18, marketHash);
+        multiVerse.split(address(asset), 100e18, marketHash);
         
         // Try to redeem without resolving
         vm.startPrank(alice);
         Verse(yesVerse).approve(address(multiVerse), 100e18);
         vm.expectRevert(MultiVerse.InvalidResolution.selector);
-        multiVerse.redeem(alice, alice, yesVerse, 100e18);
+        multiVerse.redeem(yesVerse, 100e18);
         vm.stopPrank();
     }
 
@@ -461,23 +441,33 @@ contract MultiVerseTest is Test {
         // Setup
         multiVerse.open(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle));
         bytes32 marketHash = keccak256(abi.encode(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle)));
-        (address yesVerse, ) = multiVerse.create(address(asset), marketHash);
+        (address yesVerse, address noVerse) = multiVerse.create(address(asset), marketHash);
         
         // Alice splits tokens
         uint256 splitAmount = 100e18;
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, splitAmount, marketHash);
+        multiVerse.split(address(asset), splitAmount, marketHash);
         
         // Resolve market to NO (YES loses)
         oracle.setResolution(marketHash, false); // false = NO
         multiVerse.resolve(marketHash);
         
-        // Try to redeem YES tokens
+        // Try to redeem YES tokens (losing token)
         vm.startPrank(alice);
         Verse(yesVerse).approve(address(multiVerse), splitAmount);
         vm.expectRevert(MultiVerse.InvalidResolution.selector);
-        multiVerse.redeem(alice, alice, yesVerse, splitAmount);
+        multiVerse.redeem(yesVerse, splitAmount);
         vm.stopPrank();
+        
+        // Verify NO tokens (winning token) can be redeemed for full amount
+        uint256 aliceAssetBalanceBefore = asset.balanceOf(alice);
+        vm.startPrank(alice);
+        Verse(noVerse).approve(address(multiVerse), splitAmount);
+        uint256 redeemed = multiVerse.redeem(noVerse, splitAmount);
+        vm.stopPrank();
+        
+        assertEq(redeemed, splitAmount, "Should redeem full amount for winning token");
+        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + splitAmount, "Should receive full asset amount");
     }
 
     function testFullFlow() public {
@@ -490,10 +480,10 @@ contract MultiVerseTest is Test {
         
         // 3. Multiple users split tokens
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, 200e18, marketHash);
+        multiVerse.split(address(asset), 200e18, marketHash);
         
         vm.prank(bob);
-        multiVerse.split(address(asset), bob, bob, 300e18, marketHash);
+        multiVerse.split(address(asset), 300e18, marketHash);
         
         // 4. Users trade (transfer tokens between each other)
         vm.prank(alice);
@@ -518,19 +508,19 @@ contract MultiVerseTest is Test {
         // Alice redeems her YES tokens
         vm.startPrank(alice);
         Verse(yesVerse).approve(address(multiVerse), 150e18);
-        multiVerse.redeem(alice, alice, yesVerse, 150e18);
+        multiVerse.redeem(yesVerse, 150e18);
         vm.stopPrank();
         
         // Bob redeems his YES tokens
         vm.startPrank(bob);
         Verse(yesVerse).approve(address(multiVerse), 300e18);
-        multiVerse.redeem(bob, bob, yesVerse, 300e18);
+        multiVerse.redeem(yesVerse, 300e18);
         vm.stopPrank();
         
         // Charlie redeems his YES tokens
         vm.startPrank(charlie);
         Verse(yesVerse).approve(address(multiVerse), 50e18);
-        multiVerse.redeem(charlie, charlie, yesVerse, 50e18);
+        multiVerse.redeem(yesVerse, 50e18);
         vm.stopPrank();
         
         // Final balances check
@@ -550,7 +540,7 @@ contract MultiVerseTest is Test {
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
         
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, amount, marketHash);
+        multiVerse.split(address(asset), amount, marketHash);
         
         assertEq(asset.balanceOf(alice), aliceBalanceBefore - amount);
         assertEq(Verse(yesVerse).balanceOf(alice), amount);
@@ -563,10 +553,10 @@ contract MultiVerseTest is Test {
         
         multiVerse.open(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle));
         bytes32 marketHash = keccak256(abi.encode(QUESTION_HASH, RESOLUTION_DEADLINE, address(oracle)));
-        (address yesVerse, ) = multiVerse.create(address(asset), marketHash);
+        (address yesVerse, address noVerse) = multiVerse.create(address(asset), marketHash);
         
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, splitAmount, marketHash);
+        multiVerse.split(address(asset), splitAmount, marketHash);
         
         oracle.setResolution(marketHash, true); // true = YES
         multiVerse.resolve(marketHash);
@@ -575,11 +565,18 @@ contract MultiVerseTest is Test {
         
         vm.startPrank(alice);
         Verse(yesVerse).approve(address(multiVerse), redeemAmount);
-        uint256 redeemed = multiVerse.redeem(alice, alice, yesVerse, redeemAmount);
+        uint256 redeemed = multiVerse.redeem(yesVerse, redeemAmount);
         vm.stopPrank();
         
-        assertEq(redeemed, redeemAmount);
-        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + redeemAmount);
+        assertEq(redeemed, redeemAmount, "Should redeem exact amount requested for winning token");
+        assertEq(asset.balanceOf(alice), aliceAssetBalanceBefore + redeemAmount, "Should receive exact asset amount");
+        
+        // Verify NO tokens cannot be redeemed
+        vm.startPrank(alice);
+        Verse(noVerse).approve(address(multiVerse), splitAmount);
+        vm.expectRevert(MultiVerse.InvalidResolution.selector);
+        multiVerse.redeem(noVerse, splitAmount);
+        vm.stopPrank();
     }
 
     function testFuzzRedeemEven(uint256 amount) public {
@@ -590,7 +587,7 @@ contract MultiVerseTest is Test {
         (address yesVerse, ) = multiVerse.create(address(asset), marketHash);
         
         vm.prank(alice);
-        multiVerse.split(address(asset), alice, alice, amount, marketHash);
+        multiVerse.split(address(asset), amount, marketHash);
         
         // Test EVEN resolution by warping past deadline
         vm.warp(RESOLUTION_DEADLINE + 1);
@@ -600,7 +597,7 @@ contract MultiVerseTest is Test {
         
         vm.startPrank(alice);
         Verse(yesVerse).approve(address(multiVerse), amount);
-        uint256 redeemed = multiVerse.redeem(alice, alice, yesVerse, amount);
+        uint256 redeemed = multiVerse.redeem(yesVerse, amount);
         vm.stopPrank();
         
         assertEq(redeemed, amount / 2);
