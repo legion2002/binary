@@ -23,17 +23,26 @@ export function WalletConnect() {
     );
   }
 
+  // Porto should be the only connector we configured
+  const connector = connectors[0];
+  
+  if (!connector) {
+    return (
+      <button
+        disabled
+        className="px-4 py-2 text-sm font-medium text-gray-400 bg-gray-200 rounded-lg cursor-not-allowed"
+      >
+        No wallet available
+      </button>
+    );
+  }
+
   return (
-    <div>
-      {connectors.map((connector) => (
-        <button
-          key={connector.id}
-          onClick={() => connect({ connector })}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Connect with Porto
-        </button>
-      ))}
-    </div>
+    <button
+      onClick={() => connect({ connector })}
+      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+    >
+      Connect with Porto
+    </button>
   );
 }
