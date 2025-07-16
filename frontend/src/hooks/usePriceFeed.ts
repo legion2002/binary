@@ -23,8 +23,8 @@ export function usePriceFeed(marketHash: string, verse: 'YES' | 'NO') {
     price = ethReserve > 0 ? usdcReserve / ethReserve : 0;
   }
 
-  // For now, return mock prices
-  const mockPrice = verse === 'YES' ? 2100 : 1900;
+  // For now, return mock prices (in cents, so $0.21 and $0.19)
+  const mockPrice = verse === 'YES' ? 21 : 19;
 
   return {
     price: price || mockPrice,
