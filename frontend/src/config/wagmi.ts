@@ -1,12 +1,12 @@
-import { porto } from 'porto/wagmi';
-import { http, createConfig, createStorage } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { unstable_porto } from "porto/wagmi";
+import { http, createConfig, createStorage } from "wagmi";
+import { base } from "wagmi/chains";
 
 export const wagmiConfig = createConfig({
-  chains: [baseSepolia],
-  connectors: [porto()],
+  chains: [base],
+  connectors: [unstable_porto()],
   storage: createStorage({ storage: localStorage }),
   transports: {
-    [baseSepolia.id]: http(),
+    [base.id]: http(),
   },
 });
