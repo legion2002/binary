@@ -6,33 +6,35 @@ import {MultiVerse} from "../src/MultliVerse.sol";
 import {TrustedOracle} from "../src/TrustedOracle.sol";
 
 /**
- * @title DeployMultiVerse
- * @notice Deployment script for MultiVerse contract on Base mainnet
- * @dev Deploy with: forge script script/DeployMultiVerse.s.sol:DeployMultiVerse --rpc-url base --broadcast --verify
+ * @title DeployBaseSepolia
+ * @notice Deployment script for MultiVerse and TrustedOracle contracts on Base Sepolia testnet
+ * @dev Deploy with: forge script script/DeployBaseSepolia.s.sol:DeployBaseSepolia --rpc-url $RPC_84532 --broadcast --verify
  */
-contract DeployMultiVerse is Script {
-    // Base mainnet configuration
-    uint256 constant BASE_CHAIN_ID = 8453;
+contract DeployBaseSepolia is Script {
+    // Base Sepolia configuration
+    uint256 constant BASE_SEPOLIA_CHAIN_ID = 84532;
     
-    // Uniswap V2 addresses on Base mainnet
-    address constant UNISWAP_V2_FACTORY = 0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6;
-    address constant UNISWAP_V2_ROUTER = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
+    // Uniswap V2 addresses on Base Sepolia
+    // Note: These addresses might differ on testnet, using placeholder values
+    address constant UNISWAP_V2_FACTORY = 0x7Ae58f10f7849cA6F5fB71b7f45CB416c9204b1e;
+    address constant UNISWAP_V2_ROUTER = 0x1689E7B1F10000AE47eBfE339a4f69dECd19F602;
     
-    // Token addresses on Base mainnet
-    address constant WETH = 0x4200000000000000000000000000000000000006;
-    address constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+    // Token addresses on Base Sepolia testnet
+    address constant WETH = 0x4200000000000000000000000000000000000006; // Wrapped ETH on Base
+    address constant USDC = 0x036CbD53842c5426634e7929541eC2318f3dCF7e; // USDC on Base Sepolia
 
     function run() external returns (MultiVerse, TrustedOracle) {
-        // Verify we're on Base mainnet
-        require(block.chainid == BASE_CHAIN_ID, "Not on Base mainnet");
+        // Verify we're on Base Sepolia
+        require(block.chainid == BASE_SEPOLIA_CHAIN_ID, "Not on Base Sepolia");
 
         // Get deployer private key
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
 
-        console2.log("Deploying MultiVerse on Base mainnet");
+        console2.log("Deploying contracts on Base Sepolia");
         console2.log("Deployer:", deployer);
         console2.log("Chain ID:", block.chainid);
+        console2.log("Deployer balance:", deployer.balance);
 
         // Start broadcasting transactions
         vm.startBroadcast(deployerPrivateKey);
@@ -57,7 +59,7 @@ contract DeployMultiVerse is Script {
 
     function logDeploymentSummary(address multiVerseAddress, address trustedOracleAddress) internal view {
         console2.log("\n=== Deployment Summary ===");
-        console2.log("Network: Base Mainnet");
+        console2.log("Network: Base Sepolia Testnet");
         console2.log("Chain ID:", block.chainid);
         console2.log("\nDeployed Contracts:");
         console2.log("MultiVerse:", multiVerseAddress);
@@ -65,7 +67,7 @@ contract DeployMultiVerse is Script {
         console2.log("\nExisting Infrastructure:");
         console2.log("Uniswap V2 Factory:", UNISWAP_V2_FACTORY);
         console2.log("Uniswap V2 Router:", UNISWAP_V2_ROUTER);
-        console2.log("\nBase Tokens:");
+        console2.log("\nBase Sepolia Tokens:");
         console2.log("WETH:", WETH);
         console2.log("USDC:", USDC);
         console2.log("\n=== Frontend Configuration ===");

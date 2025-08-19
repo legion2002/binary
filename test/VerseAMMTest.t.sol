@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {Test} from "forge-std/Test.sol";
 import {MultiVerse} from "../src/MultliVerse.sol";
 import {Verse} from "../src/Verse.sol";
-import {MockOracle} from "./mocks/MockOracle.sol";
+import {TrustedOracle} from "../src/TrustedOracle.sol";
 import {MockERC20} from "lib/solady/test/utils/mocks/MockERC20.sol";
 
 // UniswapV2 interfaces (compatible with 0.8.x)
@@ -37,7 +37,7 @@ interface IUniswapV2Pair {
  */
 contract VerseAMMTest is Test {
     MultiVerse public multiVerse;
-    MockOracle public oracle;
+    TrustedOracle public oracle;
     
     // Mock tokens
     MockERC20 public weth;
@@ -60,7 +60,7 @@ contract VerseAMMTest is Test {
         
         // Deploy MultiVerse and Oracle
         multiVerse = new MultiVerse();
-        oracle = new MockOracle();
+        oracle = new TrustedOracle();
         
         // Deploy mock tokens
         weth = new MockERC20("Wrapped Ether", "WETH", 18);

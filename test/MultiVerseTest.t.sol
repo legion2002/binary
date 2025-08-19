@@ -4,12 +4,12 @@ pragma solidity ^0.8.20;
 import {Test} from "forge-std/Test.sol";
 import {MultiVerse} from "../src/MultliVerse.sol";
 import {Verse} from "../src/Verse.sol";
-import {MockOracle} from "./mocks/MockOracle.sol";
+import {TrustedOracle} from "../src/TrustedOracle.sol";
 import {MockERC20} from "lib/solady/test/utils/mocks/MockERC20.sol";
 
 contract MultiVerseTest is Test {
     MultiVerse public multiVerse;
-    MockOracle public oracle;
+    TrustedOracle public oracle;
     MockERC20 public asset;
 
     address public alice = makeAddr("alice");
@@ -23,7 +23,7 @@ contract MultiVerseTest is Test {
 
     function setUp() public {
         multiVerse = new MultiVerse();
-        oracle = new MockOracle();
+        oracle = new TrustedOracle();
         asset = new MockERC20("Test Token", "TEST", 18);
 
         // Fund test accounts
