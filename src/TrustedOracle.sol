@@ -13,7 +13,7 @@ import {Ownable} from "solady/auth/Ownable.sol";
  *      - Controlled environments where a trusted party resolves markets
  *      - Initial deployments before decentralized oracle integration
  *      - Markets that require manual verification or judgement
- *      
+ *
  *      Features:
  *      - Owner-controlled resolution setting
  *      - Tracking of set/unset markets
@@ -21,26 +21,32 @@ import {Ownable} from "solady/auth/Ownable.sol";
  */
 contract TrustedOracle is IOracle, Ownable {
     // ============================================
+    // EVENTS
+    // ============================================
+
+    event ResolutionSet(bytes32 indexed marketHash, bool isYes);
+
+    // ============================================
     // ERRORS
     // ============================================
-    
+
     /// @notice Thrown when querying resolution for a market that hasn't been set
     error MarketNotSet();
 
     // ============================================
     // STATE VARIABLES
     // ============================================
-    
+
     /// @notice Stores the YES/NO resolution for each market
     mapping(bytes32 => bool) public resolutions;
-    
+
     /// @notice Tracks whether a resolution has been set for each market
     mapping(bytes32 => bool) public marketSet;
 
     // ============================================
     // CONSTRUCTOR
     // ============================================
-    
+
     /**
      * @notice Initializes the trusted oracle with the deployer as owner
      * @dev Owner has exclusive rights to set market resolutions
@@ -52,7 +58,7 @@ contract TrustedOracle is IOracle, Ownable {
     // ============================================
     // OWNER FUNCTIONS
     // ============================================
-    
+
     /**
      * @notice Sets the resolution for a specific market
      * @dev Only callable by owner
@@ -62,12 +68,14 @@ contract TrustedOracle is IOracle, Ownable {
     function setResolution(bytes32 marketHash, bool isYes) external onlyOwner {
         resolutions[marketHash] = isYes;
         marketSet[marketHash] = true;
+
+        emit ResolutionSet(marketHash, isYes);
     }
 
     // ============================================
     // ORACLE INTERFACE
     // ============================================
-    
+
     /**
      * @notice Returns the resolution for a specific market
      * @dev Implements IOracle interface. Reverts if resolution not set.
