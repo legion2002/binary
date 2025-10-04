@@ -1,11 +1,15 @@
 mod bindings;
 mod config;
 mod contract;
+mod db;
+mod indexer;
 mod routes;
 
 use axum::{routing::get, Router};
 use config::Config;
 use contract::ContractClient;
+use db::Database;
+use indexer::EventIndexer;
 use routes::{get_markets, AppState};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
@@ -29,14 +33,38 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("MultiVerse Address: {:?}", config.multiverse_address);
     tracing::info!("Oracle Address: {:?}", config.oracle_address);
 
+    // Initialize database
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "sqlite:markets.db".to_string());
+    let db = Arc::new(Database::new(&database_url).await?);
+    tracing::info!("Database initialized at: {}", database_url);
+
     // Create contract client
     let contract_client = Arc::new(ContractClient::new(
         config.multiverse_address,
         config.provider,
     ));
 
+    // Start event indexer in background task
+    let ws_rpc_url = std::env::var("WS_RPC_URL")
+        .expect("WS_RPC_URL must be set");
+    let indexer = EventIndexer::new(
+        config.multiverse_address,
+        ws_rpc_url,
+        db.clone(),
+    );
+
+    tokio::spawn(async move {
+        if let Err(e) = indexer.start().await {
+            tracing::error!("Event indexer error: {}", e);
+        }
+    });
+
     // Create app state
-    let state = AppState { contract_client };
+    let state = AppState {
+        contract_client,
+        db,
+    };
 
     // Configure CORS
     let cors = CorsLayer::new()

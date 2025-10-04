@@ -1,4 +1,5 @@
-use crate::contract::{ContractClient, MarketInfo};
+use crate::contract::ContractClient;
+use crate::db::Database;
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -10,27 +11,39 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct AppState {
     pub contract_client: Arc<ContractClient>,
+    pub db: Arc<Database>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct GetMarketsQuery {
-    /// Filter markets by status: "open", "closed", or "all" (default)
-    #[serde(default = "default_status")]
-    pub status: String,
+    /// Pagination: limit (default: 50, max: 100)
+    #[serde(default = "default_limit")]
+    pub limit: i64,
 
-    /// Comma-separated list of market hashes to query
-    /// If not provided, returns empty list (requires event indexing for full list)
-    pub market_hashes: Option<String>,
+    /// Pagination: offset (default: 0)
+    #[serde(default)]
+    pub offset: i64,
 }
 
-fn default_status() -> String {
-    "all".to_string()
+fn default_limit() -> i64 {
+    50
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarketResponse {
+    pub market_hash: String,
+    pub question_hash: String,
+    pub resolution_deadline: i64,
+    pub oracle: String,
+    pub block_number: i64,
 }
 
 #[derive(Debug, Serialize)]
 pub struct GetMarketsResponse {
-    pub markets: Vec<MarketInfo>,
+    pub markets: Vec<MarketResponse>,
     pub count: usize,
+    pub total: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -40,59 +53,17 @@ pub struct ErrorResponse {
 
 /// GET /markets
 /// Query parameters:
-/// - status: "open", "closed", or "all" (default: "all")
-/// - market_hashes: comma-separated list of market hashes (hex strings with 0x prefix)
+/// - limit: maximum number of markets to return (default: 50, max: 100)
+/// - offset: number of markets to skip for pagination (default: 0)
 pub async fn get_markets(
     State(state): State<AppState>,
     Query(params): Query<GetMarketsQuery>,
 ) -> impl IntoResponse {
-    // Parse market hashes from query parameter
-    let market_hashes = match &params.market_hashes {
-        Some(hashes_str) => {
-            let mut hashes = Vec::new();
-            for hash_str in hashes_str.split(',') {
-                let hash_str = hash_str.trim();
-                if hash_str.is_empty() {
-                    continue;
-                }
+    // Enforce max limit
+    let limit = params.limit.min(100);
 
-                // Remove 0x prefix if present
-                let hash_str = hash_str.strip_prefix("0x").unwrap_or(hash_str);
-
-                match hex::decode(hash_str) {
-                    Ok(bytes) if bytes.len() == 32 => {
-                        let mut array = [0u8; 32];
-                        array.copy_from_slice(&bytes);
-                        hashes.push(array.into());
-                    }
-                    _ => {
-                        return (
-                            StatusCode::BAD_REQUEST,
-                            Json(ErrorResponse {
-                                error: format!("Invalid market hash: {}", hash_str),
-                            }),
-                        )
-                            .into_response();
-                    }
-                }
-            }
-            hashes
-        }
-        None => {
-            // Return empty list if no market hashes provided
-            return (
-                StatusCode::OK,
-                Json(GetMarketsResponse {
-                    markets: vec![],
-                    count: 0,
-                }),
-            )
-                .into_response();
-        }
-    };
-
-    // Fetch markets from contract
-    let markets = match state.contract_client.get_markets(market_hashes).await {
+    // Fetch markets from database
+    let markets = match state.db.get_markets_paginated(limit, params.offset).await {
         Ok(markets) => markets,
         Err(e) => {
             return (
@@ -105,35 +76,40 @@ pub async fn get_markets(
         }
     };
 
-    // Filter based on status
-    let filtered_markets: Vec<MarketInfo> = match params.status.to_lowercase().as_str() {
-        "open" => markets
-            .into_iter()
-            .filter(|m| m.resolution == "UNRESOLVED")
-            .collect(),
-        "closed" => markets
-            .into_iter()
-            .filter(|m| m.resolution != "UNRESOLVED" && m.resolution != "NULL")
-            .collect(),
-        "all" => markets,
-        _ => {
+    // Get total count
+    let total = match state.db.get_markets_count().await {
+        Ok(total) => total,
+        Err(e) => {
             return (
-                StatusCode::BAD_REQUEST,
+                StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    error: "Invalid status parameter. Use 'open', 'closed', or 'all'".to_string(),
+                    error: format!("Failed to get total count: {}", e),
                 }),
             )
                 .into_response();
         }
     };
 
-    let count = filtered_markets.len();
+    // Convert to response format
+    let market_responses: Vec<MarketResponse> = markets
+        .into_iter()
+        .map(|m| MarketResponse {
+            market_hash: m.market_hash,
+            question_hash: m.question_hash,
+            resolution_deadline: m.resolution_deadline,
+            oracle: m.oracle,
+            block_number: m.block_number,
+        })
+        .collect();
+
+    let count = market_responses.len();
 
     (
         StatusCode::OK,
         Json(GetMarketsResponse {
-            markets: filtered_markets,
+            markets: market_responses,
             count,
+            total,
         }),
     )
         .into_response()

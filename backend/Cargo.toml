@@ -32,3 +32,8 @@ thiserror = "2.0"
 
 # Hex encoding/decoding
 hex = "0.4"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+chrono = "0.4"
+futures-util = "0.3"
