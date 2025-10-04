@@ -1,5 +1,6 @@
 use alloy::primitives::Address;
 use alloy::providers::{DynProvider, Provider, ProviderBuilder};
+use alloy::signers::local::PrivateKeySigner;
 use std::env;
 
 #[derive(Clone)]
@@ -8,7 +9,9 @@ pub struct Config {
     pub port: u16,
     pub multiverse_address: Address,
     pub oracle_address: Address,
-    pub provider: DynProvider
+    pub provider: DynProvider,
+    pub signer: PrivateKeySigner,
+    pub admin_api_key_hash: String,
 }
 
 impl Config {
@@ -33,10 +36,17 @@ impl Config {
 
         let rpc_url = env::var("RPC_URL").expect("RPC_URL must be set");
 
-        let provider = ProviderBuilder::new()
-            .connect(&rpc_url)
-            .await?
-            .erased(); 
+        let provider = ProviderBuilder::new().connect(&rpc_url).await?.erased();
+
+        // Load private key for signing transactions
+        let private_key = env::var("PRIVATE_KEY").expect("PRIVATE_KEY must be set");
+        let signer = private_key
+            .parse::<PrivateKeySigner>()
+            .expect("PRIVATE_KEY must be a valid private key");
+
+        // Load admin API key hash for authentication
+        let admin_api_key_hash =
+            env::var("ADMIN_API_KEY_HASH").expect("ADMIN_API_KEY_HASH must be set");
 
         Ok(Self {
             host,
@@ -44,6 +54,8 @@ impl Config {
             multiverse_address,
             oracle_address,
             provider,
+            signer,
+            admin_api_key_hash,
         })
     }
 

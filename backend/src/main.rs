@@ -1,3 +1,5 @@
+mod admin;
+mod auth;
 mod bindings;
 mod config;
 mod contract;
@@ -5,7 +7,9 @@ mod db;
 mod indexer;
 mod routes;
 
-use axum::{routing::get, Router};
+use admin::{open_market, AdminState};
+use auth::require_admin_api_key;
+use axum::{middleware, routing::{get, post}, Router};
 use config::Config;
 use contract::ContractClient;
 use db::Database;
@@ -42,7 +46,8 @@ async fn main() -> anyhow::Result<()> {
     // Create contract client
     let contract_client = Arc::new(ContractClient::new(
         config.multiverse_address,
-        config.provider,
+        config.provider.clone(),
+        config.signer.clone(),
     ));
 
     // Start event indexer in background task
@@ -62,8 +67,15 @@ async fn main() -> anyhow::Result<()> {
 
     // Create app state
     let state = AppState {
+        contract_client: contract_client.clone(),
+        db: db.clone(),
+    };
+
+    // Create admin state
+    let admin_state = AdminState {
         contract_client,
         db,
+        oracle_address: config.oracle_address,
     };
 
     // Configure CORS
@@ -72,10 +84,20 @@ async fn main() -> anyhow::Result<()> {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Build router
+    // Build admin routes (protected by API key)
+    let admin_routes = Router::new()
+        .route("/markets/open", post(open_market))
+        .with_state(admin_state)
+        .route_layer(middleware::from_fn_with_state(
+            config.admin_api_key_hash.clone(),
+            require_admin_api_key,
+        ));
+
+    // Build main router
     let app = Router::new()
         .route("/markets", get(get_markets))
         .with_state(state)
+        .nest("/admin", admin_routes)
         .layer(cors)
         .layer(tower_http::trace::TraceLayer::new_for_http());
 
