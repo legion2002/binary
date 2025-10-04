@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
-import { MOCK_MARKETS } from '../config/contracts';
+import { useQuery } from '@tanstack/react-query';
+import { fetchMarket } from '../api/client';
 import { VersePanel } from './VersePanel';
 import { SplitCombine } from './SplitCombine';
 import { Tooltip } from './Tooltip';
@@ -12,23 +13,39 @@ export function MarketDetail() {
   const navigate = useNavigate();
   const { isConnected } = useAccount();
   const [showHowItWorks, setShowHowItWorks] = useState(false);
-  
+
+  // Fetch market data from API
+  const { data: market, isLoading, error } = useQuery({
+    queryKey: ['market', marketHash],
+    queryFn: () => fetchMarket(marketHash!),
+    enabled: !!marketHash,
+  });
+
   // Get prices for both YES and NO tokens
   const { price: yesPrice } = usePriceFeed(marketHash || '', 'YES');
   const { price: noPrice } = usePriceFeed(marketHash || '', 'NO');
-  
+
   // Calculate probability based on prices
   // In a prediction market, YES probability = YES price / (YES price + NO price)
   const yesProbability = yesPrice / (yesPrice + noPrice) * 100;
   const noProbability = noPrice / (yesPrice + noPrice) * 100;
 
-  // In production, fetch from contract
-  const market = MOCK_MARKETS.find(m => m.marketHash === marketHash);
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p className="mt-4 text-gray-600">Loading market...</p>
+      </div>
+    );
+  }
 
-  if (!market) {
+  if (error || !market) {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-semibold mb-4">Market not found</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          {error ? (error as Error).message : 'The requested market does not exist'}
+        </p>
         <button
           onClick={() => navigate('/')}
           className="text-blue-600 hover:text-blue-700"
@@ -51,7 +68,9 @@ export function MarketDetail() {
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow-lg p-6 mb-6 border border-blue-100">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">{market.question}</h2>
+            <h2 className="text-2xl font-bold mb-2 text-gray-800">
+              {market.question || 'Question not available'}
+            </h2>
             <p className="text-sm text-gray-600">
               Deadline: {new Date(market.resolutionDeadline * 1000).toLocaleDateString()}
             </p>
@@ -140,25 +159,25 @@ export function MarketDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
         <VersePanel
           verse="YES"
-          marketHash={market.marketHash}
+          marketHash={marketHash!}
         />
-        
+
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 hidden lg:block">
           <SplitCombine
-            marketHash={market.marketHash}
+            marketHash={marketHash!}
             activeAsset="ETH"
           />
         </div>
 
         <VersePanel
           verse="NO"
-          marketHash={market.marketHash}
+          marketHash={marketHash!}
         />
       </div>
 
       <div className="lg:hidden mt-6">
         <SplitCombine
-          marketHash={market.marketHash}
+          marketHash={marketHash!}
           activeAsset="ETH"
         />
       </div>

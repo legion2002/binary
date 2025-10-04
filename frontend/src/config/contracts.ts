@@ -12,26 +12,5 @@ export const CONTRACTS = {
   UNISWAP_V2_ROUTER: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 Router02 on Base
 } as const;
 
-// Mock markets for development - replace with actual market data
-export const MOCK_MARKETS = [
-  {
-    questionHash:
-      "0x1234567890123456789012345678901234567890123456789012345678901234",
-    marketHash:
-      "0xabcdef1234567890123456789012345678901234567890123456789012345678",
-    question: "Will FOCIL be included in the Ethereum Glamsterdam hardfork?",
-    resolutionDeadline: 1798761600, // Jan 1, 2027
-    oracle: "0x0000000000000000000000000000000000000000",
-  },
-  {
-    questionHash:
-      "0x2345678901234567890123456789012345678901234567890123456789012345",
-    marketHash:
-      "0xbcdef12345678901234567890123456789012345678901234567890123456789",
-    question: "Will ePBS be included in the Ethereum Glamsterdam hardfork?",
-    resolutionDeadline: 1798761600, // Jan 1, 2027
-    oracle: "0x0000000000000000000000000000000000000000",
-  },
-];
-
-export type Market = (typeof MOCK_MARKETS)[0];
+// Market data is now fetched from the backend API
+// See src/api/client.ts and src/api/types.ts

@@ -14,7 +14,7 @@ use config::Config;
 use contract::ContractClient;
 use db::Database;
 use indexer::EventIndexer;
-use routes::{get_markets, AppState};
+use routes::{get_market, get_markets, get_verse_tokens, AppState};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -96,6 +96,8 @@ async fn main() -> anyhow::Result<()> {
     // Build main router
     let app = Router::new()
         .route("/markets", get(get_markets))
+        .route("/markets/:marketHash", get(get_market))
+        .route("/markets/:marketHash/verse-tokens", get(get_verse_tokens))
         .with_state(state)
         .nest("/admin", admin_routes)
         .layer(cors)
