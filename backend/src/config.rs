@@ -1,7 +1,5 @@
-use alloy::network::EthereumWallet;
 use alloy::primitives::Address;
-use alloy::providers::ProviderBuilder;
-use alloy::signers::local::PrivateKeySigner;
+use alloy::providers::{DynProvider, Provider, ProviderBuilder};
 use std::env;
 
 #[derive(Clone)]
@@ -10,7 +8,7 @@ pub struct Config {
     pub port: u16,
     pub multiverse_address: Address,
     pub oracle_address: Address,
-    pub provider: alloy::providers::ReqwestProvider,
+    pub provider: DynProvider
 }
 
 impl Config {
@@ -35,16 +33,10 @@ impl Config {
 
         let rpc_url = env::var("RPC_URL").expect("RPC_URL must be set");
 
-        let private_key = env::var("PRIVATE_KEY").expect("PRIVATE_KEY must be set");
-        let signer: PrivateKeySigner = private_key
-            .parse()
-            .expect("PRIVATE_KEY must be a valid private key");
-
-        let wallet = EthereumWallet::from(signer);
-
         let provider = ProviderBuilder::new()
-            .wallet(wallet)
-            .on_http(rpc_url.parse()?);
+            .connect(&rpc_url)
+            .await?
+            .erased(); 
 
         Ok(Self {
             host,

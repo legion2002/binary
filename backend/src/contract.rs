@@ -1,5 +1,5 @@
 use alloy::primitives::{Address, FixedBytes};
-use alloy::providers::Provider;
+use alloy::providers::DynProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::bindings::r#multi_verse::MultiVerse;
@@ -23,11 +23,11 @@ pub struct VerseAddresses {
 
 pub struct ContractClient {
     multiverse_address: Address,
-    provider: alloy::providers::ReqwestProvider,
+    provider: DynProvider,
 }
 
 impl ContractClient {
-    pub fn new(multiverse_address: Address, provider: alloy::providers::ReqwestProvider) -> Self {
+    pub fn new(multiverse_address: Address, provider: DynProvider) -> Self {
         Self {
             multiverse_address,
             provider,
@@ -38,14 +38,16 @@ impl ContractClient {
         let multiverse = MultiVerse::new(self.multiverse_address, &self.provider);
 
         let market = multiverse.markets(market_hash).call().await?;
-        let resolution = multiverse.resolutions(market_hash).call().await?;
+        let resolution_value = multiverse.resolutions(market_hash).call().await?;
 
-        let resolution_str = match resolution._0 {
-            MultiVerse::Resolution::NULL => "NULL",
-            MultiVerse::Resolution::UNRESOLVED => "UNRESOLVED",
-            MultiVerse::Resolution::YES => "YES",
-            MultiVerse::Resolution::NO => "NO",
-            MultiVerse::Resolution::EVEN => "EVEN",
+        // Resolution is a u8: 0=NULL, 1=UNRESOLVED, 2=YES, 3=NO, 4=EVEN
+        let resolution_str = match resolution_value {
+            0 => "NULL",
+            1 => "UNRESOLVED",
+            2 => "YES",
+            3 => "NO",
+            4 => "EVEN",
+            _ => "UNKNOWN",
         };
 
         Ok(MarketInfo {
