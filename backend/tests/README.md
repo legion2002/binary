@@ -70,6 +70,41 @@ The test environment automatically cleans up by:
 - Killing server process on test completion
 - Using in-memory database (no cleanup needed)
 
+## Quick Manual Test (Production/Testnet)
+
+If you want to manually test the admin API against a running server:
+
+```bash
+curl -X POST http://127.0.0.1:3000/admin/markets/open \
+  -H 'Authorization: Bearer YOUR_API_KEY_HERE' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "question": "Will Ethereum reach $10k by end of 2025?",
+    "resolutionDeadline": 1767225600,
+    "assets": ["0x4200000000000000000000000000000000000006"]
+  }'
+```
+
+Replace `YOUR_API_KEY_HERE` with your actual API key (generated via `cargo run --bin generate_api_key`).
+
+**Expected successful response:**
+```json
+{
+  "marketHash": "0x...",
+  "questionHash": "0x...",
+  "question": "Will Ethereum reach $10k by end of 2025?",
+  "resolutionDeadline": 1767225600,
+  "oracle": "0x...",
+  "transactionHash": "0x...",
+  "verseTokens": [...]
+}
+```
+
+**Fetch all markets:**
+```bash
+curl http://127.0.0.1:3000/markets
+```
+
 ## Troubleshooting
 
 ### "Anvil not found"

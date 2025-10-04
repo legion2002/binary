@@ -45,7 +45,7 @@ touch markets.db
 ## Running
 
 ```bash
-cargo run
+cargo run --bin backend
 ```
 
 The server will:
