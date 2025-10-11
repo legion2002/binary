@@ -6,7 +6,7 @@ import { fetchMarket } from '../api/client';
 import { VersePanel } from './VersePanel';
 import { SplitCombine } from './SplitCombine';
 import { Tooltip } from './Tooltip';
-import { usePriceFeed } from '../hooks/usePriceFeed';
+import { calculateProbabilityFromPools, formatProbability } from '../utils/probability';
 
 export function MarketDetail() {
   const { marketHash } = useParams<{ marketHash: string }>();
@@ -21,14 +21,8 @@ export function MarketDetail() {
     enabled: !!marketHash,
   });
 
-  // Get prices for both YES and NO tokens
-  const { price: yesPrice } = usePriceFeed(marketHash || '', 'YES');
-  const { price: noPrice } = usePriceFeed(marketHash || '', 'NO');
-
-  // Calculate probability based on prices
-  // In a prediction market, YES probability = YES price / (YES price + NO price)
-  const yesProbability = yesPrice / (yesPrice + noPrice) * 100;
-  const noProbability = noPrice / (yesPrice + noPrice) * 100;
+  // Calculate probability from V4 pools
+  const probability = market ? calculateProbabilityFromPools(market.v4Pools) : null;
 
   if (isLoading) {
     return (
@@ -58,6 +52,7 @@ export function MarketDetail() {
 
   return (
     <div>
+      {/* Back navigation */}
       <a
         onClick={() => navigate('/')}
         className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 cursor-pointer transition-colors"
@@ -65,6 +60,7 @@ export function MarketDetail() {
         ← Back to markets
       </a>
 
+      {/* Market Question Header */}
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow-lg p-6 mb-6 border border-blue-100">
         <div className="flex items-start justify-between">
           <div>
@@ -83,27 +79,40 @@ export function MarketDetail() {
         </div>
       </div>
 
-      {/* Market probability section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h4 className="font-semibold mb-4 text-gray-700">Market Resolution Probability</h4>
-        <div className="flex gap-4 justify-center">
-          <div className="flex-1 max-w-xs bg-green-50 rounded-lg p-4 border border-green-200">
-            <h5 className="font-semibold text-green-700 mb-2 text-center">YES</h5>
-            <p className="text-3xl font-bold text-green-800 text-center">{yesProbability.toFixed(1)}%</p>
-            <p className="text-sm text-gray-600 mt-1 text-center">Based on $0.{yesPrice.toString().padStart(2, '0')} price</p>
+      {/* Market Probability Section */}
+      {probability && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h4 className="font-semibold mb-4 text-gray-700">Market Resolution Probability</h4>
+          <div className="flex gap-4 justify-center">
+            <div className="flex-1 max-w-xs bg-green-50 rounded-lg p-4 border border-green-200">
+              <h5 className="font-semibold text-green-700 mb-2 text-center">YES</h5>
+              <p className="text-3xl font-bold text-green-800 text-center">
+                {formatProbability(probability.yesProbability)}
+              </p>
+              {probability.source && (
+                <p className="text-xs text-gray-500 mt-1 text-center">from V4 pools</p>
+              )}
+            </div>
+            <div className="flex-1 max-w-xs bg-red-50 rounded-lg p-4 border border-red-200">
+              <h5 className="font-semibold text-red-700 mb-2 text-center">NO</h5>
+              <p className="text-3xl font-bold text-red-800 text-center">
+                {formatProbability(probability.noProbability)}
+              </p>
+              {probability.source && (
+                <p className="text-xs text-gray-500 mt-1 text-center">from V4 pools</p>
+              )}
+            </div>
           </div>
-          <div className="flex-1 max-w-xs bg-red-50 rounded-lg p-4 border border-red-200">
-            <h5 className="font-semibold text-red-700 mb-2 text-center">NO</h5>
-            <p className="text-3xl font-bold text-red-800 text-center">{noProbability.toFixed(1)}%</p>
-            <p className="text-sm text-gray-600 mt-1 text-center">Based on $0.{noPrice.toString().padStart(2, '0')} price</p>
+          <div className="mt-4 text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+            <p className="font-medium mb-1">How is this calculated?</p>
+            <p>Market probabilities are derived from Uniswap V4 pool prices. The relative prices of YES and NO tokens
+            in the pools reflect the market's belief about the outcome probability.</p>
+            {probability.source && probability.source !== 'No price data - showing 50/50' && (
+              <p className="text-xs mt-1">Source pool: {probability.source}</p>
+            )}
           </div>
         </div>
-        <div className="mt-4 text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-          <p className="font-medium mb-1">How is this calculated?</p>
-          <p>Market probabilities are derived from token prices using the formula: YES% = YES price ÷ (YES price + NO price). 
-          Since YES and NO tokens together always equal $1 at resolution, their relative prices reflect the market's belief about the outcome probability.</p>
-        </div>
-      </div>
+      )}
 
       {/* How it works section */}
       <div className="mb-6">
@@ -113,32 +122,32 @@ export function MarketDetail() {
         >
           {showHowItWorks ? '▼' : '▶'} How it works
         </a>
-        
+
         {showHowItWorks && (
           <div className="bg-white rounded-lg shadow-md p-6 mt-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-green-600">1.</span> Buy Positions
+                  <span className="text-green-600">1.</span> Trade on Uniswap
                 </h4>
                 <p className="text-gray-600">
-                  Purchase YES tokens if you believe the outcome will happen, or NO tokens if you think it won't. Prices reflect market probability.
+                  Purchase YES tokens if you believe the outcome will happen, or NO tokens if you think it won't. Use the embedded Uniswap interface to swap.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-blue-600">2.</span> Trade Anytime
+                  <span className="text-blue-600">2.</span> V4 Pool Trading
                 </h4>
                 <p className="text-gray-600">
-                  Change your position by buying or selling tokens at any time before resolution. Prices fluctuate based on market sentiment.
+                  Leverage Uniswap V4 pools for efficient trading between YES/NO tokens. Multiple pool configurations available for advanced strategies.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-purple-600">3.</span> Win or Lose
+                  <span className="text-purple-600">3.</span> Win or Arbitrage
                 </h4>
                 <p className="text-gray-600">
-                  When resolved, winning tokens can be redeemed for 1 ETH each. Losing tokens become worthless. Split/combine for arbitrage.
+                  When resolved, winning tokens can be redeemed for 1 ETH each. Use split/combine for arbitrage opportunities during trading.
                 </p>
               </div>
             </div>
@@ -156,12 +165,14 @@ export function MarketDetail() {
         </div>
       )}
 
+      {/* Main Trading Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
         <VersePanel
           verse="YES"
           marketHash={marketHash!}
         />
 
+        {/* Split/Combine Tool - Center on desktop, bottom on mobile */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 hidden lg:block">
           <SplitCombine
             marketHash={marketHash!}
@@ -175,7 +186,8 @@ export function MarketDetail() {
         />
       </div>
 
-      <div className="lg:hidden mt-6">
+      {/* Split/Combine for mobile */}
+      <div className="lg:hidden mt-6 flex justify-center">
         <SplitCombine
           marketHash={marketHash!}
           activeAsset="ETH"

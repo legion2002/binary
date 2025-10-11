@@ -22,6 +22,18 @@ export interface VerseTokenResponse {
   transactionHash?: string;
 }
 
+export interface V4PoolInfo {
+  poolType: string;
+  poolId: string;
+  token0: string;
+  token1: string;
+  fee: number;
+  tickSpacing: number;
+  liquidity?: string | null;
+  sqrtPriceX96?: string | null;
+  tick?: number | null;
+}
+
 export interface MarketDetailResponse {
   marketHash: string;
   questionHash: string;
@@ -30,6 +42,7 @@ export interface MarketDetailResponse {
   oracle: string;
   blockNumber: number;
   verseTokens: VerseTokenResponse[];
+  v4Pools: V4PoolInfo[];
 }
 
 export interface ErrorResponse {
