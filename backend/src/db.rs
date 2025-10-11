@@ -23,6 +23,21 @@ pub struct VerseToken {
     pub created_at: i64,
 }
 
+#[derive(Debug, Clone, FromRow)]
+pub struct V4PoolData {
+    pub market_hash: String,
+    pub pool_id_yes0_yes1: Option<String>,   // YES_TOKEN0/YES_TOKEN1
+    pub pool_id_no0_no1: Option<String>,     // NO_TOKEN0/NO_TOKEN1
+    pub pool_id_yes0_no0: Option<String>,    // YES_TOKEN0/NO_TOKEN0
+    pub pool_id_yes1_no1: Option<String>,    // YES_TOKEN1/NO_TOKEN1
+    pub token0_address: String,
+    pub token1_address: String,
+    pub fee: i64,
+    pub tick_spacing: i64,
+    pub transaction_hash: Option<String>,
+    pub created_at: i64,
+}
+
 pub struct Database {
     pool: SqlitePool,
 }
@@ -91,6 +106,39 @@ impl Database {
             r#"
             CREATE INDEX IF NOT EXISTS idx_verse_tokens_market
             ON verse_tokens(market_hash)
+            "#,
+        )
+        .execute(&pool)
+        .await?;
+
+        // Create v4_pools table
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS v4_pools (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                market_hash TEXT NOT NULL UNIQUE,
+                pool_id_yes0_yes1 TEXT,
+                pool_id_no0_no1 TEXT,
+                pool_id_yes0_no0 TEXT,
+                pool_id_yes1_no1 TEXT,
+                token0_address TEXT NOT NULL,
+                token1_address TEXT NOT NULL,
+                fee INTEGER NOT NULL DEFAULT 3000,
+                tick_spacing INTEGER NOT NULL DEFAULT 60,
+                transaction_hash TEXT,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (market_hash) REFERENCES markets(market_hash)
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await?;
+
+        // Create index on market_hash for v4_pools
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_v4_pools_market
+            ON v4_pools(market_hash)
             "#,
         )
         .execute(&pool)
@@ -282,5 +330,74 @@ impl Database {
         .await?;
 
         Ok(verse_tokens)
+    }
+
+    /// Insert V4 pool data for a market
+    pub async fn insert_v4_pools(
+        &self,
+        market_hash: FixedBytes<32>,
+        pool_id_yes0_yes1: Option<FixedBytes<32>>,
+        pool_id_no0_no1: Option<FixedBytes<32>>,
+        pool_id_yes0_no0: Option<FixedBytes<32>>,
+        pool_id_yes1_no1: Option<FixedBytes<32>>,
+        token0_address: alloy::primitives::Address,
+        token1_address: alloy::primitives::Address,
+        transaction_hash: Option<String>,
+    ) -> anyhow::Result<()> {
+        let market_hash_str = format!("0x{}", hex::encode(market_hash));
+        let pool_id_yes0_yes1_str = pool_id_yes0_yes1.map(|id| format!("0x{}", hex::encode(id)));
+        let pool_id_no0_no1_str = pool_id_no0_no1.map(|id| format!("0x{}", hex::encode(id)));
+        let pool_id_yes0_no0_str = pool_id_yes0_no0.map(|id| format!("0x{}", hex::encode(id)));
+        let pool_id_yes1_no1_str = pool_id_yes1_no1.map(|id| format!("0x{}", hex::encode(id)));
+        let token0_str = format!("{:?}", token0_address);
+        let token1_str = format!("{:?}", token1_address);
+        let created_at = Utc::now().timestamp();
+
+        sqlx::query(
+            r#"
+            INSERT OR REPLACE INTO v4_pools
+            (market_hash, pool_id_yes0_yes1, pool_id_no0_no1, pool_id_yes0_no0, pool_id_yes1_no1,
+             token0_address, token1_address, fee, tick_spacing, transaction_hash, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
+        )
+        .bind(market_hash_str)
+        .bind(pool_id_yes0_yes1_str)
+        .bind(pool_id_no0_no1_str)
+        .bind(pool_id_yes0_no0_str)
+        .bind(pool_id_yes1_no1_str)
+        .bind(token0_str)
+        .bind(token1_str)
+        .bind(3000i64) // Default fee: 0.3%
+        .bind(60i64)   // Default tick spacing
+        .bind(transaction_hash)
+        .bind(created_at)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Get V4 pool data for a specific market
+    pub async fn get_v4_pools_for_market(
+        &self,
+        market_hash: &str,
+    ) -> anyhow::Result<Option<V4PoolData>> {
+        let pool_data = sqlx::query_as::<_, V4PoolData>(
+            r#"
+            SELECT market_hash, pool_id_yes0_yes1, pool_id_no0_no1, pool_id_yes0_no0, pool_id_yes1_no1,
+                   token0_address, token1_address, fee, tick_spacing,
+                   transaction_hash, created_at
+            FROM v4_pools
+            WHERE market_hash = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(market_hash)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(pool_data)
     }
 }

@@ -1,6 +1,7 @@
 use crate::contract::ContractClient;
 use crate::db::Database;
-use alloy::primitives::Address;
+use crate::uniswap_v4::{V4PoolInfo, PoolConfig};
+use alloy::primitives::{Address, FixedBytes};
 use axum::{
     extract::State,
     http::StatusCode,
@@ -27,6 +28,9 @@ pub struct OpenMarketRequest {
 
     /// Optional list of asset addresses to create verse tokens for
     pub assets: Option<Vec<String>>,
+
+    /// Optional V4 pool configuration (which pools to create)
+    pub v4_pool_config: Option<PoolConfig>,
 }
 
 #[derive(Debug, Serialize)]
@@ -48,6 +52,7 @@ pub struct OpenMarketResponse {
     pub oracle: String,
     pub transaction_hash: String,
     pub verse_tokens: Vec<VerseTokenInfo>,
+    pub v4_pools: Vec<V4PoolInfo>,
 }
 
 #[derive(Debug, Serialize)]
@@ -219,6 +224,115 @@ pub async fn open_market(
         }
     }
 
+    // Create V4 pools if we have at least 2 assets
+    let mut v4_pools = Vec::new();
+    if assets.len() >= 2 {
+        // Use the first two assets as token0 and token1
+        let token0_address = assets[0];
+        let token1_address = assets[1];
+
+        // Try to create V4 pools
+        match state
+            .contract_client
+            .initialize_v4_pools(
+                market_hash,
+                token0_address,
+                token1_address,
+                request.v4_pool_config,
+            )
+            .await
+        {
+            Ok(created_pools) => {
+                // Store pool IDs in database
+                if let Err(e) = state
+                    .db
+                    .insert_v4_pools(
+                        market_hash,
+                        created_pools.yes0_yes1,
+                        created_pools.no0_no1,
+                        created_pools.yes0_no0,
+                        created_pools.yes1_no1,
+                        token0_address,
+                        token1_address,
+                        Some(format!("{:?}", tx_hash)),
+                    )
+                    .await
+                {
+                    tracing::error!("Failed to store V4 pools in database: {}", e);
+                }
+
+                // Build pool info for response
+                if let Some(pool_id) = created_pools.yes0_yes1 {
+                    v4_pools.push(V4PoolInfo {
+                        pool_type: "YES_TOKEN0/YES_TOKEN1".to_string(),
+                        pool_id: format!("0x{}", hex::encode(pool_id)),
+                        token0: format!("YES_{:?}", token0_address),
+                        token1: format!("YES_{:?}", token1_address),
+                        fee: 3000,
+                        tick_spacing: 60,
+                        liquidity: None,
+                        sqrt_price_x96: None,
+                        tick: None,
+                    });
+                }
+
+                if let Some(pool_id) = created_pools.no0_no1 {
+                    v4_pools.push(V4PoolInfo {
+                        pool_type: "NO_TOKEN0/NO_TOKEN1".to_string(),
+                        pool_id: format!("0x{}", hex::encode(pool_id)),
+                        token0: format!("NO_{:?}", token0_address),
+                        token1: format!("NO_{:?}", token1_address),
+                        fee: 3000,
+                        tick_spacing: 60,
+                        liquidity: None,
+                        sqrt_price_x96: None,
+                        tick: None,
+                    });
+                }
+
+                if let Some(pool_id) = created_pools.yes0_no0 {
+                    v4_pools.push(V4PoolInfo {
+                        pool_type: "YES_TOKEN0/NO_TOKEN0".to_string(),
+                        pool_id: format!("0x{}", hex::encode(pool_id)),
+                        token0: format!("YES_{:?}", token0_address),
+                        token1: format!("NO_{:?}", token0_address),
+                        fee: 3000,
+                        tick_spacing: 60,
+                        liquidity: None,
+                        sqrt_price_x96: None,
+                        tick: None,
+                    });
+                }
+
+                if let Some(pool_id) = created_pools.yes1_no1 {
+                    v4_pools.push(V4PoolInfo {
+                        pool_type: "YES_TOKEN1/NO_TOKEN1".to_string(),
+                        pool_id: format!("0x{}", hex::encode(pool_id)),
+                        token0: format!("YES_{:?}", token1_address),
+                        token1: format!("NO_{:?}", token1_address),
+                        fee: 3000,
+                        tick_spacing: 60,
+                        liquidity: None,
+                        sqrt_price_x96: None,
+                        tick: None,
+                    });
+                }
+
+                tracing::info!(
+                    "Created {} V4 pools for market {}",
+                    v4_pools.len(),
+                    hex::encode(market_hash)
+                );
+            }
+            Err(e) => {
+                tracing::warn!("Failed to create V4 pools: {}. Market creation continues.", e);
+                // Don't fail the entire market creation if V4 pools fail
+            }
+        }
+    } else if !assets.is_empty() {
+        tracing::info!("V4 pools require at least 2 assets, only {} provided", assets.len());
+    }
+
     // Return success response
     (
         StatusCode::OK,
@@ -230,6 +344,7 @@ pub async fn open_market(
             oracle: format!("{:?}", state.oracle_address),
             transaction_hash: format!("{:?}", tx_hash),
             verse_tokens,
+            v4_pools,
         }),
     )
         .into_response()

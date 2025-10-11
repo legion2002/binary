@@ -6,6 +6,7 @@ mod contract;
 mod db;
 mod indexer;
 mod routes;
+mod uniswap_v4;
 
 use admin::{open_market, AdminState};
 use auth::require_admin_api_key;
@@ -37,6 +38,12 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("MultiVerse Address: {:?}", config.multiverse_address);
     tracing::info!("Oracle Address: {:?}", config.oracle_address);
 
+    if let Some(pool_manager) = config.pool_manager_address {
+        tracing::info!("V4 Pool Manager Address: {:?}", pool_manager);
+    } else {
+        tracing::info!("V4 Pool Manager not configured - pool creation disabled");
+    }
+
     // Initialize database
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "sqlite:markets.db".to_string());
@@ -48,6 +55,7 @@ async fn main() -> anyhow::Result<()> {
         config.multiverse_address,
         config.provider.clone(),
         config.signer.clone(),
+        config.pool_manager_address,
     ));
 
     // Start event indexer in background task

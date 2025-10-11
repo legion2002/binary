@@ -9,6 +9,7 @@ pub struct Config {
     pub port: u16,
     pub multiverse_address: Address,
     pub oracle_address: Address,
+    pub pool_manager_address: Option<Address>,
     pub provider: DynProvider,
     pub signer: PrivateKeySigner,
     pub admin_api_key_hash: String,
@@ -34,6 +35,15 @@ impl Config {
             .parse()
             .expect("ORACLE_ADDRESS must be a valid Ethereum address");
 
+        // V4 Pool Manager is optional - if not provided, V4 pools won't be available
+        let pool_manager_address = env::var("V4_POOL_MANAGER_ADDRESS")
+            .ok()
+            .and_then(|addr| addr.parse().ok());
+
+        if pool_manager_address.is_none() {
+            tracing::warn!("V4_POOL_MANAGER_ADDRESS not set - Uniswap V4 pool creation will be disabled");
+        }
+
         let rpc_url = env::var("RPC_URL").expect("RPC_URL must be set");
 
         let provider = ProviderBuilder::new().connect(&rpc_url).await?.erased();
@@ -53,6 +63,7 @@ impl Config {
             port,
             multiverse_address,
             oracle_address,
+            pool_manager_address,
             provider,
             signer,
             admin_api_key_hash,
