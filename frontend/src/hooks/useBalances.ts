@@ -1,46 +1,46 @@
-import { useReadContracts } from 'wagmi';
-import { ERC20_ABI, CONTRACTS, MULTIVERSE_ABI } from '../config/contracts';
+import { Hooks } from 'tempo.ts/wagmi';
 
 export function useBalances(
   address: string | undefined,
-  marketHash: string,
+  _marketHash: string,
   verse: 'YES' | 'NO'
 ) {
   // TODO: Get actual verse token addresses from contract
-  const mockYesEthAddress = '0x0000000000000000000000000000000000000001';
-  const mockNoEthAddress = '0x0000000000000000000000000000000000000002';
-  const mockYesUsdcAddress = '0x0000000000000000000000000000000000000003';
-  const mockNoUsdcAddress = '0x0000000000000000000000000000000000000004';
+  // These should be fetched from the Multiverse contract based on marketHash
+  const mockYesUsdAddress = '0x0000000000000000000000000000000000000001' as `0x${string}`;
+  const mockNoUsdAddress = '0x0000000000000000000000000000000000000002' as `0x${string}`;
+  const mockYesUsdcAddress = '0x0000000000000000000000000000000000000003' as `0x${string}`;
+  const mockNoUsdcAddress = '0x0000000000000000000000000000000000000004' as `0x${string}`;
 
-  const ethVerseAddress = verse === 'YES' ? mockYesEthAddress : mockNoEthAddress;
+  const usdVerseAddress = verse === 'YES' ? mockYesUsdAddress : mockNoUsdAddress;
   const usdcVerseAddress = verse === 'YES' ? mockYesUsdcAddress : mockNoUsdcAddress;
 
-  const { data, isLoading } = useReadContracts({
-    contracts: [
-      {
-        address: ethVerseAddress as `0x${string}`,
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: address ? [address as `0x${string}`] : undefined,
-      },
-      {
-        address: usdcVerseAddress as `0x${string}`,
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: address ? [address as `0x${string}`] : undefined,
-      },
-    ],
+  // Use tempo.ts token balance hooks
+  const { data: usdBalanceData, isLoading: usdLoading } = Hooks.token.useGetBalance({
+    account: address as `0x${string}`,
+    token: usdVerseAddress,
     query: {
       enabled: !!address,
     },
   });
 
-  const ethBalance = data?.[0]?.result ? Number(data[0].result) / 1e18 : 0;
-  const usdcBalance = data?.[1]?.result ? Number(data[1].result) / 1e6 : 0;
+  const { data: usdcBalanceData, isLoading: usdcLoading } = Hooks.token.useGetBalance({
+    account: address as `0x${string}`,
+    token: usdcVerseAddress,
+    query: {
+      enabled: !!address,
+    },
+  });
+
+  // Tempo uses 6 decimals for native currency (USD)
+  // Token balances should be formatted based on their decimals
+  const usdBalance = usdBalanceData ? Number(usdBalanceData) / 1e6 : 0;
+  const usdcBalance = usdcBalanceData ? Number(usdcBalanceData) / 1e6 : 0;
 
   return {
-    ethBalance,
+    // Keep ethBalance name for backward compatibility but it's now USD
+    ethBalance: usdBalance,
     usdcBalance,
-    loading: isLoading,
+    loading: usdLoading || usdcLoading,
   };
 }

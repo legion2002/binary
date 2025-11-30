@@ -6,7 +6,7 @@ import { Tooltip } from './Tooltip';
 
 interface SplitCombineProps {
   marketHash: string;
-  activeAsset: 'ETH' | 'USDC';
+  activeAsset: 'USD' | 'USDC';
 }
 
 export function SplitCombine({ marketHash, activeAsset }: SplitCombineProps) {
@@ -17,8 +17,9 @@ export function SplitCombine({ marketHash, activeAsset }: SplitCombineProps) {
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash });
 
-  const assetAddress = activeAsset === 'ETH' ? CONTRACTS.WETH : CONTRACTS.USDC;
-  const decimals = activeAsset === 'ETH' ? 18 : 6;
+  // Tempo uses USD as native currency with 6 decimals
+  const assetAddress = activeAsset === 'USD' ? CONTRACTS.USD : CONTRACTS.USDC;
+  const decimals = 6; // Tempo native currency is 6 decimals
 
   const handleAction = async () => {
     if (!amount || !isConnected || !address) return;
@@ -52,13 +53,13 @@ export function SplitCombine({ marketHash, activeAsset }: SplitCombineProps) {
     <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl shadow-xl p-6 w-72 border-2 border-purple-200">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-gray-800">Arbitrage Tools</h3>
-        <Tooltip content="Split ETH into equal YES/NO tokens or combine them back">
+        <Tooltip content="Split USD into equal YES/NO tokens or combine them back">
           <svg className="w-5 h-5 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </Tooltip>
       </div>
-      
+
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => setMode('split')}
@@ -90,20 +91,20 @@ export function SplitCombine({ marketHash, activeAsset }: SplitCombineProps) {
 
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          ETH Amount
+          USD Amount
         </label>
         <div className="relative">
           <input
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.0"
+            placeholder="0.00"
             className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg font-mono"
             disabled={!isConnected || isLoading}
           />
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-xs font-bold text-blue-600">Ξ</span>
+            <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+              <span className="text-xs font-bold text-green-600">$</span>
             </div>
           </div>
         </div>
@@ -113,7 +114,7 @@ export function SplitCombine({ marketHash, activeAsset }: SplitCombineProps) {
         {mode === 'split' ? (
           <div>
             <p className="font-semibold text-purple-700 mb-1">You deposit:</p>
-            <p className="text-gray-600 ml-2">• {amount || '0'} ETH</p>
+            <p className="text-gray-600 ml-2">• ${amount || '0'} USD</p>
             <p className="font-semibold text-purple-700 mt-2 mb-1">You receive:</p>
             <p className="text-gray-600 ml-2">• {amount || '0'} YES tokens</p>
             <p className="text-gray-600 ml-2">• {amount || '0'} NO tokens</p>
@@ -124,7 +125,7 @@ export function SplitCombine({ marketHash, activeAsset }: SplitCombineProps) {
             <p className="text-gray-600 ml-2">• {amount || '0'} YES tokens</p>
             <p className="text-gray-600 ml-2">• {amount || '0'} NO tokens</p>
             <p className="font-semibold text-purple-700 mt-2 mb-1">You receive:</p>
-            <p className="text-gray-600 ml-2">• {amount || '0'} ETH</p>
+            <p className="text-gray-600 ml-2">• ${amount || '0'} USD</p>
           </div>
         )}
       </div>
@@ -143,7 +144,7 @@ export function SplitCombine({ marketHash, activeAsset }: SplitCombineProps) {
             Processing...
           </span>
         ) : (
-          mode === 'split' ? 'Split ETH' : 'Combine Tokens'
+          mode === 'split' ? 'Split USD' : 'Combine Tokens'
         )}
       </button>
     </div>

@@ -23,9 +23,9 @@ export function WalletConnect() {
     );
   }
 
-  // Porto should be the only connector we configured
+  // webAuthn connector from tempo.ts
   const connector = connectors[0];
-  
+
   if (!connector) {
     return (
       <button
@@ -38,11 +38,25 @@ export function WalletConnect() {
   }
 
   return (
-    <button
-      onClick={() => connect({ connector })}
-      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-    >
-      Connect with Porto
-    </button>
+    <div className="flex gap-2">
+      <button
+        onClick={() => connect({
+          connector,
+          capabilities: { type: 'sign-up' }
+        } as never)}
+        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+      >
+        Sign Up
+      </button>
+      <button
+        onClick={() => connect({
+          connector,
+          capabilities: { type: 'sign-in' }
+        } as never)}
+        className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors"
+      >
+        Sign In
+      </button>
+    </div>
   );
 }

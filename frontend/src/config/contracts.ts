@@ -1,15 +1,17 @@
-import { MULTIVERSE_ABI, UNISWAP_V2_PAIR_ABI, ERC20_ABI } from "./abis";
+import { MULTIVERSE_ABI, ERC20_ABI } from "./abis";
 
 // Re-export ABIs for backward compatibility
-export { MULTIVERSE_ABI, UNISWAP_V2_PAIR_ABI, ERC20_ABI };
+export { MULTIVERSE_ABI, ERC20_ABI };
 
-// Contract addresses for Base Mainnet
+// Contract addresses for Tempo Testnet (Andantino)
+// Tempo uses USD as native currency with 6 decimals
 export const CONTRACTS = {
-  MULTIVERSE: "0x0000000000000000000000000000000000000000", // TODO: Replace with deployed address
-  WETH: "0x4200000000000000000000000000000000000006", // WETH on Base
-  USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base
-  UNISWAP_V2_FACTORY: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6", // Uniswap V2 Factory on Base
-  UNISWAP_V2_ROUTER: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 Router02 on Base
+  MULTIVERSE: "0x0000000000000000000000000000000000000000", // TODO: Replace with deployed address on Tempo
+  // Tempo native stablecoins - addresses from Tempo precompiles
+  USD: "0x20c0000000000000000000000000000000000001", // Native USD on Tempo
+  USDC: "0x20c0000000000000000000000000000000000002", // USDC on Tempo (if available)
+  USDT: "0x20c0000000000000000000000000000000000003", // USDT on Tempo (if available)
+  // Tempo DEX is built-in, no external router/factory needed
 } as const;
 
 // Market data is now fetched from the backend API

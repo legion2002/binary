@@ -128,18 +128,18 @@ export function MarketDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-green-600">1.</span> Trade on Uniswap
+                  <span className="text-green-600">1.</span> Trade on Tempo DEX
                 </h4>
                 <p className="text-gray-600">
-                  Purchase YES tokens if you believe the outcome will happen, or NO tokens if you think it won't. Use the embedded Uniswap interface to swap.
+                  Purchase YES tokens if you believe the outcome will happen, or NO tokens if you think it won't. Use Tempo's built-in DEX to swap.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-blue-600">2.</span> V4 Pool Trading
+                  <span className="text-blue-600">2.</span> Tempo Orderbook
                 </h4>
                 <p className="text-gray-600">
-                  Leverage Uniswap V4 pools for efficient trading between YES/NO tokens. Multiple pool configurations available for advanced strategies.
+                  Trade on Tempo's native orderbook for efficient price discovery between YES/NO tokens. Place limit orders for advanced strategies.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
@@ -147,7 +147,7 @@ export function MarketDetail() {
                   <span className="text-purple-600">3.</span> Win or Arbitrage
                 </h4>
                 <p className="text-gray-600">
-                  When resolved, winning tokens can be redeemed for 1 ETH each. Use split/combine for arbitrage opportunities during trading.
+                  When resolved, winning tokens can be redeemed for $1 USD each. Use split/combine for arbitrage opportunities during trading.
                 </p>
               </div>
             </div>
@@ -176,7 +176,7 @@ export function MarketDetail() {
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 hidden lg:block">
           <SplitCombine
             marketHash={marketHash!}
-            activeAsset="ETH"
+            activeAsset="USD"
           />
         </div>
 
@@ -190,7 +190,7 @@ export function MarketDetail() {
       <div className="lg:hidden mt-6 flex justify-center">
         <SplitCombine
           marketHash={marketHash!}
-          activeAsset="ETH"
+          activeAsset="USD"
         />
       </div>
     </div>

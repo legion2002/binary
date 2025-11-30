@@ -1,3 +1,4 @@
+// Multiverse prediction market contract ABI
 export const MULTIVERSE_ABI = [
   {
     type: "function",
@@ -110,94 +111,8 @@ export const MULTIVERSE_ABI = [
   { type: "error", name: "MarketAlreadyOpened", inputs: [] },
 ] as const;
 
-export const UNISWAP_V2_PAIR_ABI = [
-  {
-    type: "function",
-    name: "allowance",
-    inputs: [
-      { name: "owner", type: "address", internalType: "address" },
-      { name: "spender", type: "address", internalType: "address" },
-    ],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "approve",
-    inputs: [
-      { name: "spender", type: "address", internalType: "address" },
-      { name: "value", type: "uint256", internalType: "uint256" },
-    ],
-    outputs: [{ name: "", type: "bool", internalType: "bool" }],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "balanceOf",
-    inputs: [{ name: "owner", type: "address", internalType: "address" }],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "getReserves",
-    inputs: [],
-    outputs: [
-      { name: "reserve0", type: "uint112", internalType: "uint112" },
-      { name: "reserve1", type: "uint112", internalType: "uint112" },
-      { name: "blockTimestampLast", type: "uint32", internalType: "uint32" },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "swap",
-    inputs: [
-      { name: "amount0Out", type: "uint256", internalType: "uint256" },
-      { name: "amount1Out", type: "uint256", internalType: "uint256" },
-      { name: "to", type: "address", internalType: "address" },
-      { name: "data", type: "bytes", internalType: "bytes" },
-    ],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "token0",
-    inputs: [],
-    outputs: [{ name: "", type: "address", internalType: "address" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "token1",
-    inputs: [],
-    outputs: [{ name: "", type: "address", internalType: "address" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "transfer",
-    inputs: [
-      { name: "to", type: "address", internalType: "address" },
-      { name: "value", type: "uint256", internalType: "uint256" },
-    ],
-    outputs: [{ name: "", type: "bool", internalType: "bool" }],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "transferFrom",
-    inputs: [
-      { name: "from", type: "address", internalType: "address" },
-      { name: "to", type: "address", internalType: "address" },
-      { name: "value", type: "uint256", internalType: "uint256" },
-    ],
-    outputs: [{ name: "", type: "bool", internalType: "bool" }],
-    stateMutability: "nonpayable",
-  },
-] as const;
-
+// Standard ERC20 ABI - kept for compatibility with custom tokens
+// Note: On Tempo, prefer using tempo.ts/wagmi Hooks.token for TIP20 tokens
 export const ERC20_ABI = [
   {
     type: "function",
