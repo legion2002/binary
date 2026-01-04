@@ -52,6 +52,11 @@ export const MULTIVERSE_ABI = [
       { name: "resolutionDeadline", type: "uint32", internalType: "uint32" },
       { name: "oracle", type: "address", internalType: "address" },
       { name: "questionHash", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "resolution",
+        type: "uint8",
+        internalType: "enum MultiVerse.Resolution",
+      },
     ],
     stateMutability: "view",
   },
@@ -80,15 +85,6 @@ export const MULTIVERSE_ABI = [
   },
   {
     type: "function",
-    name: "resolutions",
-    inputs: [{ name: "marketHash", type: "bytes32", internalType: "bytes32" }],
-    outputs: [
-      { name: "", type: "uint8", internalType: "enum MultiVerse.Resolution" },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
     name: "resolve",
     inputs: [{ name: "marketHash", type: "bytes32", internalType: "bytes32" }],
     outputs: [],
@@ -109,6 +105,7 @@ export const MULTIVERSE_ABI = [
   { type: "error", name: "InvalidResolution", inputs: [] },
   { type: "error", name: "InvalidVerse", inputs: [] },
   { type: "error", name: "MarketAlreadyOpened", inputs: [] },
+  { type: "error", name: "VersesAlreadyCreated", inputs: [] },
 ] as const;
 
 // Standard ERC20 ABI - kept for compatibility with custom tokens

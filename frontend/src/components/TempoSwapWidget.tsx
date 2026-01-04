@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { parseUnits, formatUnits } from 'viem';
+import { parseUnits, formatUnits, type Address } from 'viem';
 import { useAccount } from 'wagmi';
-import { Hooks } from 'tempo.ts/wagmi';
+import { useBuyQuote, useSellQuote, useBuySync, useSellSync } from '../hooks/useTempoDex';
 import { CONTRACTS } from '../config/contracts';
 import { TEMPO_FEE_TOKEN } from '../config/wagmi';
 
@@ -15,23 +15,23 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
   const [amount, setAmount] = useState('');
   const [isBuying, setIsBuying] = useState(true);
 
-  // Tempo DEX hooks for trading
-  const { mutate: buy, isPending: isBuyPending } = Hooks.dex.useBuySync();
-  const { mutate: sell, isPending: isSellPending } = Hooks.dex.useSellSync();
+  // Custom Tempo DEX hooks for trading (using viem/tempo)
+  const { mutate: buy, isPending: isBuyPending } = useBuySync();
+  const { mutate: sell, isPending: isSellPending } = useSellSync();
 
   // Get quote for the swap
-  const { data: buyQuote, isLoading: buyQuoteLoading } = Hooks.dex.useBuyQuote({
-    tokenIn: CONTRACTS.USD as `0x${string}`,
-    tokenOut: tokenAddress as `0x${string}`,
+  const { data: buyQuote, isLoading: buyQuoteLoading } = useBuyQuote({
+    tokenIn: CONTRACTS.USD as Address,
+    tokenOut: tokenAddress as Address,
     amountOut: amount ? parseUnits(amount, 6) : 0n,
     query: {
       enabled: isBuying && !!amount && parseFloat(amount) > 0,
     },
   });
 
-  const { data: sellQuote, isLoading: sellQuoteLoading } = Hooks.dex.useSellQuote({
-    tokenIn: tokenAddress as `0x${string}`,
-    tokenOut: CONTRACTS.USD as `0x${string}`,
+  const { data: sellQuote, isLoading: sellQuoteLoading } = useSellQuote({
+    tokenIn: tokenAddress as Address,
+    tokenOut: CONTRACTS.USD as Address,
     amountIn: amount ? parseUnits(amount, 6) : 0n,
     query: {
       enabled: !isBuying && !!amount && parseFloat(amount) > 0,
@@ -46,20 +46,20 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
     if (isBuying) {
       // Buy verse tokens with USD
       buy({
-        tokenIn: CONTRACTS.USD as `0x${string}`,
-        tokenOut: tokenAddress as `0x${string}`,
+        tokenIn: CONTRACTS.USD as Address,
+        tokenOut: tokenAddress as Address,
         amountOut: parsedAmount,
         maxAmountIn: buyQuote ? (buyQuote * 105n) / 100n : parsedAmount * 2n, // 5% slippage
-        feeToken: TEMPO_FEE_TOKEN,
+        feeToken: TEMPO_FEE_TOKEN as Address,
       });
     } else {
       // Sell verse tokens for USD
       sell({
-        tokenIn: tokenAddress as `0x${string}`,
-        tokenOut: CONTRACTS.USD as `0x${string}`,
+        tokenIn: tokenAddress as Address,
+        tokenOut: CONTRACTS.USD as Address,
         amountIn: parsedAmount,
         minAmountOut: sellQuote ? (sellQuote * 95n) / 100n : 0n, // 5% slippage
-        feeToken: TEMPO_FEE_TOKEN,
+        feeToken: TEMPO_FEE_TOKEN as Address,
       });
     }
   };
