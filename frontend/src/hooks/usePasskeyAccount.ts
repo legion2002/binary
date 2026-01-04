@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Account, WebAuthnP256 } from "viem/tempo";
 
 const STORAGE_KEY = "binary_passkey_credential";
@@ -8,21 +8,12 @@ interface StoredCredential {
   publicKey: `0x${string}`;
 }
 
+type PasskeyAccount = ReturnType<typeof Account.fromWebAuthnP256>;
+
 export function usePasskeyAccount() {
-  const [account, setAccount] = useState<ReturnType<
-    typeof Account.fromWebAuthnP256
-  > | null>(null);
+  const [account, setAccount] = useState<PasskeyAccount | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-
-  // Try to restore session on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      // Don't auto-sign-in, just indicate there's a saved credential
-      // User needs to explicitly sign in to trigger passkey prompt
-    }
-  }, []);
 
   // Sign up - create new passkey
   const signUp = useCallback(async () => {
@@ -30,7 +21,7 @@ export function usePasskeyAccount() {
     setError(null);
     try {
       const credential = await WebAuthnP256.createCredential({
-        name: "Binary Markets",
+        label: "Binary Markets",
       });
 
       // Store credential ID and public key for future sign-ins
@@ -40,7 +31,7 @@ export function usePasskeyAccount() {
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(storedCred));
 
-      const acc = Account.fromWebAuthnP256({ credential });
+      const acc = Account.fromWebAuthnP256(credential);
       setAccount(acc);
       return acc;
     } catch (err) {
@@ -65,11 +56,14 @@ export function usePasskeyAccount() {
       const { id, publicKey } = JSON.parse(stored) as StoredCredential;
 
       const credential = await WebAuthnP256.getCredential({
-        credentialId: id,
         getPublicKey: async () => publicKey,
       });
 
-      const acc = Account.fromWebAuthnP256({ credential });
+      // Use the stored credential id and public key
+      const acc = Account.fromWebAuthnP256({
+        id: credential.id || id,
+        publicKey: credential.publicKey || publicKey,
+      });
       setAccount(acc);
       return acc;
     } catch (err) {

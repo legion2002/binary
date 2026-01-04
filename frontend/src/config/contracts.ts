@@ -1,17 +1,26 @@
-import { MULTIVERSE_ABI, ERC20_ABI } from "./abis";
+import { MULTIVERSE_ABI, TIP20_ABI } from "./abis";
 
-// Re-export ABIs for backward compatibility
-export { MULTIVERSE_ABI, ERC20_ABI };
+// Re-export ABIs
+export { MULTIVERSE_ABI, TIP20_ABI };
 
 // Contract addresses for Tempo Testnet (Andantino)
-// Tempo uses USD as native currency with 6 decimals
 export const CONTRACTS = {
-  MULTIVERSE: "0x0000000000000000000000000000000000000000", // TODO: Replace with deployed address on Tempo
-  // Tempo native stablecoins - addresses from Tempo precompiles
-  USD: "0x20c0000000000000000000000000000000000001", // Native USD on Tempo
-  USDC: "0x20c0000000000000000000000000000000000002", // USDC on Tempo (if available)
-  USDT: "0x20c0000000000000000000000000000000000003", // USDT on Tempo (if available)
-  // Tempo DEX is built-in, no external router/factory needed
+  // Binary Protocol Contracts (deployed)
+  MULTIVERSE: "0x06A9F4629b75032f16D5E03B9672D8F11FA93AE3",
+  ORACLE: "0xDB875C7987584ED9Ccec95da132501eCeB145b13",
+  
+  // Tempo System Precompiles
+  PATH_USD: "0x20C0000000000000000000000000000000000000",  // pathUSD (tokenId 0)
+  ALPHA_USD: "0x20C0000000000000000000000000000000000001", // alphaUSD (tokenId 1)
+  BETA_USD: "0x20C0000000000000000000000000000000000002",  // betaUSD (tokenId 2)
+  THETA_USD: "0x20C0000000000000000000000000000000000003", // thetaUSD (tokenId 3)
+  TIP20_FACTORY: "0x20Fc000000000000000000000000000000000000",
+  FEE_MANAGER: "0xFeEc000000000000000000000000000000000000",
+  STABLECOIN_DEX: "0xDec0000000000000000000000000000000000000",
+  
+  // Stablecoin aliases (USD = alphaUSD for trading)
+  USD: "0x20C0000000000000000000000000000000000001",   // alphaUSD - primary trading currency
+  USDC: "0x20C0000000000000000000000000000000000002",  // betaUSD - alternate stablecoin
 } as const;
 
 // Market data is now fetched from the backend API

@@ -1,10 +1,5 @@
 import { useState, useCallback } from "react";
-import {
-  encodeFunctionData,
-  type Abi,
-  type Address,
-  type Hash,
-} from "viem";
+import { encodeFunctionData, type Abi, type Address, type Hash } from "viem";
 import { useTempoWalletClient, usePasskey } from "../contexts/PasskeyContext";
 
 interface WriteContractParams {
@@ -60,22 +55,18 @@ export function useWriteContract(): UseWriteContractReturn {
           args: params.args || [],
         });
 
-        // Use batched call format for Tempo transactions
+        // Use standard sendTransaction - Tempo transactions support calls array natively
+        // but we use standard to/data format for compatibility
         const txHash = await walletClient.sendTransaction({
-          calls: [
-            {
-              to: params.address,
-              data,
-              value: params.value || 0n,
-            },
-          ],
+          to: params.address,
+          data,
+          value: params.value || 0n,
         });
 
         setHash(txHash);
         setIsConfirming(true);
 
-        // Wait for confirmation
-        // Note: In production, you'd want to use waitForTransactionReceipt
+        // Wait for confirmation would be done here
         setIsConfirming(false);
         setIsSuccess(true);
 

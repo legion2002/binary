@@ -1,17 +1,5 @@
-import {
-  createContext,
-  useContext,
-  useMemo,
-  type ReactNode,
-} from "react";
-import {
-  createWalletClient,
-  createPublicClient,
-  http,
-  type WalletClient,
-  type PublicClient,
-  type Address,
-} from "viem";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createWalletClient, createPublicClient, http, type Address } from "viem";
 import { tempoTestnet } from "viem/chains";
 import { tempoActions, withFeePayer } from "viem/tempo";
 import { usePasskeyAccount } from "../hooks/usePasskeyAccount";
@@ -26,10 +14,10 @@ export const USD_TOKEN = "0x20c0000000000000000000000000000000000001" as const;
 const tempoChain = {
   ...tempoTestnet,
   feeToken: USD_TOKEN,
-};
+} as const;
 
-type TempoWalletClient = WalletClient & ReturnType<typeof tempoActions>;
-type TempoPublicClient = PublicClient & ReturnType<typeof tempoActions>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TempoClient = any;
 
 interface PasskeyContextValue {
   // Account state
@@ -38,8 +26,8 @@ interface PasskeyContextValue {
   isConnected: boolean;
 
   // Clients
-  walletClient: TempoWalletClient | null;
-  publicClient: TempoPublicClient;
+  walletClient: TempoClient | null;
+  publicClient: TempoClient;
 
   // Actions
   signUp: () => Promise<unknown>;
@@ -81,25 +69,24 @@ export function PasskeyProvider({
   const walletClient = useMemo(() => {
     if (!account) return null;
 
-    return createWalletClient({
+    const client = createWalletClient({
       account,
       chain: tempoChain,
-      transport: withFeePayer({
-        defaultTransport: http(),
-        relayTransport: http(feePayerUrl),
-      }),
-    }).extend(tempoActions()) as TempoWalletClient;
+      // withFeePayer takes positional args: (defaultTransport, relayTransport, options?)
+      transport: withFeePayer(http(), http(feePayerUrl)),
+    });
+
+    return client.extend(tempoActions());
   }, [account, feePayerUrl]);
 
   // Public client for read operations (always available)
-  const publicClient = useMemo(
-    () =>
-      createPublicClient({
-        chain: tempoChain,
-        transport: http(),
-      }).extend(tempoActions()) as TempoPublicClient,
-    []
-  );
+  const publicClient = useMemo(() => {
+    const client = createPublicClient({
+      chain: tempoChain,
+      transport: http(),
+    });
+    return client.extend(tempoActions());
+  }, []);
 
   const value: PasskeyContextValue = {
     account,
@@ -130,13 +117,13 @@ export function usePasskey() {
 }
 
 // Convenience hook for just the wallet client
-export function useTempoWalletClient() {
+export function useTempoWalletClient(): TempoClient | null {
   const { walletClient } = usePasskey();
   return walletClient;
 }
 
 // Convenience hook for just the public client
-export function useTempoPublicClient() {
+export function useTempoPublicClient(): TempoClient {
   const { publicClient } = usePasskey();
   return publicClient;
 }

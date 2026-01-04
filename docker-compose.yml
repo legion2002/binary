@@ -1,0 +1,41 @@
+# Local Tempo Node for Development
+#
+# Usage:
+#   docker-compose up -d     # Start Tempo node
+#   docker-compose down      # Stop Tempo node
+#   docker-compose logs -f   # View logs
+#
+# The node will be available at:
+#   HTTP:  http://localhost:9545
+#   WS:    ws://localhost:9545
+
+services:
+  tempo:
+    image: ghcr.io/tempoxyz/tempo:latest
+    platform: linux/amd64
+    container_name: tempo-local
+    ports:
+      - "9545:9545"
+    command:
+      - node
+      - --dev
+      - --dev.block-time=100ms
+      - --http.addr=0.0.0.0
+      - --http.port=9545
+      - --http.api=all
+      - --http.corsdomain=*
+      - --faucet.enabled
+      - --faucet.address=0x20c0000000000000000000000000000000000000
+      - --faucet.address=0x20c0000000000000000000000000000000000001
+      - --faucet.address=0x20c0000000000000000000000000000000000002
+      - --faucet.address=0x20c0000000000000000000000000000000000003
+      - --faucet.amount=1000000000000
+      - --faucet.private-key=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+    environment:
+      - RUST_LOG=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9545", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

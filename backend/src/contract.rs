@@ -1,13 +1,12 @@
-use alloy::primitives::{Address, FixedBytes, keccak256, B256, U160};
-use alloy::providers::{DynProvider, Provider, ProviderBuilder};
+use alloy::primitives::{Address, FixedBytes, keccak256, B256};
+use alloy::providers::{DynProvider, ProviderBuilder};
 use alloy::signers::local::PrivateKeySigner;
 use alloy::sol_types::SolValue;
-use alloy::rpc::types::trace::geth::{GethDebugTracingOptions, GethTrace};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::bindings::r#multi_verse::MultiVerse;
-use crate::uniswap_v4::{V4PoolManager, V4PoolState, create_market_v4_pools, PoolConfig, CreatedPools};
+use crate::tempo_orderbook::{StablecoinExchangeClient, OrderbookInfo, get_market_orderbook_info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +29,6 @@ pub struct ContractClient {
     multiverse_address: Address,
     provider: DynProvider,
     signer: PrivateKeySigner,
-    pool_manager_address: Option<Address>,
 }
 
 impl ContractClient {
@@ -38,13 +36,11 @@ impl ContractClient {
         multiverse_address: Address,
         provider: DynProvider,
         signer: PrivateKeySigner,
-        pool_manager_address: Option<Address>,
     ) -> Self {
         Self {
             multiverse_address,
             provider,
             signer,
-            pool_manager_address,
         }
     }
 
@@ -227,78 +223,39 @@ impl ContractClient {
         }
     }
 
-    /// Initialize V4 pools for a market with given token pairs
-    /// Creates configured pools (default: YES_TOKEN0/YES_TOKEN1, NO_TOKEN0/NO_TOKEN1, YES_TOKEN0/NO_TOKEN0)
-    pub async fn initialize_v4_pools(
+    /// Get orderbook info for market tokens
+    /// Returns orderbook state for YES and NO verse tokens
+    pub async fn get_market_orderbooks(
         &self,
         market_hash: FixedBytes<32>,
-        token0_address: Address, // e.g., USDC
-        token1_address: Address, // e.g., ETH/WETH
-        config: Option<PoolConfig>,
-    ) -> Result<CreatedPools, String> {
-        // Check if V4 pool manager is configured
-        let pool_manager_address = self.pool_manager_address
-            .ok_or_else(|| "V4 pool manager not configured - pool creation disabled".to_string())?;
+        asset: Address,
+        quote_token: Address,
+    ) -> Result<Vec<OrderbookInfo>, String> {
+        // Get verse token addresses
+        let (yes_token, no_token) = self.get_verse_addresses_raw(asset, market_hash).await
+            .map_err(|e| format!("Failed to get verse addresses: {}", e))?;
 
-        // Get verse token addresses for both base tokens
-        let (yes_token0, no_token0) = self.get_verse_addresses_raw(token0_address, market_hash).await
-            .map_err(|e| format!("Failed to get verse addresses for token0: {}", e))?;
-        let (yes_token1, no_token1) = self.get_verse_addresses_raw(token1_address, market_hash).await
-            .map_err(|e| format!("Failed to get verse addresses for token1: {}", e))?;
+        // Create orderbook client
+        let client = StablecoinExchangeClient::new(Arc::new(self.provider.clone()));
 
-        // Create V4 pool manager
-        let pool_manager = V4PoolManager::new(
-            pool_manager_address,
-            Arc::new(self.provider.clone()),
-        );
-
-        // Use provided config or default
-        let pool_config = config.unwrap_or_default();
-
-        // Create the configured pools
-        let result = create_market_v4_pools(
-            &pool_manager,
-            yes_token0,
-            no_token0,
-            yes_token1,
-            no_token1,
-            pool_config,
-        ).await;
-
-        match result {
-            Ok(pools) => {
-                tracing::info!(
-                    "V4 pools initialized for market {} with tokens {:?} and {:?}",
-                    hex::encode(market_hash),
-                    token0_address,
-                    token1_address
-                );
-                Ok(pools)
-            }
-            Err(e) => {
-                let error_msg = format!("Failed to initialize V4 pools: {}", e);
-                tracing::error!("{}", error_msg);
-                Err(error_msg)
-            }
-        }
+        // Get orderbook info for both tokens
+        get_market_orderbook_info(&client, yes_token, no_token, quote_token)
+            .await
+            .map_err(|e| format!("Failed to get orderbook info: {}", e))
     }
 
-    /// Get V4 pool state
-    pub async fn get_v4_pool_state(
+    /// Quote a swap on the Tempo DEX
+    pub async fn quote_swap(
         &self,
-        pool_id: FixedBytes<32>,
-    ) -> Result<V4PoolState, String> {
-        // Check if V4 pool manager is configured
-        let pool_manager_address = self.pool_manager_address
-            .ok_or_else(|| "V4 pool manager not configured".to_string())?;
+        token_in: Address,
+        token_out: Address,
+        amount_in: u128,
+    ) -> Result<u128, String> {
+        let client = StablecoinExchangeClient::new(Arc::new(self.provider.clone()));
 
-        let pool_manager = V4PoolManager::new(
-            pool_manager_address,
-            Arc::new(self.provider.clone()),
-        );
-
-        pool_manager.get_pool_state(pool_id).await
-            .map_err(|e| format!("Failed to get V4 pool state: {}", e))
+        client.quote_swap_exact_in(token_in, token_out, amount_in)
+            .await
+            .map_err(|e| format!("Failed to quote swap: {}", e))
     }
 
     /// Helper to get raw verse addresses (returns Address instead of String)

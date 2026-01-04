@@ -14,9 +14,35 @@ struct TestEnvironment {
 }
 
 impl TestEnvironment {
+    /// Try to create environment from external env vars (set by env.ts orchestrator)
+    /// Returns None if the required env vars are not set
+    fn from_external_env() -> Option<Self> {
+        let rpc_url = std::env::var("RPC_URL").ok()?;
+        let server_url = std::env::var("SERVER_URL").ok()?;
+        let api_key = std::env::var("ADMIN_API_KEY").unwrap_or_else(|_| "test_api_key_12345".to_string());
+
+        println!("Using external environment:");
+        println!("  RPC_URL: {}", rpc_url);
+        println!("  SERVER_URL: {}", server_url);
+
+        Some(Self {
+            anvil_process: None,
+            server_process: None,
+            rpc_url,
+            server_url,
+            api_key,
+        })
+    }
+
     async fn new() -> Result<Self> {
-        // Start Anvil
-        println!("Starting Anvil...");
+        // First, check if we're running in an externally-managed environment
+        if let Some(env) = Self::from_external_env() {
+            println!("Using externally-managed environment (from env.ts)");
+            return Ok(env);
+        }
+
+        // Fall back to starting our own Anvil instance
+        println!("Starting Anvil (standalone mode)...");
         let anvil_process = Command::new("anvil")
             .arg("--port")
             .arg("8545")
@@ -41,6 +67,11 @@ impl TestEnvironment {
             server_url,
             api_key,
         })
+    }
+
+    /// Check if this environment is externally managed (no processes to manage)
+    fn is_external(&self) -> bool {
+        self.anvil_process.is_none() && self.server_process.is_none()
     }
 
     /// Deploy contracts to Anvil and return contract addresses
@@ -232,15 +263,20 @@ async fn test_full_flow() -> Result<()> {
     // Setup test environment
     let mut env = TestEnvironment::new().await?;
 
-    // Deploy contracts
-    let (multiverse_address, oracle_address) = env.deploy_contracts().await?;
+    // If using external environment, skip deployment and server startup
+    if !env.is_external() {
+        // Deploy contracts
+        let (multiverse_address, oracle_address) = env.deploy_contracts().await?;
 
-    // Generate API key hash for testing
-    let api_key_hash = bcrypt::hash(&env.api_key, bcrypt::DEFAULT_COST)?;
+        // Generate API key hash for testing
+        let api_key_hash = bcrypt::hash(&env.api_key, bcrypt::DEFAULT_COST)?;
 
-    // Start server
-    env.start_server(&multiverse_address, &oracle_address, &api_key_hash)
-        .await?;
+        // Start server
+        env.start_server(&multiverse_address, &oracle_address, &api_key_hash)
+            .await?;
+    } else {
+        println!("Skipping deployment and server startup (external environment)");
+    }
 
     // Test 1: Get markets (should be empty initially)
     println!("\nTest 1: Fetching initial markets...");
@@ -338,14 +374,20 @@ async fn test_market_with_verse_tokens() -> Result<()> {
     println!("\n=== Testing Market with Verse Tokens ===\n");
 
     let mut env = TestEnvironment::new().await?;
-    let (multiverse_address, oracle_address) = env.deploy_contracts().await?;
 
-    let api_key_hash = bcrypt::hash(&env.api_key, bcrypt::DEFAULT_COST)?;
+    // If using external environment, skip deployment and server startup
+    if !env.is_external() {
+        let (multiverse_address, oracle_address) = env.deploy_contracts().await?;
 
-    env.start_server(&multiverse_address, &oracle_address, &api_key_hash)
-        .await?;
+        let api_key_hash = bcrypt::hash(&env.api_key, bcrypt::DEFAULT_COST)?;
 
-    // Use arbitrary addresses as mock ERC20 tokens (they don't need to actually exist)
+        env.start_server(&multiverse_address, &oracle_address, &api_key_hash)
+            .await?;
+    } else {
+        println!("Skipping deployment and server startup (external environment)");
+    }
+
+    // Use arbitrary addresses as mock TIP20 tokens (they don't need to actually exist)
     let mock_token_1 = "0x1111111111111111111111111111111111111111";
     let mock_token_2 = "0x2222222222222222222222222222222222222222";
 

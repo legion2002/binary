@@ -1,6 +1,6 @@
 use crate::contract::ContractClient;
 use crate::db::Database;
-use crate::uniswap_v4::V4PoolInfo;
+use crate::tempo_orderbook::OrderbookInfo;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -137,7 +137,7 @@ pub struct MarketDetailResponse {
     pub oracle: String,
     pub block_number: i64,
     pub verse_tokens: Vec<VerseTokenResponse>,
-    pub v4_pools: Vec<V4PoolInfo>,
+    pub orderbooks: Vec<OrderbookInfo>,
 }
 
 /// GET /markets/:marketHash
@@ -186,76 +186,47 @@ pub async fn get_market(
         }
     };
 
-    // Fetch V4 pools for this market
-    let v4_pools = match state.db.get_v4_pools_for_market(&market_hash).await {
-        Ok(Some(pool_data)) => {
-            let mut pools = Vec::new();
-
-            // Add existing pools based on what was created
-            if let Some(pool_id) = pool_data.pool_id_yes0_yes1 {
-                pools.push(V4PoolInfo {
-                    pool_type: "YES_TOKEN0/YES_TOKEN1".to_string(),
-                    pool_id: pool_id.clone(),
-                    token0: format!("YES_{}", pool_data.token0_address),
-                    token1: format!("YES_{}", pool_data.token1_address),
-                    fee: pool_data.fee as u32,
-                    tick_spacing: pool_data.tick_spacing as i32,
-                    liquidity: None,  // Could fetch from chain if needed
-                    sqrt_price_x96: None,
-                    tick: None,
-                });
-            }
-
-            if let Some(pool_id) = pool_data.pool_id_no0_no1 {
-                pools.push(V4PoolInfo {
-                    pool_type: "NO_TOKEN0/NO_TOKEN1".to_string(),
-                    pool_id: pool_id.clone(),
-                    token0: format!("NO_{}", pool_data.token0_address),
-                    token1: format!("NO_{}", pool_data.token1_address),
-                    fee: pool_data.fee as u32,
-                    tick_spacing: pool_data.tick_spacing as i32,
-                    liquidity: None,
-                    sqrt_price_x96: None,
-                    tick: None,
-                });
-            }
-
-            if let Some(pool_id) = pool_data.pool_id_yes0_no0 {
-                pools.push(V4PoolInfo {
-                    pool_type: "YES_TOKEN0/NO_TOKEN0".to_string(),
-                    pool_id: pool_id.clone(),
-                    token0: format!("YES_{}", pool_data.token0_address),
-                    token1: format!("NO_{}", pool_data.token0_address),
-                    fee: pool_data.fee as u32,
-                    tick_spacing: pool_data.tick_spacing as i32,
-                    liquidity: None,
-                    sqrt_price_x96: None,
-                    tick: None,
-                });
-            }
-
-            if let Some(pool_id) = pool_data.pool_id_yes1_no1 {
-                pools.push(V4PoolInfo {
-                    pool_type: "YES_TOKEN1/NO_TOKEN1".to_string(),
-                    pool_id: pool_id.clone(),
-                    token0: format!("YES_{}", pool_data.token1_address),
-                    token1: format!("NO_{}", pool_data.token1_address),
-                    fee: pool_data.fee as u32,
-                    tick_spacing: pool_data.tick_spacing as i32,
-                    liquidity: None,
-                    sqrt_price_x96: None,
-                    tick: None,
-                });
-            }
-
-            pools
-        }
-        Ok(None) => {
-            tracing::debug!("No V4 pools found for market {}", market_hash);
-            Vec::new()
+    // Fetch orderbook info for this market
+    let orderbooks = match state.db.get_orderbooks_for_market(&market_hash).await {
+        Ok(orderbook_data) => {
+            orderbook_data
+                .into_iter()
+                .flat_map(|data| {
+                    let mut infos = Vec::new();
+                    if let Some(pair_key) = data.yes_pair_key {
+                        infos.push(OrderbookInfo {
+                            pair_type: "YES/QUOTE".to_string(),
+                            pair_key,
+                            base_token: format!("YES_{}", data.asset_address),
+                            quote_token: data.quote_token_address.clone(),
+                            best_bid_tick: None,
+                            best_ask_tick: None,
+                            best_bid_price: None,
+                            best_ask_price: None,
+                            mid_price: None,
+                            spread_bps: None,
+                        });
+                    }
+                    if let Some(pair_key) = data.no_pair_key {
+                        infos.push(OrderbookInfo {
+                            pair_type: "NO/QUOTE".to_string(),
+                            pair_key,
+                            base_token: format!("NO_{}", data.asset_address),
+                            quote_token: data.quote_token_address,
+                            best_bid_tick: None,
+                            best_ask_tick: None,
+                            best_bid_price: None,
+                            best_ask_price: None,
+                            mid_price: None,
+                            spread_bps: None,
+                        });
+                    }
+                    infos
+                })
+                .collect()
         }
         Err(e) => {
-            tracing::warn!("Failed to fetch V4 pools for market {}: {}", market_hash, e);
+            tracing::warn!("Failed to fetch orderbooks for market {}: {}", market_hash, e);
             Vec::new()
         }
     };
@@ -270,7 +241,7 @@ pub async fn get_market(
             oracle: market.oracle,
             block_number: market.block_number,
             verse_tokens,
-            v4_pools,
+            orderbooks,
         }),
     )
         .into_response()

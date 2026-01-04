@@ -1,5 +1,4 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Actions } from "viem/tempo";
 import type { Address } from "viem";
 import {
   usePasskey,
@@ -30,7 +29,6 @@ interface BuyParams {
   amountOut: bigint;
   maxAmountIn: bigint;
   feeToken?: Address;
-  feePayer?: boolean;
 }
 
 interface SellParams {
@@ -39,7 +37,6 @@ interface SellParams {
   amountIn: bigint;
   minAmountOut: bigint;
   feeToken?: Address;
-  feePayer?: boolean;
 }
 
 /**
@@ -64,7 +61,7 @@ export function useBuyQuote({
       amountOut?.toString(),
     ],
     queryFn: async () => {
-      return Actions.dex.getBuyQuote(publicClient, {
+      return publicClient.dex.getBuyQuote({
         tokenIn,
         tokenOut,
         amountOut,
@@ -96,7 +93,7 @@ export function useSellQuote({
       amountIn?.toString(),
     ],
     queryFn: async () => {
-      return Actions.dex.getSellQuote(publicClient, {
+      return publicClient.dex.getSellQuote({
         tokenIn,
         tokenOut,
         amountIn,
@@ -119,13 +116,13 @@ export function useBuySync() {
       if (!walletClient) throw new Error("No wallet client - please sign in");
       if (!isConnected) throw new Error("Not connected");
 
-      return Actions.dex.buySync(walletClient, {
+      // Use the decorated client's dex.buySync method
+      return walletClient.dex.buySync({
         tokenIn: params.tokenIn,
         tokenOut: params.tokenOut,
         amountOut: params.amountOut,
         maxAmountIn: params.maxAmountIn,
         feeToken: params.feeToken,
-        // Fee sponsorship is configured in the wallet client transport
       });
     },
   });
@@ -144,13 +141,13 @@ export function useSellSync() {
       if (!walletClient) throw new Error("No wallet client - please sign in");
       if (!isConnected) throw new Error("Not connected");
 
-      return Actions.dex.sellSync(walletClient, {
+      // Use the decorated client's dex.sellSync method
+      return walletClient.dex.sellSync({
         tokenIn: params.tokenIn,
         tokenOut: params.tokenOut,
         amountIn: params.amountIn,
         minAmountOut: params.minAmountOut,
         feeToken: params.feeToken,
-        // Fee sponsorship is configured in the wallet client transport
       });
     },
   });

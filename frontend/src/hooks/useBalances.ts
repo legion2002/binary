@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { Actions } from "viem/tempo";
 import type { Address } from "viem";
 import { usePasskey, useTempoPublicClient } from "../contexts/PasskeyContext";
 
@@ -21,7 +20,7 @@ export function useTokenBalance({
     queryKey: ["tempo", "token", "balance", account, token],
     queryFn: async () => {
       if (!account) throw new Error("No account");
-      return Actions.token.getBalance(publicClient, { account, token });
+      return publicClient.token.getBalance({ account, token });
     },
     enabled: enabled && !!account,
   });

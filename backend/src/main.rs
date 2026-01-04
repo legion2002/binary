@@ -6,7 +6,7 @@ mod contract;
 mod db;
 mod indexer;
 mod routes;
-mod uniswap_v4;
+mod tempo_orderbook;
 
 use admin::{open_market, AdminState};
 use auth::require_admin_api_key;
@@ -37,12 +37,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("MultiVerse Address: {:?}", config.multiverse_address);
     tracing::info!("Oracle Address: {:?}", config.oracle_address);
-
-    if let Some(pool_manager) = config.pool_manager_address {
-        tracing::info!("V4 Pool Manager Address: {:?}", pool_manager);
-    } else {
-        tracing::info!("V4 Pool Manager not configured - pool creation disabled");
-    }
+    tracing::info!("Using Tempo Stablecoin Exchange at: {:?}", tempo_orderbook::STABLECOIN_EXCHANGE_ADDRESS);
 
     // Initialize database
     let database_url = std::env::var("DATABASE_URL")
@@ -55,7 +50,6 @@ async fn main() -> anyhow::Result<()> {
         config.multiverse_address,
         config.provider.clone(),
         config.signer.clone(),
-        config.pool_manager_address,
     ));
 
     // Start event indexer in background task
@@ -95,11 +89,11 @@ async fn main() -> anyhow::Result<()> {
     // Build admin routes (protected by API key)
     let admin_routes = Router::new()
         .route("/markets/open", post(open_market))
-        .with_state(admin_state)
         .route_layer(middleware::from_fn_with_state(
             config.admin_api_key_hash.clone(),
             require_admin_api_key,
-        ));
+        ))
+        .with_state(admin_state);
 
     // Build main router
     let app = Router::new()

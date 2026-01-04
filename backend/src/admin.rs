@@ -1,11 +1,11 @@
 use crate::contract::ContractClient;
 use crate::db::Database;
-use crate::uniswap_v4::{V4PoolInfo, PoolConfig};
-use alloy::primitives::{Address, FixedBytes};
+use crate::tempo_orderbook::{OrderbookInfo, PATH_USD_ADDRESS};
+use alloy::primitives::Address;
 use axum::{
     extract::State,
     http::StatusCode,
-    response::{IntoResponse, Json},
+    response::{IntoResponse, Json, Response},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -29,8 +29,8 @@ pub struct OpenMarketRequest {
     /// Optional list of asset addresses to create verse tokens for
     pub assets: Option<Vec<String>>,
 
-    /// Optional V4 pool configuration (which pools to create)
-    pub v4_pool_config: Option<PoolConfig>,
+    /// Optional quote token address for orderbook trading (defaults to pathUSD)
+    pub quote_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -52,7 +52,7 @@ pub struct OpenMarketResponse {
     pub oracle: String,
     pub transaction_hash: String,
     pub verse_tokens: Vec<VerseTokenInfo>,
-    pub v4_pools: Vec<V4PoolInfo>,
+    pub orderbooks: Vec<OrderbookInfo>,
 }
 
 #[derive(Debug, Serialize)]
@@ -65,7 +65,7 @@ pub struct ErrorResponse {
 pub async fn open_market(
     State(state): State<AdminState>,
     Json(request): Json<OpenMarketRequest>,
-) -> impl IntoResponse {
+) -> Response {
     // Validate question
     if request.question.trim().is_empty() {
         return (
@@ -176,7 +176,7 @@ pub async fn open_market(
 
     // Create verse tokens for each asset
     let mut verse_tokens = Vec::new();
-    for asset in assets {
+    for &asset in &assets {
         match state
             .contract_client
             .create_verse_tokens(asset, market_hash)
@@ -224,114 +224,48 @@ pub async fn open_market(
         }
     }
 
-    // Create V4 pools if we have at least 2 assets
-    let mut v4_pools = Vec::new();
-    if assets.len() >= 2 {
-        // Use the first two assets as token0 and token1
-        let token0_address = assets[0];
-        let token1_address = assets[1];
+    // Get orderbook info for created verse tokens
+    // Parse quote token address (defaults to pathUSD)
+    let quote_token = request.quote_token
+        .as_ref()
+        .and_then(|addr| addr.parse::<Address>().ok())
+        .unwrap_or(PATH_USD_ADDRESS);
 
-        // Try to create V4 pools
+    let mut orderbooks = Vec::new();
+    for &asset in &assets {
+        // Try to get orderbook info for each asset's verse tokens
         match state
             .contract_client
-            .initialize_v4_pools(
-                market_hash,
-                token0_address,
-                token1_address,
-                request.v4_pool_config,
-            )
+            .get_market_orderbooks(market_hash, asset, quote_token)
             .await
         {
-            Ok(created_pools) => {
-                // Store pool IDs in database
+            Ok(infos) => {
+                // Store orderbook info in database
                 if let Err(e) = state
                     .db
-                    .insert_v4_pools(
+                    .insert_orderbook_market(
                         market_hash,
-                        created_pools.yes0_yes1,
-                        created_pools.no0_no1,
-                        created_pools.yes0_no0,
-                        created_pools.yes1_no1,
-                        token0_address,
-                        token1_address,
-                        Some(format!("{:?}", tx_hash)),
+                        asset,
+                        quote_token,
+                        infos.iter().find(|i| i.pair_type == "YES/QUOTE").map(|i| i.pair_key.clone()),
+                        infos.iter().find(|i| i.pair_type == "NO/QUOTE").map(|i| i.pair_key.clone()),
                     )
                     .await
                 {
-                    tracing::error!("Failed to store V4 pools in database: {}", e);
+                    tracing::error!("Failed to store orderbook info in database: {}", e);
                 }
-
-                // Build pool info for response
-                if let Some(pool_id) = created_pools.yes0_yes1 {
-                    v4_pools.push(V4PoolInfo {
-                        pool_type: "YES_TOKEN0/YES_TOKEN1".to_string(),
-                        pool_id: format!("0x{}", hex::encode(pool_id)),
-                        token0: format!("YES_{:?}", token0_address),
-                        token1: format!("YES_{:?}", token1_address),
-                        fee: 3000,
-                        tick_spacing: 60,
-                        liquidity: None,
-                        sqrt_price_x96: None,
-                        tick: None,
-                    });
-                }
-
-                if let Some(pool_id) = created_pools.no0_no1 {
-                    v4_pools.push(V4PoolInfo {
-                        pool_type: "NO_TOKEN0/NO_TOKEN1".to_string(),
-                        pool_id: format!("0x{}", hex::encode(pool_id)),
-                        token0: format!("NO_{:?}", token0_address),
-                        token1: format!("NO_{:?}", token1_address),
-                        fee: 3000,
-                        tick_spacing: 60,
-                        liquidity: None,
-                        sqrt_price_x96: None,
-                        tick: None,
-                    });
-                }
-
-                if let Some(pool_id) = created_pools.yes0_no0 {
-                    v4_pools.push(V4PoolInfo {
-                        pool_type: "YES_TOKEN0/NO_TOKEN0".to_string(),
-                        pool_id: format!("0x{}", hex::encode(pool_id)),
-                        token0: format!("YES_{:?}", token0_address),
-                        token1: format!("NO_{:?}", token0_address),
-                        fee: 3000,
-                        tick_spacing: 60,
-                        liquidity: None,
-                        sqrt_price_x96: None,
-                        tick: None,
-                    });
-                }
-
-                if let Some(pool_id) = created_pools.yes1_no1 {
-                    v4_pools.push(V4PoolInfo {
-                        pool_type: "YES_TOKEN1/NO_TOKEN1".to_string(),
-                        pool_id: format!("0x{}", hex::encode(pool_id)),
-                        token0: format!("YES_{:?}", token1_address),
-                        token1: format!("NO_{:?}", token1_address),
-                        fee: 3000,
-                        tick_spacing: 60,
-                        liquidity: None,
-                        sqrt_price_x96: None,
-                        tick: None,
-                    });
-                }
-
-                tracing::info!(
-                    "Created {} V4 pools for market {}",
-                    v4_pools.len(),
-                    hex::encode(market_hash)
-                );
+                orderbooks.extend(infos);
             }
             Err(e) => {
-                tracing::warn!("Failed to create V4 pools: {}. Market creation continues.", e);
-                // Don't fail the entire market creation if V4 pools fail
+                tracing::debug!("No orderbook info available for asset {:?}: {}", asset, e);
             }
         }
-    } else if !assets.is_empty() {
-        tracing::info!("V4 pools require at least 2 assets, only {} provided", assets.len());
     }
+
+    tracing::info!(
+        "Market created with {} orderbook pairs",
+        orderbooks.len()
+    );
 
     // Return success response
     (
@@ -344,7 +278,7 @@ pub async fn open_market(
             oracle: format!("{:?}", state.oracle_address),
             transaction_hash: format!("{:?}", tx_hash),
             verse_tokens,
-            v4_pools,
+            orderbooks,
         }),
     )
         .into_response()

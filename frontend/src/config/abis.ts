@@ -108,9 +108,8 @@ export const MULTIVERSE_ABI = [
   { type: "error", name: "VersesAlreadyCreated", inputs: [] },
 ] as const;
 
-// Standard ERC20 ABI - kept for compatibility with custom tokens
-// Note: On Tempo, prefer using viem/tempo Actions.token for TIP20 tokens
-export const ERC20_ABI = [
+// TIP20 Token ABI - Tempo's native token standard (extends ERC20)
+export const TIP20_ABI = [
   {
     type: "function",
     name: "allowance",

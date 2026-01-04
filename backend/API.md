@@ -137,17 +137,18 @@ Retrieve detailed information about a specific market.
       "transactionHash": "0x789ghi..."
     }
   ],
-  "v4Pools": [
+  "orderbooks": [
     {
-      "poolType": "YES_TOKEN0/YES_TOKEN1",
-      "poolId": "0x123abc...",
-      "token0": "YES_0x4200000000000000000000000000000000000006",
-      "token1": "YES_0x4200000000000000000000000000000000000007",
-      "fee": 3000,
-      "tickSpacing": 60,
-      "liquidity": null,
-      "sqrtPriceX96": null,
-      "tick": null
+      "pairType": "YES/QUOTE",
+      "pairKey": "0x123abc...",
+      "baseToken": "YES_0x4200000000000000000000000000000000000006",
+      "quoteToken": "0x20c0000000000000000000000000000000000000",
+      "bestBidTick": -10,
+      "bestAskTick": 10,
+      "bestBidPrice": "0.999900",
+      "bestAskPrice": "1.000100",
+      "midPrice": "1.000000",
+      "spreadBps": 2.0
     }
   ]
 }
@@ -160,16 +161,17 @@ Retrieve detailed information about a specific market.
   - `yesVerse`: Address of the YES verse token
   - `noVerse`: Address of the NO verse token
   - `transactionHash`: Transaction hash of verse token creation
-- `v4Pools`: Array of Uniswap V4 pools created for this market (if V4 is enabled)
-  - `poolType`: Type of pool (e.g., "YES_TOKEN0/YES_TOKEN1")
-  - `poolId`: Unique identifier for the V4 pool
-  - `token0`: First token in the pool
-  - `token1`: Second token in the pool
-  - `fee`: Pool fee in basis points (e.g., 3000 = 0.3%)
-  - `tickSpacing`: Tick spacing for the pool
-  - `liquidity`: Current liquidity (null if not fetched)
-  - `sqrtPriceX96`: Current price (null if not fetched)
-  - `tick`: Current tick (null if not fetched)
+- `orderbooks`: Array of Tempo DEX orderbook info for this market
+  - `pairType`: Type of pair (e.g., "YES/QUOTE" or "NO/QUOTE")
+  - `pairKey`: Unique identifier for the trading pair
+  - `baseToken`: Base token address (YES or NO verse token)
+  - `quoteToken`: Quote token address (typically pathUSD)
+  - `bestBidTick`: Best bid price tick (null if no bids)
+  - `bestAskTick`: Best ask price tick (null if no asks)
+  - `bestBidPrice`: Human-readable bid price
+  - `bestAskPrice`: Human-readable ask price
+  - `midPrice`: Mid-market price
+  - `spreadBps`: Spread in basis points
 
 **Error Responses:**
 - `404 Not Found`: Market does not exist
@@ -229,13 +231,8 @@ Content-Type: application/json
 {
   "question": "Will FOCIL be included in Ethereum by end of 2025?",
   "resolutionDeadline": 1767225600,
-  "assets": ["0x4200000000000000000000000000000000000006", "0x4200000000000000000000000000000000000007"],
-  "v4PoolConfig": {
-    "createYes0Yes1": true,
-    "createNo0No1": true,
-    "createYes0No0": true,
-    "createYes1No1": false
-  }
+  "assets": ["0x20c0000000000000000000000000000000000001"],
+  "quoteToken": "0x20c0000000000000000000000000000000000000"
 }
 ```
 
@@ -244,12 +241,8 @@ Content-Type: application/json
 |-------|------|----------|-------------|
 | `question` | string | Yes | The prediction market question (min 10 characters) |
 | `resolutionDeadline` | integer | Yes | Unix timestamp when the market should resolve (must be in the future) |
-| `assets` | array[string] | No | Array of ERC20 token addresses to create verse tokens for (minimum 2 required for V4 pools) |
-| `v4PoolConfig` | object | No | Configuration for V4 pool creation (requires 2+ assets) |
-| ↳ `createYes0Yes1` | boolean | No | Create YES_TOKEN0/YES_TOKEN1 pool (default: true) |
-| ↳ `createNo0No1` | boolean | No | Create NO_TOKEN0/NO_TOKEN1 pool (default: true) |
-| ↳ `createYes0No0` | boolean | No | Create YES_TOKEN0/NO_TOKEN0 pool (default: true) |
-| ↳ `createYes1No1` | boolean | No | Create YES_TOKEN1/NO_TOKEN1 pool (default: false) |
+| `assets` | array[string] | No | Array of TIP20 token addresses to create verse tokens for |
+| `quoteToken` | string | No | Quote token for orderbook trading (defaults to pathUSD: `0x20c0...`) |
 
 **Response:** `200 OK`
 ```json
@@ -262,51 +255,36 @@ Content-Type: application/json
   "transactionHash": "0xabc123...",
   "verseTokens": [
     {
-      "asset": "0x4200000000000000000000000000000000000006",
+      "asset": "0x20c0000000000000000000000000000000000001",
       "yesVerse": "0xdef456...",
       "noVerse": "0x789ghi...",
       "transactionHash": "0xjkl012..."
-    },
-    {
-      "asset": "0x4200000000000000000000000000000000000007",
-      "yesVerse": "0xmno345...",
-      "noVerse": "0xpqr678...",
-      "transactionHash": "0xstu901..."
     }
   ],
-  "v4Pools": [
+  "orderbooks": [
     {
-      "poolType": "YES_TOKEN0/YES_TOKEN1",
-      "poolId": "0x123abc...",
-      "token0": "YES_0x4200000000000000000000000000000000000006",
-      "token1": "YES_0x4200000000000000000000000000000000000007",
-      "fee": 3000,
-      "tickSpacing": 60,
-      "liquidity": null,
-      "sqrtPriceX96": null,
-      "tick": null
+      "pairType": "YES/QUOTE",
+      "pairKey": "0x123abc...",
+      "baseToken": "YES_0x20c0000000000000000000000000000000000001",
+      "quoteToken": "0x20c0000000000000000000000000000000000000",
+      "bestBidTick": null,
+      "bestAskTick": null,
+      "bestBidPrice": null,
+      "bestAskPrice": null,
+      "midPrice": null,
+      "spreadBps": null
     },
     {
-      "poolType": "NO_TOKEN0/NO_TOKEN1",
-      "poolId": "0x456def...",
-      "token0": "NO_0x4200000000000000000000000000000000000006",
-      "token1": "NO_0x4200000000000000000000000000000000000007",
-      "fee": 3000,
-      "tickSpacing": 60,
-      "liquidity": null,
-      "sqrtPriceX96": null,
-      "tick": null
-    },
-    {
-      "poolType": "YES_TOKEN0/NO_TOKEN0",
-      "poolId": "0x789ghi...",
-      "token0": "YES_0x4200000000000000000000000000000000006",
-      "token1": "NO_0x4200000000000000000000000000000000006",
-      "fee": 3000,
-      "tickSpacing": 60,
-      "liquidity": null,
-      "sqrtPriceX96": null,
-      "tick": null
+      "pairType": "NO/QUOTE",
+      "pairKey": "0x456def...",
+      "baseToken": "NO_0x20c0000000000000000000000000000000000001",
+      "quoteToken": "0x20c0000000000000000000000000000000000000",
+      "bestBidTick": null,
+      "bestAskTick": null,
+      "bestBidPrice": null,
+      "bestAskPrice": null,
+      "midPrice": null,
+      "spreadBps": null
     }
   ]
 }
@@ -320,7 +298,7 @@ Content-Type: application/json
 - `oracle`: Address of the oracle for this market
 - `transactionHash`: Transaction hash of market creation
 - `verseTokens`: Array of created verse tokens (if assets were provided)
-- `v4Pools`: Array of created Uniswap V4 pools (if 2+ assets and V4 enabled)
+- `orderbooks`: Array of Tempo DEX orderbook info for created verse tokens
 
 **Error Responses:**
 - `400 Bad Request`: Invalid request parameters
@@ -374,21 +352,17 @@ CREATE TABLE verse_tokens (
 );
 ```
 
-### V4 Pools Table
+### Orderbook Markets Table
 ```sql
-CREATE TABLE v4_pools (
+CREATE TABLE orderbook_markets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    market_hash TEXT NOT NULL UNIQUE,
-    pool_id_yes0_yes1 TEXT,
-    pool_id_no0_no1 TEXT,
-    pool_id_yes0_no0 TEXT,
-    pool_id_yes1_no1 TEXT,
-    token0_address TEXT NOT NULL,
-    token1_address TEXT NOT NULL,
-    fee INTEGER NOT NULL DEFAULT 3000,
-    tick_spacing INTEGER NOT NULL DEFAULT 60,
-    transaction_hash TEXT,
+    market_hash TEXT NOT NULL,
+    asset_address TEXT NOT NULL,
+    quote_token_address TEXT NOT NULL,
+    yes_pair_key TEXT,
+    no_pair_key TEXT,
     created_at INTEGER NOT NULL,
+    UNIQUE(market_hash, asset_address),
     FOREIGN KEY (market_hash) REFERENCES markets(market_hash)
 );
 ```
@@ -424,12 +398,11 @@ Required environment variables for the backend:
 HOST=127.0.0.1
 PORT=3000
 
-# Blockchain Configuration
+# Blockchain Configuration (Tempo Testnet)
 MULTIVERSE_ADDRESS=0x...  # MultiVerse contract address
 ORACLE_ADDRESS=0x...       # Oracle contract address
-RPC_URL=https://...        # HTTP RPC endpoint
-WS_RPC_URL=wss://...       # WebSocket RPC endpoint
-V4_POOL_MANAGER_ADDRESS=0x... # Uniswap V4 Pool Manager (optional)
+RPC_URL=https://rpc.testnet.tempo.xyz  # Tempo HTTP RPC endpoint
+WS_RPC_URL=wss://rpc.testnet.tempo.xyz # Tempo WebSocket RPC endpoint
 
 # Wallet Configuration
 PRIVATE_KEY=0x...          # Private key for signing transactions
@@ -441,7 +414,7 @@ DATABASE_URL=sqlite:///path/to/markets.db
 ADMIN_API_KEY_HASH=$2b$12$...  # Bcrypt hash from generate_api_key
 ```
 
-**Note on V4 Pools:** The `V4_POOL_MANAGER_ADDRESS` is optional. If not provided, the system will run without Uniswap V4 pool creation capability. When provided, the admin API can create V4 pools for markets with 2 or more assets.
+**Note on Tempo:** The backend now uses Tempo's native Stablecoin DEX for orderbook-based trading. The DEX is available at the precompile address `0xDEc0000000000000000000000000000000000000` on Tempo networks.
 
 ## Rate Limiting
 
@@ -533,41 +506,45 @@ Question hashes are calculated as:
 keccak256(bytes(questionText))
 ```
 
-## Uniswap V4 Pool Integration
+## Tempo Stablecoin DEX Integration
 
 ### Overview
 
-The backend supports creating Uniswap V4 pools for prediction market tokens. When configured, the system can create pools that enable trading between:
-- YES and NO tokens of the same asset (market outcome trading)
-- YES tokens of different assets (YES economy)
-- NO tokens of different assets (NO economy)
+The backend integrates with Tempo's native Stablecoin DEX (orderbook) at `0xDEc0000000000000000000000000000000000000`. This enables trading between prediction market tokens (YES/NO verse tokens) using Tempo's enshrined orderbook.
 
-### Pool Configuration
+### Key Features
 
-When creating a market with 2 or more assets, you can configure which V4 pools to create:
+- **Orderbook-based trading**: Price-time priority orderbook for efficient price discovery
+- **pathUSD quote token**: Stablecoins trade against pathUSD (`0x20c0000000000000000000000000000000000000`)
+- **Gasless transactions**: Fee sponsorship via `withFeePayer` transport
+- **Call batching**: Atomic multi-call operations (e.g., approve + swap in one tx)
 
-| Pool Type | Description | Default |
-|-----------|-------------|---------|
-| `YES_TOKEN0/YES_TOKEN1` | Trade between YES tokens of different assets | ✓ Enabled |
-| `NO_TOKEN0/NO_TOKEN1` | Trade between NO tokens of different assets | ✓ Enabled |
-| `YES_TOKEN0/NO_TOKEN0` | Trade between YES/NO tokens of first asset | ✓ Enabled |
-| `YES_TOKEN1/NO_TOKEN1` | Trade between YES/NO tokens of second asset | ✗ Disabled |
+### Orderbook Data
 
-### Pool Parameters
+Markets return orderbook information for each asset's verse tokens:
 
-All V4 pools are created with standard parameters:
-- **Fee**: 0.3% (3000 basis points)
-- **Tick Spacing**: 60
-- **Initial Price**: 1:1 ratio (sqrtPriceX96 = 79228162514264337593543950336)
-- **Hooks**: None (address(0))
+| Field | Description |
+|-------|-------------|
+| `pairType` | Either "YES/QUOTE" or "NO/QUOTE" |
+| `pairKey` | Unique identifier for the trading pair |
+| `baseToken` | YES or NO verse token address |
+| `quoteToken` | Quote token address (typically pathUSD) |
+| `bestBidTick` | Best bid price tick (null if no bids) |
+| `bestAskTick` | Best ask price tick (null if no asks) |
+| `bestBidPrice` | Human-readable bid price |
+| `bestAskPrice` | Human-readable ask price |
+| `midPrice` | Mid-market price |
+| `spreadBps` | Spread in basis points |
 
-### Requirements
+### Tick Pricing
 
-1. **V4 Pool Manager**: Set `V4_POOL_MANAGER_ADDRESS` in environment variables
-2. **Multiple Assets**: Provide at least 2 assets when creating a market
-3. **Verse Tokens**: Verse tokens are created automatically before pools
+Tempo DEX uses tick-based pricing:
+- `tick = (price - 1) * 100,000`
+- Price $1.00 = tick 0
+- Price $0.99 = tick -1000
+- Price $1.01 = tick 1000
 
-### Example: Creating a Market with V4 Pools
+### Example: Creating a Market with Orderbook Trading
 
 ```bash
 curl -X POST http://127.0.0.1:3000/admin/markets/open \
@@ -577,24 +554,39 @@ curl -X POST http://127.0.0.1:3000/admin/markets/open \
     "question": "Will ETH reach $10k in 2025?",
     "resolutionDeadline": 1767225600,
     "assets": [
-      "0x4200000000000000000000000000000000000006",  # WETH
-      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"   # USDC
+      "0x20c0000000000000000000000000000000000001"
     ],
-    "v4PoolConfig": {
-      "createYes0Yes1": true,
-      "createNo0No1": true,
-      "createYes0No0": true,
-      "createYes1No1": false
-    }
+    "quoteToken": "0x20c0000000000000000000000000000000000000"
   }'
 ```
 
 This creates:
-1. Verse tokens for both WETH and USDC
-2. Three V4 pools:
-   - YES_WETH/YES_USDC (YES economy)
-   - NO_WETH/NO_USDC (NO economy)
-   - YES_WETH/NO_WETH (WETH market outcome)
+1. Verse tokens (YES and NO) for the specified asset
+2. Orderbook info for trading YES/pathUSD and NO/pathUSD
+
+### Frontend Integration
+
+Use viem/tempo for swap execution:
+
+```typescript
+import { Actions, Addresses } from 'viem/tempo';
+
+const calls = [
+  Actions.token.approve.call({
+    amount: maxAmountIn,
+    spender: Addresses.stablecoinExchange,
+    token: tokenIn,
+  }),
+  Actions.dex.buy.call({
+    amountOut: amount,
+    maxAmountIn,
+    tokenIn,
+    tokenOut,
+  }),
+];
+
+sendCalls.sendCallsSync({ calls });
+```
 
 ## Monitoring and Logging
 

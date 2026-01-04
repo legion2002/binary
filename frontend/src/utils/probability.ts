@@ -1,70 +1,91 @@
-import type { V4PoolInfo } from '../api/types';
+import type { OrderbookInfo } from '../api/types';
 
 /**
- * Calculate market probability from V4 pool data
- * Uses YES/NO pool combinations to derive probability
+ * Calculate market probability from orderbook data
+ * Uses YES/NO orderbook mid prices to derive probability
+ *
+ * In a prediction market:
+ * - YES token price reflects probability of YES outcome
+ * - NO token price reflects probability of NO outcome
+ * - Prices should sum to ~1.0 (with some spread)
  */
-export function calculateProbabilityFromPools(pools: V4PoolInfo[]): {
+export function calculateProbabilityFromOrderbooks(orderbooks: OrderbookInfo[]): {
   yesProbability: number;
   noProbability: number;
   source?: string;
 } | null {
-  if (!pools || pools.length === 0) {
+  if (!orderbooks || orderbooks.length === 0) {
     return null;
   }
 
-  // Look for YES/NO combination pools
-  const yesNoPools = pools.filter(pool => {
-    const hasYes = pool.poolType.includes('YES');
-    const hasNo = pool.poolType.includes('NO');
-    return hasYes && hasNo;
-  });
+  // Find YES and NO orderbooks
+  const yesOrderbook = orderbooks.find(ob => ob.pairType.includes('YES'));
+  const noOrderbook = orderbooks.find(ob => ob.pairType.includes('NO'));
 
-  // If we have a YES/NO pool with price data
-  if (yesNoPools.length > 0) {
-    const pool = yesNoPools[0];
+  // Try to use mid price if available
+  if (yesOrderbook?.midPrice && noOrderbook?.midPrice) {
+    const yesPrice = parseFloat(yesOrderbook.midPrice);
+    const noPrice = parseFloat(noOrderbook.midPrice);
 
-    // If sqrtPriceX96 is available, calculate from it
-    if (pool.sqrtPriceX96) {
-      // sqrtPriceX96 represents sqrt(price) * 2^96
-      // price = (sqrtPriceX96 / 2^96)^2
-      const sqrtPrice = BigInt(pool.sqrtPriceX96);
-      const Q96 = BigInt(2) ** BigInt(96);
-
-      // Calculate price ratio
-      // This gives us YES/NO price ratio
-      const priceRatio = Number(sqrtPrice) / Number(Q96);
-      const price = priceRatio * priceRatio;
-
-      // Determine which token is token0 and token1
-      const isYesToken0 = pool.token0.includes('YES');
-
-      let yesNoRatio: number;
-      if (isYesToken0) {
-        // price = token0/token1 = YES/NO
-        yesNoRatio = price;
-      } else {
-        // price = token0/token1 = NO/YES, so YES/NO = 1/price
-        yesNoRatio = 1 / price;
-      }
-
-      // Calculate probabilities
+    if (yesPrice > 0 && noPrice > 0) {
+      // Calculate probability from relative prices
       // YES probability = YES price / (YES price + NO price)
-      // If YES/NO ratio = R, then YES prob = R / (R + 1)
-      const yesProbability = (yesNoRatio / (yesNoRatio + 1)) * 100;
+      const yesProbability = (yesPrice / (yesPrice + noPrice)) * 100;
       const noProbability = 100 - yesProbability;
 
       return {
         yesProbability: Math.round(yesProbability * 10) / 10,
         noProbability: Math.round(noProbability * 10) / 10,
-        source: pool.poolType
+        source: 'Orderbook mid prices'
       };
     }
   }
 
-  // Fallback: If no price data available, check for other pool types
-  // For now, return 50/50 if pools exist but no price data
-  if (pools.length > 0) {
+  // Try to use best bid/ask prices
+  if (yesOrderbook?.bestBidPrice && yesOrderbook?.bestAskPrice) {
+    const yesBid = parseFloat(yesOrderbook.bestBidPrice);
+    const yesAsk = parseFloat(yesOrderbook.bestAskPrice);
+    const yesMid = (yesBid + yesAsk) / 2;
+
+    let noMid = 1.0 - yesMid; // Default: assume NO price is inverse
+
+    if (noOrderbook?.bestBidPrice && noOrderbook?.bestAskPrice) {
+      const noBid = parseFloat(noOrderbook.bestBidPrice);
+      const noAsk = parseFloat(noOrderbook.bestAskPrice);
+      noMid = (noBid + noAsk) / 2;
+    }
+
+    if (yesMid > 0 && noMid > 0) {
+      const yesProbability = (yesMid / (yesMid + noMid)) * 100;
+      const noProbability = 100 - yesProbability;
+
+      return {
+        yesProbability: Math.round(yesProbability * 10) / 10,
+        noProbability: Math.round(noProbability * 10) / 10,
+        source: 'Orderbook bid/ask'
+      };
+    }
+  }
+
+  // Try to use just YES orderbook mid price (assume price = probability)
+  if (yesOrderbook?.midPrice) {
+    const yesMid = parseFloat(yesOrderbook.midPrice);
+    if (yesMid > 0 && yesMid <= 2) {
+      // Assume price close to 1.0 means 50%, price of 0.5 means ~33%, etc.
+      // For stablecoins pegged to $1, price deviation from 1.0 indicates probability
+      const yesProbability = yesMid * 50; // Simple scaling
+      const noProbability = 100 - yesProbability;
+
+      return {
+        yesProbability: Math.min(99, Math.max(1, Math.round(yesProbability * 10) / 10)),
+        noProbability: Math.min(99, Math.max(1, Math.round(noProbability * 10) / 10)),
+        source: 'YES mid price only'
+      };
+    }
+  }
+
+  // Fallback: If orderbooks exist but no price data, return 50/50
+  if (orderbooks.length > 0) {
     return {
       yesProbability: 50.0,
       noProbability: 50.0,
@@ -80,4 +101,23 @@ export function calculateProbabilityFromPools(pools: V4PoolInfo[]): {
  */
 export function formatProbability(probability: number): string {
   return `${probability.toFixed(1)}%`;
+}
+
+/**
+ * Format spread in basis points for display
+ */
+export function formatSpread(spreadBps: number | null | undefined): string {
+  if (spreadBps == null) return 'N/A';
+  return `${spreadBps.toFixed(1)} bps`;
+}
+
+/**
+ * Calculate implied probability from a single token price
+ * Assumes token price in quote currency (e.g., pathUSD)
+ */
+export function priceToImpliedProbability(price: number): number {
+  // In a binary market, if YES costs $0.60 and NO costs $0.40,
+  // the implied probability of YES is 60%
+  // This assumes the quote token is always $1 (pathUSD)
+  return Math.min(99, Math.max(1, price * 100));
 }

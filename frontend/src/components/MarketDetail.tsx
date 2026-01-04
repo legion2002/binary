@@ -6,7 +6,7 @@ import { fetchMarket } from '../api/client';
 import { VersePanel } from './VersePanel';
 import { SplitCombine } from './SplitCombine';
 import { Tooltip } from './Tooltip';
-import { calculateProbabilityFromPools, formatProbability } from '../utils/probability';
+import { calculateProbabilityFromOrderbooks, formatProbability } from '../utils/probability';
 
 export function MarketDetail() {
   const { marketHash } = useParams<{ marketHash: string }>();
@@ -21,8 +21,8 @@ export function MarketDetail() {
     enabled: !!marketHash,
   });
 
-  // Calculate probability from V4 pools
-  const probability = market ? calculateProbabilityFromPools(market.v4Pools) : null;
+  // Calculate probability from orderbook prices
+  const probability = market ? calculateProbabilityFromOrderbooks(market.orderbooks) : null;
 
   if (isLoading) {
     return (
@@ -90,7 +90,7 @@ export function MarketDetail() {
                 {formatProbability(probability.yesProbability)}
               </p>
               {probability.source && (
-                <p className="text-xs text-gray-500 mt-1 text-center">from V4 pools</p>
+                <p className="text-xs text-gray-500 mt-1 text-center">from orderbook</p>
               )}
             </div>
             <div className="flex-1 max-w-xs bg-red-50 rounded-lg p-4 border border-red-200">
@@ -99,16 +99,16 @@ export function MarketDetail() {
                 {formatProbability(probability.noProbability)}
               </p>
               {probability.source && (
-                <p className="text-xs text-gray-500 mt-1 text-center">from V4 pools</p>
+                <p className="text-xs text-gray-500 mt-1 text-center">from orderbook</p>
               )}
             </div>
           </div>
           <div className="mt-4 text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
             <p className="font-medium mb-1">How is this calculated?</p>
-            <p>Market probabilities are derived from Uniswap V4 pool prices. The relative prices of YES and NO tokens
-            in the pools reflect the market's belief about the outcome probability.</p>
+            <p>Market probabilities are derived from Tempo Stablecoin DEX orderbook prices. The relative prices of YES and NO tokens
+            in the orderbooks reflect the market's belief about the outcome probability.</p>
             {probability.source && probability.source !== 'No price data - showing 50/50' && (
-              <p className="text-xs mt-1">Source pool: {probability.source}</p>
+              <p className="text-xs mt-1">Source: {probability.source}</p>
             )}
           </div>
         </div>

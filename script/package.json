@@ -1,0 +1,18 @@
+{
+  "name": "binary-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "env:dev": "bun run env.ts dev",
+    "env:test": "bun run env.ts test"
+  },
+  "dependencies": {
+    "prool": "^0.2.2",
+    "testcontainers": "^11.11.0",
+    "viem": "^2.43.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.14"
+  }
+}

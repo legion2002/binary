@@ -111,3 +111,40 @@ The contracts use Tempo's predeployed system contracts:
 - **No native gas token** - Fees are paid in TIP-20 tokens (defaults to PATH_USD)
 - **Fast finality** - ~0.5 second blocks with deterministic finality
 - **TIP-20 tokens** - Binary creates YES/NO verse tokens via the TIP-20 Factory
+
+---
+
+## Local Development
+
+Run a local Tempo node for testing without deploying to testnet.
+
+### Option 1: Using Prool (Recommended)
+
+```bash
+cd frontend
+bun run tempo:local
+```
+
+This starts a Docker-based Tempo node, funds a test account, and deploys contracts.
+
+### Option 2: Using Docker Compose
+
+```bash
+# Start local Tempo node
+docker-compose up -d
+
+# Deploy contracts
+./script/deploy-local.sh
+
+# Stop when done
+docker-compose down
+```
+
+### Local Node Details
+
+| Property | Value |
+|----------|-------|
+| RPC URL | `http://localhost:9545` |
+| Chain ID | `42429` |
+| Test Private Key | `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` |
+| Test Account | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` |

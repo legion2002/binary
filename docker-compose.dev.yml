@@ -1,0 +1,28 @@
+version: "3.8"
+
+# Development overrides - use with:
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      # Mount source for hot-reload (requires cargo-watch)
+      - ./backend/src:/app/src:ro
+    environment:
+      - RUST_LOG=debug,backend=trace
+      - RUST_BACKTRACE=1
+
+  frontend:
+    # Use dev server instead of nginx for hot-reload
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src:ro
+    environment:
+      - VITE_API_URL=http://localhost:3000
