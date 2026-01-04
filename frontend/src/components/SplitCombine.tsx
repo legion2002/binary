@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits } from 'viem';
 import { MULTIVERSE_ABI, CONTRACTS } from '../config/contracts';
 import { Tooltip } from './Tooltip';
+import { usePasskey } from '../contexts/PasskeyContext';
+import { useWriteContract } from '../hooks/useContractWrite';
 
 interface SplitCombineProps {
   marketHash: string;
@@ -10,12 +11,11 @@ interface SplitCombineProps {
 }
 
 export function SplitCombine({ marketHash, activeAsset }: SplitCombineProps) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected } = usePasskey();
   const [amount, setAmount] = useState('');
   const [mode, setMode] = useState<'split' | 'combine'>('split');
 
-  const { writeContract, data: hash, isPending } = useWriteContract();
-  const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash });
+  const { writeContract, isPending, isConfirming } = useWriteContract();
 
   // Tempo uses USD as native currency with 6 decimals
   const assetAddress = activeAsset === 'USD' ? CONTRACTS.USD : CONTRACTS.USDC;

@@ -1,7 +1,5 @@
 import { http, createConfig, createStorage } from "wagmi";
 import { tempoTestnet } from "viem/chains";
-import { webAuthn, KeyManager } from "tempo.ts/wagmi"; // WebAuthn connector not yet in native wagmi
-import type { Chain } from "viem";
 
 // USD token address on Tempo (native stablecoin)
 const USD_TOKEN = "0x20c0000000000000000000000000000000000001" as const;
@@ -10,15 +8,13 @@ const USD_TOKEN = "0x20c0000000000000000000000000000000000001" as const;
 const tempo = {
   ...tempoTestnet,
   feeToken: USD_TOKEN,
-} as Chain & { feeToken: typeof USD_TOKEN };
+};
 
+// Simplified wagmi config - passkey handling is now in PasskeyContext
+// This config is kept for compatibility with existing wagmi hooks if needed
 export const wagmiConfig = createConfig({
   chains: [tempo],
-  connectors: [
-    webAuthn({
-      keyManager: KeyManager.localStorage(),
-    }),
-  ],
+  connectors: [], // No connectors - using direct passkey via PasskeyContext
   storage: createStorage({ storage: localStorage }),
   multiInjectedProviderDiscovery: false,
   transports: {

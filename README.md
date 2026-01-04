@@ -62,3 +62,52 @@ Example:
 - **NO_ETH / NO_USDC** quotes ETH’s value *if it doesn’t*.
 
 Comparing the two feeds gives the Ethereum community a clear, quantitative signal about which path the future favors—and where to focus effort today.
+
+---
+
+## Deployment
+
+Binary is deployed on **Tempo** - a Layer 1 blockchain optimized for payments with native TIP-20 token support.
+
+### Network: Tempo Testnet (Andantino)
+
+| Property | Value |
+|----------|-------|
+| Chain ID | `42429` |
+| RPC URL | `https://rpc.testnet.tempo.xyz` |
+| Explorer | [explore.tempo.xyz](https://explore.tempo.xyz) |
+
+### Prerequisites
+
+1. **Get testnet funds**: Request PATH_USD from the [Tempo Faucet](https://docs.tempo.xyz/quickstart/faucet)
+2. **Set private key**: Add `PRIVATE_KEY=...` to `.env`
+
+### Deploy
+
+```bash
+./script/DeployTempo.sh
+```
+
+Or manually:
+
+```bash
+forge script script/DeployAll.s.sol:DeployAll \
+    --rpc-url tempo_testnet \
+    --broadcast \
+    --private-key $PRIVATE_KEY
+```
+
+### Contract Addresses
+
+The contracts use Tempo's predeployed system contracts:
+
+| Contract | Address |
+|----------|---------|
+| TIP-20 Factory | `0x20Fc000000000000000000000000000000000000` |
+| PATH_USD | `0x20C0000000000000000000000000000000000000` |
+
+### Tempo-Specific Notes
+
+- **No native gas token** - Fees are paid in TIP-20 tokens (defaults to PATH_USD)
+- **Fast finality** - ~0.5 second blocks with deterministic finality
+- **TIP-20 tokens** - Binary creates YES/NO verse tokens via the TIP-20 Factory

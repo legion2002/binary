@@ -109,7 +109,7 @@ export const MULTIVERSE_ABI = [
 ] as const;
 
 // Standard ERC20 ABI - kept for compatibility with custom tokens
-// Note: On Tempo, prefer using tempo.ts/wagmi Hooks.token for TIP20 tokens
+// Note: On Tempo, prefer using viem/tempo Actions.token for TIP20 tokens
 export const ERC20_ABI = [
   {
     type: "function",

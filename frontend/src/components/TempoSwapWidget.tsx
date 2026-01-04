@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { parseUnits, formatUnits, type Address } from 'viem';
-import { useAccount } from 'wagmi';
 import { useBuyQuote, useSellQuote, useBuySync, useSellSync } from '../hooks/useTempoDex';
 import { CONTRACTS } from '../config/contracts';
-import { TEMPO_FEE_TOKEN } from '../config/wagmi';
+import { usePasskey } from '../contexts/PasskeyContext';
+import { USD_TOKEN } from '../contexts/PasskeyContext';
 
 interface TempoSwapWidgetProps {
   tokenAddress: string;
@@ -11,7 +11,7 @@ interface TempoSwapWidgetProps {
 }
 
 export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
-  const { isConnected } = useAccount();
+  const { isConnected } = usePasskey();
   const [amount, setAmount] = useState('');
   const [isBuying, setIsBuying] = useState(true);
 
@@ -50,7 +50,7 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
         tokenOut: tokenAddress as Address,
         amountOut: parsedAmount,
         maxAmountIn: buyQuote ? (buyQuote * 105n) / 100n : parsedAmount * 2n, // 5% slippage
-        feeToken: TEMPO_FEE_TOKEN as Address,
+        feeToken: USD_TOKEN as Address,
       });
     } else {
       // Sell verse tokens for USD
@@ -59,7 +59,7 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
         tokenOut: CONTRACTS.USD as Address,
         amountIn: parsedAmount,
         minAmountOut: sellQuote ? (sellQuote * 95n) / 100n : 0n, // 5% slippage
-        feeToken: TEMPO_FEE_TOKEN as Address,
+        feeToken: USD_TOKEN as Address,
       });
     }
   };
@@ -175,7 +175,7 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
               Processing...
             </span>
           ) : !isConnected ? (
-            'Connect Wallet'
+            'Sign In to Trade'
           ) : (
             isBuying ? `Buy ${verse} Tokens` : `Sell ${verse} Tokens`
           )}
@@ -184,7 +184,7 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
 
       <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
         <p className="text-xs text-gray-500 text-center">
-          Trading on Tempo Testnet (Andantino)
+          Trading on Tempo Testnet • Gasless with Fee Sponsorship
         </p>
       </div>
     </div>

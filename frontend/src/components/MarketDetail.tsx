@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { useAccount } from 'wagmi';
 import { useQuery } from '@tanstack/react-query';
+import { usePasskey } from '../contexts/PasskeyContext';
 import { fetchMarket } from '../api/client';
 import { VersePanel } from './VersePanel';
 import { SplitCombine } from './SplitCombine';
@@ -11,7 +11,7 @@ import { calculateProbabilityFromPools, formatProbability } from '../utils/proba
 export function MarketDetail() {
   const { marketHash } = useParams<{ marketHash: string }>();
   const navigate = useNavigate();
-  const { isConnected } = useAccount();
+  const { isConnected } = usePasskey();
   const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   // Fetch market data from API

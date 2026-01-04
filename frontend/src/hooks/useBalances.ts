@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { usePublicClient } from "wagmi";
-import { Actions, tempoActions } from "viem/tempo";
+import { Actions } from "viem/tempo";
 import type { Address } from "viem";
+import { usePasskey, useTempoPublicClient } from "../contexts/PasskeyContext";
 
 /**
  * Hook to get a token balance using viem/tempo
@@ -15,25 +15,25 @@ export function useTokenBalance({
   token: Address;
   enabled?: boolean;
 }) {
-  const publicClient = usePublicClient();
+  const publicClient = useTempoPublicClient();
 
   return useQuery({
     queryKey: ["tempo", "token", "balance", account, token],
     queryFn: async () => {
-      if (!publicClient) throw new Error("No public client");
       if (!account) throw new Error("No account");
-      const client = publicClient.extend(tempoActions());
-      return Actions.token.getBalance(client, { account, token });
+      return Actions.token.getBalance(publicClient, { account, token });
     },
-    enabled: enabled && !!publicClient && !!account,
+    enabled: enabled && !!account,
   });
 }
 
 export function useBalances(
-  address: string | undefined,
+  _address: string | undefined,
   _marketHash: string,
   verse: "YES" | "NO"
 ) {
+  const { address } = usePasskey();
+
   // TODO: Get actual verse token addresses from contract
   // These should be fetched from the Multiverse contract based on marketHash
   const mockYesUsdAddress =
@@ -52,13 +52,13 @@ export function useBalances(
 
   // Use custom token balance hook with viem/tempo
   const { data: usdBalanceData, isLoading: usdLoading } = useTokenBalance({
-    account: address as Address | undefined,
+    account: address,
     token: usdVerseAddress,
     enabled: !!address,
   });
 
   const { data: usdcBalanceData, isLoading: usdcLoading } = useTokenBalance({
-    account: address as Address | undefined,
+    account: address,
     token: usdcVerseAddress,
     enabled: !!address,
   });
