@@ -12,11 +12,20 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <PasskeyProvider>
         <Router>
-          <div className="min-h-screen bg-gray-50">
-            <header className="bg-white shadow-sm border-b">
+          <div className="min-h-screen bg-dark">
+            <header className="header-glass">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
-                  <h1 className="text-xl font-semibold">Binary Markets</h1>
+                  <div className="flex items-center gap-4">
+                    <a href="/" className="logo-link">
+                      <span className="logo-binary">Binary</span>
+                      <span className="logo-markets">Markets</span>
+                    </a>
+                    <span className="powered-by hidden sm:flex">
+                      <span className="powered-text">on</span>
+                      <span className="tempo-badge">Tempo</span>
+                    </span>
+                  </div>
                   <WalletConnect />
                 </div>
               </div>

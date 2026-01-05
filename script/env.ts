@@ -24,6 +24,7 @@ import { startLocalTempo, type TempoEnvironment } from './lib/tempo'
 import { deployContracts, getProjectRoot, type ContractAddresses } from './lib/deploy'
 import { startBackend, TEST_API_KEY, type BackendProcess } from './lib/backend'
 import { startFrontend, type FrontendProcess } from './lib/frontend'
+import { setUserFeeToken } from './lib/fee-amm'
 
 // Colors for console output
 const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`
@@ -83,13 +84,22 @@ async function shutdown(): Promise<void> {
 
 async function runTests(testCmd: string[], projectRoot: string): Promise<number> {
   return new Promise((resolve) => {
-    const [cmd, ...args] = testCmd.length > 0 ? testCmd : ['cargo', 'test', '--test', 'integration_test', '--', '--ignored']
+    // Default to running cargo integration tests in the backend directory
+    const isDefaultCargoTest = testCmd.length === 0
+    const [cmd, ...args] = isDefaultCargoTest
+      ? ['cargo', 'test', '--test', 'integration_test', '--', '--ignored']
+      : testCmd
+
+    // Determine working directory: cargo tests run in backend, others in project root
+    const isCargoCmd = cmd === 'cargo'
+    const cwd = isCargoCmd ? `${projectRoot}/backend` : projectRoot
 
     console.log(cyan(`Running: ${cmd} ${args.join(' ')}`))
+    console.log(cyan(`  in: ${cwd}`))
     console.log('')
 
     const child = spawn(cmd, args, {
-      cwd: testCmd.length > 0 && testCmd[0] === 'cargo' ? `${projectRoot}/backend` : projectRoot,
+      cwd,
       stdio: 'inherit',
       env: {
         ...process.env,
@@ -166,9 +176,16 @@ async function main(): Promise<void> {
     env.tempo = await startLocalTempo()
     console.log(green('  ✓ Tempo node running at ' + env.tempo.rpcUrl))
 
-    // Step 2: Deploy contracts
+    // Step 2: Set user fee token to PathUSD
+    // PathUSD is the base token that validators accept - no Fee AMM swap needed
+    // The setUserToken call itself uses the specified token for its fees (special rule)
     console.log('')
-    console.log(cyan('Step 2:') + ' Deploying contracts...')
+    console.log(cyan('Step 2:') + ' Configuring fee token...')
+    await setUserFeeToken(env.tempo.client)
+
+    // Step 3: Deploy contracts
+    console.log('')
+    console.log(cyan('Step 3:') + ' Deploying contracts...')
     env.contracts = await deployContracts({
       rpcUrl: env.tempo.rpcUrl,
       projectRoot,
@@ -178,9 +195,9 @@ async function main(): Promise<void> {
     console.log(`    MultiVerse: ${env.contracts.multiverse}`)
     console.log(`    Oracle:     ${env.contracts.oracle}`)
 
-    // Step 3: Start backend
+    // Step 4: Start backend
     console.log('')
-    console.log(cyan('Step 3:') + ' Starting backend server...')
+    console.log(cyan('Step 4:') + ' Starting backend server...')
     env.backend = await startBackend({
       rpcUrl: env.tempo.rpcUrl,
       contracts: env.contracts,
@@ -190,11 +207,11 @@ async function main(): Promise<void> {
     })
     console.log(green('  ✓ Backend running at ' + env.backend.url))
 
-    // Step 4: Handle mode-specific logic
+    // Step 5: Handle mode-specific logic
     if (mode === 'dev') {
       // Start frontend for dev mode
       console.log('')
-      console.log(cyan('Step 4:') + ' Starting frontend dev server...')
+      console.log(cyan('Step 5:') + ' Starting frontend dev server...')
       env.frontend = await startFrontend({ projectRoot, verbose })
       console.log(green('  ✓ Frontend running at ' + env.frontend.url))
 
@@ -206,13 +223,13 @@ async function main(): Promise<void> {
       // Test mode
       if (withFrontend) {
         console.log('')
-        console.log(cyan('Step 4:') + ' Starting frontend for e2e tests...')
+        console.log(cyan('Step 5:') + ' Starting frontend for e2e tests...')
         env.frontend = await startFrontend({ projectRoot, verbose })
         console.log(green('  ✓ Frontend running at ' + env.frontend.url))
       }
 
       console.log('')
-      console.log(cyan('Step ' + (withFrontend ? '5' : '4') + ':') + ' Running tests...')
+      console.log(cyan('Step ' + (withFrontend ? '6' : '5') + ':') + ' Running tests...')
       console.log('')
 
       const exitCode = await runTests(testCmd, projectRoot)

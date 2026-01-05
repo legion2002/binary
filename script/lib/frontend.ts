@@ -24,10 +24,10 @@ export async function startFrontend(options: FrontendOptions): Promise<FrontendP
   const { projectRoot, verbose = false } = options
 
   const port = FRONTEND_PORT
-  const url = `http://127.0.0.1:${port}`
+  const url = `http://localhost:${port}`
   const frontendDir = join(projectRoot, 'frontend')
 
-  const child = spawn('pnpm', ['dev'], {
+  const child = spawn('pnpm', ['dev', '--host'], {
     cwd: frontendDir,
     stdio: verbose ? 'inherit' : 'pipe',
     env: {

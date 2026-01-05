@@ -21,14 +21,18 @@ export function MarketDetail() {
     enabled: !!marketHash,
   });
 
-  // Calculate probability from orderbook prices
-  const probability = market ? calculateProbabilityFromOrderbooks(market.orderbooks) : null;
+  // Use API probability if available, otherwise calculate from orderbooks
+  const probability = market
+    ? market.yesProbability != null && market.noProbability != null
+      ? { yesProbability: market.yesProbability, noProbability: market.noProbability, source: 'API' }
+      : calculateProbabilityFromOrderbooks(market.orderbooks)
+    : null;
 
   if (isLoading) {
     return (
       <div className="text-center py-12">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Loading market...</p>
+        <div className="inline-block w-8 h-8 spinner-dark"></div>
+        <p className="mt-4 text-secondary">Loading market...</p>
       </div>
     );
   }
@@ -36,13 +40,13 @@ export function MarketDetail() {
   if (error || !market) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-xl font-semibold mb-4">Market not found</h2>
-        <p className="text-sm text-gray-600 mb-4">
+        <h2 className="text-xl font-semibold mb-4 text-primary">Market not found</h2>
+        <p className="text-sm text-muted mb-4">
           {error ? (error as Error).message : 'The requested market does not exist'}
         </p>
         <button
           onClick={() => navigate('/')}
-          className="text-blue-600 hover:text-blue-700"
+          className="text-accent-purple hover:text-primary transition-colors"
         >
           ← Back to markets
         </button>
@@ -50,29 +54,41 @@ export function MarketDetail() {
     );
   }
 
+  const yesPercent = probability ? Math.round(probability.yesProbability * 100) : 50;
+  const noPercent = probability ? Math.round(probability.noProbability * 100) : 50;
+
   return (
     <div>
       {/* Back navigation */}
-      <a
+      <button
         onClick={() => navigate('/')}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 cursor-pointer transition-colors"
+        className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-primary cursor-pointer transition-colors"
       >
         ← Back to markets
-      </a>
+      </button>
 
       {/* Market Question Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow-lg p-6 mb-6 border border-blue-100">
+      <div className="card-dark border-l-accent-purple p-6 mb-6">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">
+            <h2 className="text-2xl font-bold mb-2 text-primary">
               {market.question || 'Question not available'}
             </h2>
-            <p className="text-sm text-gray-600">
-              Deadline: {new Date(market.resolutionDeadline * 1000).toLocaleDateString()}
+            <p className="text-sm text-muted">
+              Resolves: {new Date(market.resolutionDeadline * 1000).toLocaleDateString()}
+              {market.resolution && market.resolution !== 'UNRESOLVED' && (
+                <span className={`ml-3 px-2 py-1 rounded text-xs font-medium ${
+                  market.resolution === 'YES' ? 'bg-accent-green-dim text-accent-green' :
+                  market.resolution === 'NO' ? 'bg-accent-red-dim text-accent-red' :
+                  'bg-accent-purple-dim text-accent-purple'
+                }`}>
+                  Resolved: {market.resolution}
+                </span>
+              )}
             </p>
           </div>
           <Tooltip content="This is a prediction market where you can trade on the outcome">
-            <svg className="w-5 h-5 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-muted cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </Tooltip>
@@ -81,73 +97,75 @@ export function MarketDetail() {
 
       {/* Market Probability Section */}
       {probability && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h4 className="font-semibold mb-4 text-gray-700">Market Resolution Probability</h4>
+        <div className="card-dark p-6 mb-6">
+          <h4 className="font-semibold mb-4 text-secondary">Market Probability</h4>
+
+          {/* Probability bar */}
+          <div className="probability-bar mb-4" style={{ height: '12px' }}>
+            <div
+              className="probability-bar-yes"
+              style={{ width: `${yesPercent}%` }}
+            />
+            <div
+              className="probability-bar-no"
+              style={{ width: `${noPercent}%` }}
+            />
+          </div>
+
           <div className="flex gap-4 justify-center">
-            <div className="flex-1 max-w-xs bg-green-50 rounded-lg p-4 border border-green-200">
-              <h5 className="font-semibold text-green-700 mb-2 text-center">YES</h5>
-              <p className="text-3xl font-bold text-green-800 text-center">
+            <div className="flex-1 max-w-xs bg-accent-green-dim rounded-lg p-4 border border-accent-green border-opacity-30">
+              <h5 className="font-semibold text-accent-green mb-2 text-center">YES</h5>
+              <p className="text-3xl font-bold text-accent-green text-center">
                 {formatProbability(probability.yesProbability)}
               </p>
-              {probability.source && (
-                <p className="text-xs text-gray-500 mt-1 text-center">from orderbook</p>
-              )}
             </div>
-            <div className="flex-1 max-w-xs bg-red-50 rounded-lg p-4 border border-red-200">
-              <h5 className="font-semibold text-red-700 mb-2 text-center">NO</h5>
-              <p className="text-3xl font-bold text-red-800 text-center">
+            <div className="flex-1 max-w-xs bg-accent-red-dim rounded-lg p-4 border border-accent-red border-opacity-30">
+              <h5 className="font-semibold text-accent-red mb-2 text-center">NO</h5>
+              <p className="text-3xl font-bold text-accent-red text-center">
                 {formatProbability(probability.noProbability)}
               </p>
-              {probability.source && (
-                <p className="text-xs text-gray-500 mt-1 text-center">from orderbook</p>
-              )}
             </div>
-          </div>
-          <div className="mt-4 text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-            <p className="font-medium mb-1">How is this calculated?</p>
-            <p>Market probabilities are derived from Tempo Stablecoin DEX orderbook prices. The relative prices of YES and NO tokens
-            in the orderbooks reflect the market's belief about the outcome probability.</p>
-            {probability.source && probability.source !== 'No price data - showing 50/50' && (
-              <p className="text-xs mt-1">Source: {probability.source}</p>
-            )}
           </div>
         </div>
       )}
 
       {/* How it works section */}
       <div className="mb-6">
-        <a
+        <button
           onClick={() => setShowHowItWorks(!showHowItWorks)}
-          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 cursor-pointer transition-colors"
+          className="inline-flex items-center gap-1 text-sm text-accent-purple hover:text-primary cursor-pointer transition-colors"
         >
           {showHowItWorks ? '▼' : '▶'} How it works
-        </a>
+        </button>
 
         {showHowItWorks && (
-          <div className="bg-white rounded-lg shadow-md p-6 mt-3">
+          <div className="card-dark p-6 mt-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-dark-tertiary rounded-lg p-4">
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-green-600">1.</span> Trade on Tempo DEX
+                  <span className="text-accent-green">1.</span>
+                  <span className="text-primary">Trade on Tempo DEX</span>
                 </h4>
-                <p className="text-gray-600">
-                  Purchase YES tokens if you believe the outcome will happen, or NO tokens if you think it won't. Use Tempo's built-in DEX to swap.
+                <p className="text-muted">
+                  Purchase YES tokens if you believe the outcome will happen, or NO tokens if you think it won't.
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-dark-tertiary rounded-lg p-4">
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-blue-600">2.</span> Tempo Orderbook
+                  <span className="text-accent-blue">2.</span>
+                  <span className="text-primary">Tempo Orderbook</span>
                 </h4>
-                <p className="text-gray-600">
-                  Trade on Tempo's native orderbook for efficient price discovery between YES/NO tokens. Place limit orders for advanced strategies.
+                <p className="text-muted">
+                  Trade on Tempo's native orderbook for efficient price discovery between YES/NO tokens.
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-dark-tertiary rounded-lg p-4">
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-purple-600">3.</span> Win or Arbitrage
+                  <span className="text-accent-purple">3.</span>
+                  <span className="text-primary">Win or Arbitrage</span>
                 </h4>
-                <p className="text-gray-600">
-                  When resolved, winning tokens can be redeemed for $1 USD each. Use split/combine for arbitrage opportunities during trading.
+                <p className="text-muted">
+                  When resolved, winning tokens redeem for $1 USD each. Use split/combine for arbitrage.
                 </p>
               </div>
             </div>
@@ -157,10 +175,10 @@ export function MarketDetail() {
 
       {!isConnected && (
         <div className="text-center mb-6">
-          <p className="text-sm text-gray-500 mb-2">Connect your wallet to start trading</p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-            <span className="text-xs text-gray-600">Wallet not connected</span>
+          <p className="text-sm text-muted mb-2">Connect your wallet to start trading</p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-dark-tertiary rounded-full border border-dark">
+            <div className="w-2 h-2 bg-accent-purple rounded-full animate-pulse"></div>
+            <span className="text-xs text-secondary">Wallet not connected</span>
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 use crate::contract::ContractClient;
 use crate::db::Database;
-use crate::tempo_orderbook::OrderbookInfo;
+use crate::tempo_orderbook::{OrderbookInfo, calculate_probability_from_orderbooks, StablecoinExchangeClient, get_market_orderbook_info, PATH_USD_ADDRESS};
+use alloy::primitives::{Address, FixedBytes};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -39,6 +40,11 @@ pub struct MarketResponse {
     pub resolution_deadline: i64,
     pub oracle: String,
     pub block_number: i64,
+    // Probability derived from orderbook prices (0.0 - 1.0)
+    pub yes_probability: Option<f64>,
+    pub no_probability: Option<f64>,
+    // Resolution status: "UNRESOLVED", "YES", "NO", "EVEN"
+    pub resolution: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -93,6 +99,8 @@ pub async fn get_markets(
     };
 
     // Convert to response format
+    // Note: probability and resolution are None in list view for performance
+    // Use the detail endpoint (/markets/:marketHash) for full data
     let market_responses: Vec<MarketResponse> = markets
         .into_iter()
         .map(|m| MarketResponse {
@@ -102,6 +110,9 @@ pub async fn get_markets(
             resolution_deadline: m.resolution_deadline,
             oracle: m.oracle,
             block_number: m.block_number,
+            yes_probability: None,
+            no_probability: None,
+            resolution: None,
         })
         .collect();
 
@@ -138,10 +149,15 @@ pub struct MarketDetailResponse {
     pub block_number: i64,
     pub verse_tokens: Vec<VerseTokenResponse>,
     pub orderbooks: Vec<OrderbookInfo>,
+    // Probability derived from orderbook prices (0.0 - 1.0)
+    pub yes_probability: Option<f64>,
+    pub no_probability: Option<f64>,
+    // Resolution status: "UNRESOLVED", "YES", "NO", "EVEN"
+    pub resolution: Option<String>,
 }
 
 /// GET /markets/:marketHash
-/// Get a single market by its hash
+/// Get a single market by its hash with live orderbook data
 pub async fn get_market(
     State(state): State<AppState>,
     Path(market_hash): Path<String>,
@@ -170,65 +186,139 @@ pub async fn get_market(
     };
 
     // Fetch verse tokens for this market
-    let verse_tokens = match state.db.get_verse_tokens_for_market(&market_hash).await {
-        Ok(tokens) => tokens
-            .into_iter()
-            .map(|t| VerseTokenResponse {
-                asset: t.asset,
-                yes_verse: t.yes_verse,
-                no_verse: t.no_verse,
-                transaction_hash: t.transaction_hash,
-            })
-            .collect(),
+    let verse_tokens_db = match state.db.get_verse_tokens_for_market(&market_hash).await {
+        Ok(tokens) => tokens,
         Err(e) => {
             tracing::warn!("Failed to fetch verse tokens for market {}: {}", market_hash, e);
             Vec::new()
         }
     };
 
-    // Fetch orderbook info for this market
-    let orderbooks = match state.db.get_orderbooks_for_market(&market_hash).await {
-        Ok(orderbook_data) => {
-            orderbook_data
-                .into_iter()
-                .flat_map(|data| {
-                    let mut infos = Vec::new();
-                    if let Some(pair_key) = data.yes_pair_key {
-                        infos.push(OrderbookInfo {
-                            pair_type: "YES/QUOTE".to_string(),
-                            pair_key,
-                            base_token: format!("YES_{}", data.asset_address),
-                            quote_token: data.quote_token_address.clone(),
-                            best_bid_tick: None,
-                            best_ask_tick: None,
-                            best_bid_price: None,
-                            best_ask_price: None,
-                            mid_price: None,
-                            spread_bps: None,
-                        });
-                    }
-                    if let Some(pair_key) = data.no_pair_key {
-                        infos.push(OrderbookInfo {
-                            pair_type: "NO/QUOTE".to_string(),
-                            pair_key,
-                            base_token: format!("NO_{}", data.asset_address),
-                            quote_token: data.quote_token_address,
-                            best_bid_tick: None,
-                            best_ask_tick: None,
-                            best_bid_price: None,
-                            best_ask_price: None,
-                            mid_price: None,
-                            spread_bps: None,
-                        });
-                    }
-                    infos
-                })
-                .collect()
+    let verse_tokens: Vec<VerseTokenResponse> = verse_tokens_db
+        .iter()
+        .map(|t| VerseTokenResponse {
+            asset: t.asset.clone(),
+            yes_verse: t.yes_verse.clone(),
+            no_verse: t.no_verse.clone(),
+            transaction_hash: t.transaction_hash.clone(),
+        })
+        .collect();
+
+    // Parse market hash for contract calls
+    let market_hash_bytes: Option<FixedBytes<32>> = market_hash
+        .strip_prefix("0x")
+        .and_then(|s| hex::decode(s).ok())
+        .and_then(|bytes| <Vec<u8> as TryInto<[u8; 32]>>::try_into(bytes).ok())
+        .map(FixedBytes::from);
+
+    // Fetch live orderbook data and resolution
+    let mut orderbooks: Vec<OrderbookInfo> = Vec::new();
+    let mut resolution: Option<String> = None;
+
+    if let Some(hash_bytes) = market_hash_bytes {
+        // Fetch resolution from contract
+        match state.contract_client.get_resolution(hash_bytes).await {
+            Ok(res) => resolution = Some(res),
+            Err(e) => tracing::warn!("Failed to fetch resolution: {}", e),
         }
-        Err(e) => {
-            tracing::warn!("Failed to fetch orderbooks for market {}: {}", market_hash, e);
-            Vec::new()
+
+        // Fetch live orderbook data for each verse token pair
+        for verse in &verse_tokens_db {
+            // Parse addresses
+            let yes_addr: Option<Address> = verse.yes_verse
+                .parse()
+                .ok();
+            let no_addr: Option<Address> = verse.no_verse
+                .parse()
+                .ok();
+            let asset_addr: Option<Address> = verse.asset
+                .parse()
+                .ok();
+
+            if let (Some(yes), Some(no), Some(_asset)) = (yes_addr, no_addr, asset_addr) {
+                // Fetch live orderbook state from Tempo DEX
+                match state.contract_client.get_market_orderbooks(hash_bytes, yes, PATH_USD_ADDRESS).await {
+                    Ok(mut live_orderbooks) => {
+                        // Update pair types
+                        for ob in &mut live_orderbooks {
+                            if ob.base_token.contains(&format!("{:?}", yes)) {
+                                ob.pair_type = "YES/QUOTE".to_string();
+                            }
+                        }
+                        orderbooks.extend(live_orderbooks);
+                    }
+                    Err(e) => tracing::debug!("No orderbook for YES token: {}", e),
+                }
+
+                match state.contract_client.get_market_orderbooks(hash_bytes, no, PATH_USD_ADDRESS).await {
+                    Ok(mut live_orderbooks) => {
+                        for ob in &mut live_orderbooks {
+                            if ob.base_token.contains(&format!("{:?}", no)) {
+                                ob.pair_type = "NO/QUOTE".to_string();
+                            }
+                        }
+                        orderbooks.extend(live_orderbooks);
+                    }
+                    Err(e) => tracing::debug!("No orderbook for NO token: {}", e),
+                }
+            }
         }
+    }
+
+    // Fall back to database orderbook info if live fetch failed
+    if orderbooks.is_empty() {
+        orderbooks = match state.db.get_orderbooks_for_market(&market_hash).await {
+            Ok(orderbook_data) => {
+                orderbook_data
+                    .into_iter()
+                    .flat_map(|data| {
+                        let mut infos = Vec::new();
+                        if let Some(pair_key) = data.yes_pair_key {
+                            infos.push(OrderbookInfo {
+                                pair_type: "YES/QUOTE".to_string(),
+                                pair_key,
+                                base_token: format!("YES_{}", data.asset_address),
+                                quote_token: data.quote_token_address.clone(),
+                                best_bid_tick: None,
+                                best_ask_tick: None,
+                                best_bid_price: None,
+                                best_ask_price: None,
+                                mid_price: None,
+                                spread_bps: None,
+                            });
+                        }
+                        if let Some(pair_key) = data.no_pair_key {
+                            infos.push(OrderbookInfo {
+                                pair_type: "NO/QUOTE".to_string(),
+                                pair_key,
+                                base_token: format!("NO_{}", data.asset_address),
+                                quote_token: data.quote_token_address,
+                                best_bid_tick: None,
+                                best_ask_tick: None,
+                                best_bid_price: None,
+                                best_ask_price: None,
+                                mid_price: None,
+                                spread_bps: None,
+                            });
+                        }
+                        infos
+                    })
+                    .collect()
+            }
+            Err(e) => {
+                tracing::warn!("Failed to fetch orderbooks: {}", e);
+                Vec::new()
+            }
+        };
+    }
+
+    // Calculate probability from orderbook data
+    let (yes_prob, no_prob) = calculate_probability_from_orderbooks(&orderbooks);
+    let (yes_probability, no_probability) = if yes_prob == 0.5 && no_prob == 0.5 && orderbooks.iter().all(|o| o.mid_price.is_none()) {
+        // No price data available
+        (None, None)
+    } else {
+        (Some(yes_prob), Some(no_prob))
     };
 
     (
@@ -242,6 +332,9 @@ pub async fn get_market(
             block_number: market.block_number,
             verse_tokens,
             orderbooks,
+            yes_probability,
+            no_probability,
+            resolution,
         }),
     )
         .into_response()

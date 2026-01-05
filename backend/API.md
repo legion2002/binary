@@ -86,7 +86,10 @@ Retrieve a paginated list of all prediction markets.
       "question": "Will ETH price be above $5000 by end of 2025?",
       "resolutionDeadline": 1767225600,
       "oracle": "0x789ghi...",
-      "blockNumber": 12345
+      "blockNumber": 12345,
+      "yesProbability": null,
+      "noProbability": null,
+      "resolution": null
     }
   ],
   "count": 1,
@@ -101,8 +104,13 @@ Retrieve a paginated list of all prediction markets.
 - `resolutionDeadline`: Unix timestamp when the market resolves
 - `oracle`: Address of the oracle that will resolve this market
 - `blockNumber`: Block number when the market was created
+- `yesProbability`: Probability of YES outcome (0.0-1.0, null in list view for performance)
+- `noProbability`: Probability of NO outcome (0.0-1.0, null in list view for performance)
+- `resolution`: Market resolution status (null in list view, use detail endpoint for full data)
 - `count`: Number of markets returned in this response
 - `total`: Total number of markets in the database
+
+**Note:** For performance reasons, `yesProbability`, `noProbability`, and `resolution` are null in the list view. Use the single market endpoint (`GET /markets/:marketHash`) to get full data including live orderbook prices and resolution status.
 
 **Example Request:**
 ```bash
@@ -150,7 +158,10 @@ Retrieve detailed information about a specific market.
       "midPrice": "1.000000",
       "spreadBps": 2.0
     }
-  ]
+  ],
+  "yesProbability": 0.65,
+  "noProbability": 0.35,
+  "resolution": "UNRESOLVED"
 }
 ```
 
@@ -161,17 +172,20 @@ Retrieve detailed information about a specific market.
   - `yesVerse`: Address of the YES verse token
   - `noVerse`: Address of the NO verse token
   - `transactionHash`: Transaction hash of verse token creation
-- `orderbooks`: Array of Tempo DEX orderbook info for this market
+- `orderbooks`: Array of Tempo DEX orderbook info for this market (fetched live from Tempo DEX)
   - `pairType`: Type of pair (e.g., "YES/QUOTE" or "NO/QUOTE")
   - `pairKey`: Unique identifier for the trading pair
   - `baseToken`: Base token address (YES or NO verse token)
   - `quoteToken`: Quote token address (typically pathUSD)
   - `bestBidTick`: Best bid price tick (null if no bids)
   - `bestAskTick`: Best ask price tick (null if no asks)
-  - `bestBidPrice`: Human-readable bid price
-  - `bestAskPrice`: Human-readable ask price
-  - `midPrice`: Mid-market price
+  - `bestBidPrice`: Human-readable bid price (live from Tempo DEX)
+  - `bestAskPrice`: Human-readable ask price (live from Tempo DEX)
+  - `midPrice`: Mid-market price (live from Tempo DEX)
   - `spreadBps`: Spread in basis points
+- `yesProbability`: Probability of YES outcome (0.0-1.0), calculated from orderbook mid prices
+- `noProbability`: Probability of NO outcome (0.0-1.0), calculated from orderbook mid prices
+- `resolution`: Market resolution status from on-chain contract ("UNRESOLVED", "YES", "NO", "EVEN")
 
 **Error Responses:**
 - `404 Not Found`: Market does not exist

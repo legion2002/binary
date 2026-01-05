@@ -1,5 +1,9 @@
 # Local Tempo Node for Development
 #
+# NOTE: The local dev node currently does NOT have Fee AMM liquidity pre-seeded.
+# This means contract deployments requiring fee swaps will fail.
+# For full functionality, use Tempo Testnet: https://rpc.testnet.tempo.xyz
+#
 # Usage:
 #   docker-compose up -d     # Start Tempo node
 #   docker-compose down      # Stop Tempo node
@@ -31,6 +35,7 @@ services:
       - --faucet.address=0x20c0000000000000000000000000000000000003
       - --faucet.amount=1000000000000
       - --faucet.private-key=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - --faucet.node-address=http://localhost:9545
     environment:
       - RUST_LOG=info
     restart: unless-stopped

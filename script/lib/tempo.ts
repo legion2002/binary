@@ -143,11 +143,9 @@ export async function startLocalTempo(): Promise<TempoEnvironment> {
   const account = privateKeyToAccount(TEST_PRIVATE_KEY)
   const client = getTempoClient({ rpcUrl: server.rpcUrl })
 
-  // Fund the test account
-  await fundAccount(client, account.address)
-
-  const balance = await getPathUsdBalance(client, account.address)
-  console.log(`  Account ${account.address.slice(0, 10)}... funded with ${Number(balance) / 1e6} PathUSD`)
+  // In dev mode (chain ID 1337), accounts are prefunded with ETH for gas
+  // No need to call faucet - the dev genesis handles this
+  console.log(`  Account ${account.address.slice(0, 10)}... ready (dev mode prefunded)`)
 
   return {
     server,

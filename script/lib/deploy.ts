@@ -29,6 +29,9 @@ export async function deployContracts(options: DeployOptions): Promise<ContractA
 
   const verbosity = verbose ? '-vvvv' : '-vvv'
 
+  // Deploy using standard EVM transactions.
+  // The user's fee token preference must be set to PathUSD BEFORE calling this
+  // (via setUserFeeToken in env.ts). This ensures all transactions use PathUSD for fees.
   execSync(
     `forge script script/DeployAndSeedMarkets.s.sol:DeployAndSeedMarkets \
       --rpc-url ${rpcUrl} \
@@ -47,14 +50,20 @@ export async function deployContracts(options: DeployOptions): Promise<ContractA
 }
 
 export function parseBroadcastAddresses(projectRoot: string): ContractAddresses {
-  // Tempo chain ID is 42429
-  const broadcastPath = join(
-    projectRoot,
-    'broadcast/DeployAndSeedMarkets.s.sol/42429/run-latest.json'
-  )
+  // Try dev chain ID first (1337), then Tempo testnet (42429)
+  const chainIds = ['1337', '42429']
+  let broadcastPath: string | undefined
 
-  if (!existsSync(broadcastPath)) {
-    throw new Error(`Broadcast file not found: ${broadcastPath}`)
+  for (const chainId of chainIds) {
+    const path = join(projectRoot, `broadcast/DeployAndSeedMarkets.s.sol/${chainId}/run-latest.json`)
+    if (existsSync(path)) {
+      broadcastPath = path
+      break
+    }
+  }
+
+  if (!broadcastPath) {
+    throw new Error(`Broadcast file not found for chain IDs: ${chainIds.join(', ')}`)
   }
 
   const broadcastJson = JSON.parse(readFileSync(broadcastPath, 'utf-8'))

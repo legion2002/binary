@@ -19,10 +19,10 @@ export function WalletConnect() {
   if (isConnected && address) {
     return (
       <div className="flex items-center gap-4">
-        <span className="text-sm text-gray-600">{formatAddress(address)}</span>
+        <span className="text-sm text-secondary font-mono">{formatAddress(address)}</span>
         <button
           onClick={signOut}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          className="px-4 py-2 text-sm font-medium text-secondary bg-dark-tertiary rounded-lg hover:bg-dark-hover hover:text-primary transition-all border border-dark"
         >
           Sign Out
         </button>
@@ -38,21 +38,21 @@ export function WalletConnect() {
         <button
           onClick={signUp}
           disabled={isLoading}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="btn-primary text-sm"
         >
           {isLoading ? "Loading..." : "Sign Up"}
         </button>
         <button
           onClick={signIn}
           disabled={isLoading || !hasSaved}
-          className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors disabled:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="btn-secondary text-sm border-accent-purple text-accent-purple hover:bg-accent-purple-dim"
           title={!hasSaved ? "No saved credential. Sign up first." : undefined}
         >
           Sign In
         </button>
       </div>
       {error && (
-        <span className="text-xs text-red-500">{error.message}</span>
+        <span className="text-xs text-accent-red">{error.message}</span>
       )}
     </div>
   );

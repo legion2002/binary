@@ -64,8 +64,17 @@ export function useBalances(
 
   // Tempo uses 6 decimals for native currency (USD)
   // Token balances should be formatted based on their decimals
-  const usdBalance = usdBalanceData ? Number(usdBalanceData) / 1e6 : 0;
-  const usdcBalance = usdcBalanceData ? Number(usdcBalanceData) / 1e6 : 0;
+  // Guard against invalid/garbage data from non-existent tokens
+  const parseBalance = (data: bigint | undefined): number => {
+    if (!data) return 0;
+    const num = Number(data) / 1e6;
+    // Guard against NaN, Infinity, or unreasonably large numbers
+    if (!Number.isFinite(num) || num > 1e15 || num < 0) return 0;
+    return num;
+  };
+
+  const usdBalance = parseBalance(usdBalanceData);
+  const usdcBalance = parseBalance(usdcBalanceData);
 
   return {
     // Keep ethBalance name for backward compatibility but it's now USD

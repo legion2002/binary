@@ -144,6 +144,61 @@ pub fn calculate_spread_bps(best_bid_tick: i16, best_ask_tick: i16) -> f64 {
     ((ask_price - bid_price) / mid_price) * 10000.0
 }
 
+/// Calculate market probability from YES/NO token mid prices
+///
+/// The probability is derived from the relative prices of YES and NO tokens.
+/// In a prediction market, YES + NO token prices should sum to ~1.0 (the redemption value).
+///
+/// Returns (yes_probability, no_probability) as values between 0.0 and 1.0
+pub fn calculate_probability(
+    yes_mid_price: Option<f64>,
+    no_mid_price: Option<f64>,
+) -> (f64, f64) {
+    match (yes_mid_price, no_mid_price) {
+        (Some(yes), Some(no)) => {
+            let total = yes + no;
+            if total > 0.0 {
+                (yes / total, no / total)
+            } else {
+                (0.5, 0.5)
+            }
+        }
+        // If only YES price available, derive NO probability
+        (Some(yes), None) => {
+            let clamped_yes = yes.clamp(0.0, 1.0);
+            (clamped_yes, 1.0 - clamped_yes)
+        }
+        // If only NO price available, derive YES probability
+        (None, Some(no)) => {
+            let clamped_no = no.clamp(0.0, 1.0);
+            (1.0 - clamped_no, clamped_no)
+        }
+        // No price data - return 50/50
+        (None, None) => (0.5, 0.5),
+    }
+}
+
+/// Calculate probability from orderbook info
+/// Extracts mid prices and calculates probability
+pub fn calculate_probability_from_orderbooks(orderbooks: &[OrderbookInfo]) -> (f64, f64) {
+    let mut yes_mid: Option<f64> = None;
+    let mut no_mid: Option<f64> = None;
+
+    for ob in orderbooks {
+        if ob.pair_type == "YES/QUOTE" {
+            if let Some(ref mid) = ob.mid_price {
+                yes_mid = mid.parse::<f64>().ok();
+            }
+        } else if ob.pair_type == "NO/QUOTE" {
+            if let Some(ref mid) = ob.mid_price {
+                no_mid = mid.parse::<f64>().ok();
+            }
+        }
+    }
+
+    calculate_probability(yes_mid, no_mid)
+}
+
 /// Sentinel tick values indicating no liquidity
 const NO_BID_TICK: i16 = i16::MIN;
 const NO_ASK_TICK: i16 = i16::MAX;

@@ -1,5 +1,7 @@
 // API Response Types matching backend Rust types
 
+export type Resolution = 'UNRESOLVED' | 'YES' | 'NO' | 'EVEN';
+
 export interface MarketResponse {
   marketHash: string;
   questionHash: string;
@@ -7,6 +9,12 @@ export interface MarketResponse {
   resolutionDeadline: number;
   oracle: string;
   blockNumber: number;
+  // Probability derived from orderbook prices (0.0 - 1.0)
+  // Note: null in list view for performance, populated in detail view
+  yesProbability?: number | null;
+  noProbability?: number | null;
+  // Resolution status from on-chain contract
+  resolution?: Resolution | null;
 }
 
 export interface GetMarketsResponse {
@@ -44,6 +52,11 @@ export interface MarketDetailResponse {
   blockNumber: number;
   verseTokens: VerseTokenResponse[];
   orderbooks: OrderbookInfo[];
+  // Probability derived from live orderbook prices (0.0 - 1.0)
+  yesProbability?: number | null;
+  noProbability?: number | null;
+  // Resolution status from on-chain contract
+  resolution?: Resolution | null;
 }
 
 export interface ErrorResponse {

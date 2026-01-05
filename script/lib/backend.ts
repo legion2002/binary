@@ -12,9 +12,9 @@ export const BACKEND_PORT = Number(process.env.BACKEND_PORT) || 3000
 export const BACKEND_TEST_PORT = 3001
 
 // Pre-computed bcrypt hash for "test_api_key_12345"
-// Generated with: await Bun.password.hash("test_api_key_12345", { algorithm: "bcrypt", cost: 10 })
+// Generated with: bun -e "console.log(await Bun.password.hash('test_api_key_12345', { algorithm: 'bcrypt', cost: 10 }))"
 export const TEST_API_KEY = 'test_api_key_12345'
-export const TEST_API_KEY_HASH = '$2b$10$K1Hn0cKiLqHvQJPJPNZUH.YxQKvXVNdH6LNJmPt8jqKv1vZXzXwXy'
+export const TEST_API_KEY_HASH = '$2b$10$pFkqqOn5jFfiIPFGLoU9/uGIF8.QDon0ZOE9ZZ6WxrmSEypkTpI0O'
 
 export interface BackendOptions {
   rpcUrl: string
@@ -54,7 +54,7 @@ export async function startBackend(options: BackendOptions): Promise<BackendProc
     RPC_URL: rpcUrl,
     WS_RPC_URL: rpcUrl.replace('http', 'ws'),
     PRIVATE_KEY: TEST_PRIVATE_KEY,
-    DATABASE_URL: mode === 'dev' ? 'sqlite://./dev.db' : 'sqlite::memory:',
+    DATABASE_URL: mode === 'dev' ? 'sqlite:./dev.db?mode=rwc' : 'sqlite::memory:',
     ADMIN_API_KEY_HASH: TEST_API_KEY_HASH,
     RUST_LOG: process.env.RUST_LOG ?? 'info,backend=debug',
   }

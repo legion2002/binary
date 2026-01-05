@@ -268,4 +268,43 @@ impl ContractClient {
         let result = multiverse.getVerseAddress(asset, market_hash).call().await?;
         Ok((result.yesVerse, result.noVerse))
     }
+
+    /// Get just the resolution status for a market (more efficient than get_market)
+    /// Returns: "NULL", "UNRESOLVED", "YES", "NO", or "EVEN"
+    pub async fn get_resolution(&self, market_hash: FixedBytes<32>) -> anyhow::Result<String> {
+        let multiverse = MultiVerse::new(self.multiverse_address, &self.provider);
+        let resolution_value = multiverse.resolutions(market_hash).call().await?;
+
+        let resolution_str = match resolution_value {
+            0 => "NULL",
+            1 => "UNRESOLVED",
+            2 => "YES",
+            3 => "NO",
+            4 => "EVEN",
+            _ => "UNKNOWN",
+        };
+
+        Ok(resolution_str.to_string())
+    }
+
+    /// Get resolution for multiple markets in parallel
+    pub async fn get_resolutions(
+        &self,
+        market_hashes: Vec<FixedBytes<32>>,
+    ) -> anyhow::Result<Vec<(String, String)>> {
+        use futures_util::future::join_all;
+
+        let futures: Vec<_> = market_hashes
+            .iter()
+            .map(|hash| {
+                let hash = *hash;
+                async move {
+                    let resolution = self.get_resolution(hash).await.unwrap_or_else(|_| "UNKNOWN".to_string());
+                    (format!("0x{}", hex::encode(hash)), resolution)
+                }
+            })
+            .collect();
+
+        Ok(join_all(futures).await)
+    }
 }
