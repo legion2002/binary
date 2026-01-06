@@ -116,6 +116,7 @@ bun run deploy:testnet
 Or manually with forge:
 
 ```bash
+cd contracts
 forge script script/DeployAndSeedMarkets.s.sol:DeployAndSeedMarkets \
     --rpc-url https://rpc.testnet.tempo.xyz \
     --broadcast \
@@ -174,9 +175,13 @@ binary/
 │   └── tests/         # Integration tests
 ├── frontend/          # React/Vite app
 │   └── src/           # Frontend source code
-├── src/               # Solidity contracts
-│   ├── MultiVerse.sol # Core prediction market contract
-│   └── TrustedOracle.sol # Oracle implementation
+├── contracts/         # Solidity contracts (Foundry project)
+│   ├── src/           # Contract source files
+│   │   ├── MultiVerse.sol    # Core prediction market contract
+│   │   └── TrustedOracle.sol # Oracle implementation
+│   ├── test/          # Contract tests
+│   ├── script/        # Forge deploy scripts
+│   └── lib/           # Forge dependencies (forge-std, solady)
 ├── script/
 │   ├── env.ts         # Central orchestrator
 │   ├── deploy-tempo.ts # Testnet deploy script

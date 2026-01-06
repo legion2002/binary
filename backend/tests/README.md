@@ -8,7 +8,7 @@ Before running the integration tests, make sure you have:
 
 1. **Anvil** (from Foundry) installed and in your PATH
 2. **Forge** (from Foundry) installed
-3. **Contracts** deployed via the DeployAll script at `../script/DeployAll.s.sol`
+3. **Contracts** compiled - run `forge build` from the `contracts/` directory
 
 ## Running the Tests
 
@@ -111,7 +111,7 @@ curl http://127.0.0.1:3000/markets
 Install Foundry: `curl -L https://foundry.paradigm.xyz | bash && foundryup`
 
 ### "Contract deployment failed"
-Make sure the contracts compile: `cd .. && forge build`
+Make sure the contracts compile: `cd ../contracts && forge build`
 
 ### "Server failed to start"
 Check that port 3001 is available: `lsof -i :3001`

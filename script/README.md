@@ -147,7 +147,7 @@ This happens when using `--fee-token` flag with tempo-foundry on a chain ID that
 
 Check that:
 1. Tempo node is running: `curl http://localhost:9545`
-2. Contracts are deployed: Check broadcast files in `broadcast/`
+2. Contracts are deployed: Check broadcast files in `contracts/broadcast/`
 3. Port 3000 (or 3001 for tests) is available
 
 ### Tests fail with "Invalid API key"

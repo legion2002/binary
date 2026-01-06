@@ -19,7 +19,8 @@ A Rust web server with real-time event indexing for the MultiVerse prediction ma
 
 1. Generate contract bindings (run from project root):
 ```bash
-forge bind --module --bindings-path backend/src/bindings --select MultiVerse \
+cd contracts
+forge bind --module --bindings-path ../backend/src/bindings --select MultiVerse \
   --select Verse --select TrustedOracle --overwrite
 ```
 
