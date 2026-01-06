@@ -8,30 +8,61 @@ pnpm run dev     # Start dev server
 pnpm run lint    # Run ESLint
 ```
 
-## Viem/Tempo API
+## Wagmi/Tempo API
 
-When using `viem/tempo` for Tempo blockchain integration:
+Native Tempo support is now built into wagmi. Import from `wagmi/tempo`:
 
-- `WebAuthnP256.createCredential({ label: "..." })` - uses `label` not `name`
-- `Account.fromWebAuthnP256(credential)` - takes credential object directly, not `{ credential }`
-- `withFeePayer(defaultTransport, relayTransport)` - positional args, not an object
-- `tempoActions()` - call with no args, returns decorator that adds `.dex`, `.token`, `.amm` methods to clients
-- **DEX Actions**: Use `Actions.dex.buy.call()`, `Actions.dex.sell.call()`, `Actions.dex.place.call()` for orderbook trading
-- **DEX Address**: Import `Addresses` from `viem/tempo` - use `Addresses.stablecoinExchange` for DEX precompile
-- **Swap pattern**: Always batch approve + swap: `[Actions.token.approve.call({...}), Actions.dex.buy.call({...})]`
+- `webAuthn` connector - WebAuthn passkey-based account connector
+- `KeyManager.localStorage()` - Store passkey credentials in localStorage
+- `Hooks.dex.*` - DEX trading hooks (useBuy, useSell, useBuyQuote, useSellQuote)
+- `Hooks.token.*` - Token hooks (useBalance, useMetadata, useTransfer, useApprove)
+- `tempoTestnet` chain from `wagmi/chains`
+
+### Wagmi Config Setup
+
+```typescript
+import { createConfig, http } from "wagmi";
+import { tempoTestnet } from "wagmi/chains";
+import { webAuthn, KeyManager } from "wagmi/tempo";
+
+export const config = createConfig({
+  chains: [tempoTestnet],
+  connectors: [
+    webAuthn({
+      keyManager: KeyManager.localStorage(),
+    }),
+  ],
+  transports: {
+    [tempoTestnet.id]: http(),
+  },
+});
+```
+
+### Using Tempo Hooks
+
+```typescript
+import { Hooks } from "wagmi/tempo";
+
+// Token balance
+const { data } = Hooks.token.useBalance({ account, token });
+
+// DEX trading
+const { data: quote } = Hooks.dex.useBuyQuote({ tokenIn, tokenOut, amountOut });
+const { mutate: buy } = Hooks.dex.useBuy();
+```
 
 ## Architecture
 
-- **PasskeyContext** manages WebAuthn accounts and Tempo clients (no wagmi connectors needed for passkeys)
-- Use `client.extend(tempoActions())` to get decorated client with Tempo-specific methods
-- Fee sponsorship configured via `withFeePayer` transport - testnet sponsor at `https://sponsor.testnet.tempo.xyz`
-- Passkey credentials stored in localStorage, public keys should be stored remotely for production
+- **WagmiProvider** wraps the app with wagmi config
+- **webAuthn connector** manages WebAuthn/passkey accounts natively
+- Use `useAccount`, `useConnect`, `useDisconnect` from wagmi for wallet state
+- Fee sponsorship configured via `feePayer: true` in transaction params
 
 ## Tempo Transaction Features
 
 These native Tempo features enable superior UX compared to traditional EVM:
 
 - **Call batching**: `sendTransaction({ calls: [...] })` for atomic multi-call operations (e.g., approve + swap in one tx)
-- **Fee sponsorship**: Gasless transactions via `withFeePayer` transport - app pays gas for users
+- **Fee sponsorship**: Gasless transactions via `feePayer: true` - app pays gas for users
 - **2D nonces**: `nonceKey` param enables parallel transaction submission without blocking
 - **Access keys**: Session keys with spending limits to avoid repeated passkey prompts

@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAccount } from 'wagmi';
 import { fetchMarket } from '../api/client';
 import { TempoSwapWidget } from './TempoSwapWidget';
 import { useBalances } from '../hooks/useBalances';
 import { CONTRACTS } from '../config/contracts';
 import { Tooltip } from './Tooltip';
-import { usePasskey } from '../contexts/PasskeyContext';
 
 interface VersePanelProps {
   verse: 'YES' | 'NO';
@@ -12,7 +12,7 @@ interface VersePanelProps {
 }
 
 export function VersePanel({ verse, marketHash }: VersePanelProps) {
-  const { address } = usePasskey();
+  const { address } = useAccount();
 
   // Fetch market data including token addresses
   const { data: market, isLoading: marketLoading } = useQuery({
@@ -21,7 +21,7 @@ export function VersePanel({ verse, marketHash }: VersePanelProps) {
     enabled: !!marketHash,
   });
 
-  // Get balances using viem/tempo
+  // Get balances using wagmi/tempo
   const { ethBalance: usdBalance, usdcBalance, loading: balanceLoading } = useBalances(
     address,
     marketHash,

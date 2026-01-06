@@ -1,12 +1,7 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Address } from "viem";
-import {
-  usePasskey,
-  useTempoPublicClient,
-  useTempoWalletClient,
-} from "../contexts/PasskeyContext";
+import { Hooks } from "wagmi/tempo";
+import { USD_TOKEN } from "../config/wagmi";
 
-// Types for hook parameters
 interface QuoteParams {
   tokenIn: Address;
   tokenOut: Address;
@@ -49,25 +44,13 @@ export function useBuyQuote({
   amountOut,
   query,
 }: BuyQuoteParams) {
-  const publicClient = useTempoPublicClient();
-
-  return useQuery({
-    queryKey: [
-      "tempo",
-      "dex",
-      "buyQuote",
-      tokenIn,
-      tokenOut,
-      amountOut?.toString(),
-    ],
-    queryFn: async () => {
-      return publicClient.dex.getBuyQuote({
-        tokenIn,
-        tokenOut,
-        amountOut,
-      });
+  return Hooks.dex.useBuyQuote({
+    tokenIn,
+    tokenOut,
+    amountOut,
+    query: {
+      enabled: query?.enabled !== false && amountOut > 0n,
     },
-    enabled: query?.enabled !== false && amountOut > 0n,
   });
 }
 
@@ -81,25 +64,13 @@ export function useSellQuote({
   amountIn,
   query,
 }: SellQuoteParams) {
-  const publicClient = useTempoPublicClient();
-
-  return useQuery({
-    queryKey: [
-      "tempo",
-      "dex",
-      "sellQuote",
-      tokenIn,
-      tokenOut,
-      amountIn?.toString(),
-    ],
-    queryFn: async () => {
-      return publicClient.dex.getSellQuote({
-        tokenIn,
-        tokenOut,
-        amountIn,
-      });
+  return Hooks.dex.useSellQuote({
+    tokenIn,
+    tokenOut,
+    amountIn,
+    query: {
+      enabled: query?.enabled !== false && amountIn > 0n,
     },
-    enabled: query?.enabled !== false && amountIn > 0n,
   });
 }
 
@@ -108,24 +79,31 @@ export function useSellQuote({
  * Supports gasless transactions via feePayer option
  */
 export function useBuySync() {
-  const walletClient = useTempoWalletClient();
-  const { isConnected } = usePasskey();
+  const buy = Hooks.dex.useBuy();
 
-  return useMutation({
-    mutationFn: async (params: BuyParams) => {
-      if (!walletClient) throw new Error("No wallet client - please sign in");
-      if (!isConnected) throw new Error("Not connected");
-
-      // Use the decorated client's dex.buySync method
-      return walletClient.dex.buySync({
+  return {
+    ...buy,
+    mutate: (params: BuyParams) => {
+      buy.mutate({
         tokenIn: params.tokenIn,
         tokenOut: params.tokenOut,
         amountOut: params.amountOut,
         maxAmountIn: params.maxAmountIn,
-        feeToken: params.feeToken,
+        feeToken: params.feeToken ?? USD_TOKEN,
+        feePayer: true,
       });
     },
-  });
+    mutateAsync: async (params: BuyParams) => {
+      return buy.mutateAsync({
+        tokenIn: params.tokenIn,
+        tokenOut: params.tokenOut,
+        amountOut: params.amountOut,
+        maxAmountIn: params.maxAmountIn,
+        feeToken: params.feeToken ?? USD_TOKEN,
+        feePayer: true,
+      });
+    },
+  };
 }
 
 /**
@@ -133,22 +111,29 @@ export function useBuySync() {
  * Supports gasless transactions via feePayer option
  */
 export function useSellSync() {
-  const walletClient = useTempoWalletClient();
-  const { isConnected } = usePasskey();
+  const sell = Hooks.dex.useSell();
 
-  return useMutation({
-    mutationFn: async (params: SellParams) => {
-      if (!walletClient) throw new Error("No wallet client - please sign in");
-      if (!isConnected) throw new Error("Not connected");
-
-      // Use the decorated client's dex.sellSync method
-      return walletClient.dex.sellSync({
+  return {
+    ...sell,
+    mutate: (params: SellParams) => {
+      sell.mutate({
         tokenIn: params.tokenIn,
         tokenOut: params.tokenOut,
         amountIn: params.amountIn,
         minAmountOut: params.minAmountOut,
-        feeToken: params.feeToken,
+        feeToken: params.feeToken ?? USD_TOKEN,
+        feePayer: true,
       });
     },
-  });
+    mutateAsync: async (params: SellParams) => {
+      return sell.mutateAsync({
+        tokenIn: params.tokenIn,
+        tokenOut: params.tokenOut,
+        amountIn: params.amountIn,
+        minAmountOut: params.minAmountOut,
+        feeToken: params.feeToken ?? USD_TOKEN,
+        feePayer: true,
+      });
+    },
+  };
 }

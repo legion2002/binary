@@ -1,6 +1,9 @@
-import { useState, useCallback } from "react";
-import { encodeFunctionData, type Abi, type Address, type Hash } from "viem";
-import { useTempoWalletClient, usePasskey } from "../contexts/PasskeyContext";
+import { useCallback } from "react";
+import { type Abi, type Address, type Hash } from "viem";
+import {
+  useAccount,
+  useWriteContract as useWagmiWriteContract,
+} from "wagmi";
 
 interface WriteContractParams {
   address: Address;
@@ -21,82 +24,43 @@ interface UseWriteContractReturn {
 }
 
 /**
- * Hook to write to a contract using the passkey wallet client
- * Replaces wagmi's useWriteContract for passkey-based accounts
+ * Hook to write to a contract using wagmi's native writeContract
  */
 export function useWriteContract(): UseWriteContractReturn {
-  const walletClient = useTempoWalletClient();
-  const { isConnected } = usePasskey();
-
-  const [hash, setHash] = useState<Hash | undefined>(undefined);
-  const [isPending, setIsPending] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const { isConnected } = useAccount();
+  const {
+    writeContractAsync,
+    data: hash,
+    isPending,
+    isSuccess,
+    error,
+    reset,
+  } = useWagmiWriteContract();
 
   const writeContract = useCallback(
     async (params: WriteContractParams): Promise<Hash> => {
-      if (!walletClient) {
-        throw new Error("No wallet client - please sign in");
-      }
       if (!isConnected) {
         throw new Error("Not connected");
       }
 
-      setIsPending(true);
-      setError(null);
-      setHash(undefined);
-      setIsSuccess(false);
-
-      try {
-        const data = encodeFunctionData({
-          abi: params.abi,
-          functionName: params.functionName,
-          args: params.args || [],
-        });
-
-        // Use standard sendTransaction - Tempo transactions support calls array natively
-        // but we use standard to/data format for compatibility
-        const txHash = await walletClient.sendTransaction({
-          to: params.address,
-          data,
-          value: params.value || 0n,
-        });
-
-        setHash(txHash);
-        setIsConfirming(true);
-
-        // Wait for confirmation would be done here
-        setIsConfirming(false);
-        setIsSuccess(true);
-
-        return txHash;
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        setError(error);
-        throw error;
-      } finally {
-        setIsPending(false);
-      }
+      return writeContractAsync({
+        address: params.address,
+        abi: params.abi,
+        functionName: params.functionName,
+        args: params.args || [],
+        value: params.value,
+      });
     },
-    [walletClient, isConnected]
+    [isConnected, writeContractAsync]
   );
-
-  const reset = useCallback(() => {
-    setHash(undefined);
-    setIsPending(false);
-    setIsConfirming(false);
-    setIsSuccess(false);
-    setError(null);
-  }, []);
 
   return {
     writeContract,
     hash,
     isPending,
-    isConfirming,
+    isConfirming: false,
     isSuccess,
-    error,
+    error: error as Error | null,
     reset,
   };
 }

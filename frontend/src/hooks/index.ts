@@ -1,6 +1,3 @@
-// Passkey account management
-export { usePasskeyAccount } from "./usePasskeyAccount";
-
 // Token balances
 export { useTokenBalance, useBalances } from "./useBalances";
 

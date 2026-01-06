@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PasskeyProvider } from "./contexts/PasskeyContext";
+import { WagmiProvider } from "wagmi";
+import { wagmiConfig } from "./config/wagmi";
 import { MarketList } from "./components/MarketList";
 import { MarketDetail } from "./components/MarketDetail";
 import { WalletConnect } from "./components/WalletConnect";
@@ -9,8 +10,8 @@ const queryClient = new QueryClient();
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <PasskeyProvider>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
         <Router>
           <div className="min-h-screen bg-dark">
             <header className="header-glass">
@@ -39,8 +40,8 @@ function App() {
             </main>
           </div>
         </Router>
-      </PasskeyProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }
 

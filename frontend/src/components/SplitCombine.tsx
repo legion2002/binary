@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { parseUnits } from 'viem';
+import { useAccount } from 'wagmi';
 import { MULTIVERSE_ABI, CONTRACTS } from '../config/contracts';
 import { Tooltip } from './Tooltip';
-import { usePasskey } from '../contexts/PasskeyContext';
 import { useWriteContract } from '../hooks/useContractWrite';
 
 interface SplitCombineProps {
@@ -11,7 +11,7 @@ interface SplitCombineProps {
 }
 
 export function SplitCombine({ marketHash, activeAsset }: SplitCombineProps) {
-  const { address, isConnected } = usePasskey();
+  const { address, isConnected } = useAccount();
   const [amount, setAmount] = useState('');
   const [mode, setMode] = useState<'split' | 'combine'>('split');
 

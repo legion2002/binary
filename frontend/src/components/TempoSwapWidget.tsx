@@ -1,21 +1,26 @@
-import { useState } from 'react';
-import { parseUnits, formatUnits, type Address } from 'viem';
-import { useBuyQuote, useSellQuote, useBuySync, useSellSync } from '../hooks/useTempoDex';
-import { CONTRACTS } from '../config/contracts';
-import { usePasskey } from '../contexts/PasskeyContext';
-import { USD_TOKEN } from '../contexts/PasskeyContext';
+import { useState } from "react";
+import { parseUnits, formatUnits, type Address } from "viem";
+import { useAccount } from "wagmi";
+import {
+  useBuyQuote,
+  useSellQuote,
+  useBuySync,
+  useSellSync,
+} from "../hooks/useTempoDex";
+import { CONTRACTS } from "../config/contracts";
+import { USD_TOKEN } from "../config/wagmi";
 
 interface TempoSwapWidgetProps {
   tokenAddress: string;
-  verse: 'YES' | 'NO';
+  verse: "YES" | "NO";
 }
 
 export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
-  const { isConnected } = usePasskey();
-  const [amount, setAmount] = useState('');
+  const { isConnected } = useAccount();
+  const [amount, setAmount] = useState("");
   const [isBuying, setIsBuying] = useState(true);
 
-  // Custom Tempo DEX hooks for trading (using viem/tempo)
+  // wagmi/tempo DEX hooks for trading
   const { mutate: buy, isPending: isBuyPending } = useBuySync();
   const { mutate: sell, isPending: isSellPending } = useSellSync();
 
@@ -68,11 +73,11 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
   const isQuoteLoading = buyQuoteLoading || sellQuoteLoading;
 
   const formatQuote = (quote: bigint | undefined) => {
-    if (!quote) return '0.00';
+    if (!quote) return "0.00";
     return formatUnits(quote, 6);
   };
 
-  const isYes = verse === 'YES';
+  const isYes = verse === "YES";
 
   return (
     <div className="w-full bg-dark-tertiary rounded-lg overflow-hidden border border-dark">
@@ -83,7 +88,9 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
           </h4>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted">Powered by</span>
-            <span className="text-xs font-semibold text-accent-blue">Tempo DEX</span>
+            <span className="text-xs font-semibold text-accent-blue">
+              Tempo DEX
+            </span>
           </div>
         </div>
       </div>
@@ -95,8 +102,8 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
             onClick={() => setIsBuying(true)}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
               isBuying
-                ? 'bg-accent-green text-white'
-                : 'bg-dark-hover text-secondary hover:text-primary'
+                ? "bg-accent-green text-white"
+                : "bg-dark-hover text-secondary hover:text-primary"
             }`}
           >
             Buy {verse}
@@ -105,8 +112,8 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
             onClick={() => setIsBuying(false)}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
               !isBuying
-                ? 'bg-accent-red text-white'
-                : 'bg-dark-hover text-secondary hover:text-primary'
+                ? "bg-accent-red text-white"
+                : "bg-dark-hover text-secondary hover:text-primary"
             }`}
           >
             Sell {verse}
@@ -128,9 +135,13 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
               disabled={!isConnected || isPending}
             />
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <span className={`text-sm font-medium px-2 py-1 rounded ${
-                isYes ? 'bg-accent-green-dim text-accent-green' : 'bg-accent-red-dim text-accent-red'
-              }`}>
+              <span
+                className={`text-sm font-medium px-2 py-1 rounded ${
+                  isYes
+                    ? "bg-accent-green-dim text-accent-green"
+                    : "bg-accent-red-dim text-accent-red"
+                }`}
+              >
                 {verse}
               </span>
             </div>
@@ -142,7 +153,7 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
           <div className="bg-dark rounded-lg p-3 border border-dark">
             <div className="flex justify-between items-center">
               <span className="text-sm text-secondary">
-                {isBuying ? 'You pay (USD)' : 'You receive (USD)'}
+                {isBuying ? "You pay (USD)" : "You receive (USD)"}
               </span>
               <span className="text-lg font-mono font-semibold text-primary">
                 {isQuoteLoading ? (
@@ -161,11 +172,14 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
         {/* Swap Button */}
         <button
           onClick={handleSwap}
-          disabled={!isConnected || !amount || isPending || parseFloat(amount || '0') <= 0}
+          disabled={
+            !isConnected ||
+            !amount ||
+            isPending ||
+            parseFloat(amount || "0") <= 0
+          }
           className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${
-            isBuying
-              ? 'btn-success'
-              : 'btn-danger'
+            isBuying ? "btn-success" : "btn-danger"
           } disabled:bg-dark-hover disabled:text-muted disabled:cursor-not-allowed`}
         >
           {isPending ? (
@@ -174,9 +188,11 @@ export function TempoSwapWidget({ tokenAddress, verse }: TempoSwapWidgetProps) {
               Processing...
             </span>
           ) : !isConnected ? (
-            'Sign In to Trade'
+            "Sign In to Trade"
+          ) : isBuying ? (
+            `Buy ${verse} Tokens`
           ) : (
-            isBuying ? `Buy ${verse} Tokens` : `Sell ${verse} Tokens`
+            `Sell ${verse} Tokens`
           )}
         </button>
       </div>
