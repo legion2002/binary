@@ -1,34 +1,75 @@
 import { createConfig, createStorage, http } from "wagmi";
 import { tempoTestnet } from "wagmi/chains";
 import { webAuthn, KeyManager } from "wagmi/tempo";
+import type { Chain } from "viem";
+
+// RPC URL - defaults to local devnet, can be overridden via env or CLI
+const RPC_URL = import.meta.env.VITE_RPC_URL || "http://localhost:9545";
+
+// Fee payer URL - defaults to local, uses testnet sponsor when on testnet
+const isTestnet = RPC_URL.includes("testnet.tempo.xyz");
+const FEE_PAYER_URL =
+  import.meta.env.VITE_FEE_PAYER_URL ||
+  (isTestnet ? "https://sponsor.testnet.tempo.xyz" : undefined);
 
 // USD token address on Tempo (native stablecoin)
 export const USD_TOKEN =
   "0x20c0000000000000000000000000000000000001" as const;
 
-// Create Tempo chain with fee token configured
-export const tempoChain = {
-  ...tempoTestnet,
-  feeToken: USD_TOKEN,
-};
+// Determine if we're connecting to local devnet
+const isLocalDevnet =
+  RPC_URL.includes("localhost") || RPC_URL.includes("127.0.0.1");
 
-// Fee payer service URL for gasless transactions
-const FEE_PAYER_URL = "https://sponsor.testnet.tempo.xyz";
+// Create the chain config
+const localDevnet = {
+  id: 1337,
+  name: "Tempo Local",
+  nativeCurrency: tempoTestnet.nativeCurrency,
+  rpcUrls: {
+    default: { http: [RPC_URL] },
+  },
+  blockExplorers: tempoTestnet.blockExplorers,
+} as const satisfies Chain;
+
+const testnetWithFeeToken = {
+  ...tempoTestnet,
+  rpcUrls: {
+    default: { http: [RPC_URL] },
+  },
+} as const;
+
+// Pick the right chain based on RPC URL
+export const tempoChain = isLocalDevnet ? localDevnet : testnetWithFeeToken;
 
 // Wagmi config with native Tempo support via webAuthn connector
-export const wagmiConfig = createConfig({
-  chains: [tempoChain],
-  connectors: [
-    webAuthn({
-      keyManager: KeyManager.localStorage(),
-    }),
-  ],
-  storage: createStorage({ storage: localStorage }),
-  multiInjectedProviderDiscovery: false,
-  transports: {
-    [tempoChain.id]: http(),
-  },
-});
+export const wagmiConfig = isLocalDevnet
+  ? createConfig({
+      chains: [localDevnet],
+      connectors: [
+        webAuthn({
+          keyManager: KeyManager.localStorage(),
+        }),
+      ],
+      storage: createStorage({ storage: localStorage }),
+      multiInjectedProviderDiscovery: false,
+      transports: {
+        [localDevnet.id]: http(RPC_URL),
+      },
+    })
+  : createConfig({
+      chains: [testnetWithFeeToken],
+      connectors: [
+        webAuthn({
+          keyManager: KeyManager.localStorage(),
+        }),
+      ],
+      storage: createStorage({ storage: localStorage }),
+      multiInjectedProviderDiscovery: false,
+      transports: {
+        [testnetWithFeeToken.id]: http(RPC_URL),
+      },
+    });
 
-// Export fee payer URL for transaction sponsorship
+// Export config values for use in other components
+export const TEMPO_RPC_URL = RPC_URL;
 export const TEMPO_FEE_PAYER_URL = FEE_PAYER_URL;

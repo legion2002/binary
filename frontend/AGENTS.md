@@ -43,8 +43,8 @@ export const config = createConfig({
 ```typescript
 import { Hooks } from "wagmi/tempo";
 
-// Token balance
-const { data } = Hooks.token.useBalance({ account, token });
+// Token balance (note: useGetBalance, not useBalance)
+const { data } = Hooks.token.useGetBalance({ account, token });
 
 // DEX trading
 const { data: quote } = Hooks.dex.useBuyQuote({ tokenIn, tokenOut, amountOut });

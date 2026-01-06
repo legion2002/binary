@@ -52,6 +52,7 @@ binary/
 - CSS uses custom utility classes (not Tailwind) - defined in `index.css`
 - Dark theme CSS variables in `:root` - `--bg-primary`, `--accent-purple`, etc.
 - Google Fonts: DM Sans (body), JetBrains Mono (code)
+- **RPC URL configuration**: Frontend uses `VITE_RPC_URL` env var (defaults to `http://localhost:9545`). The orchestrator passes this automatically when starting the frontend.
 
 ## Dev Environment Orchestrator
 
@@ -92,3 +93,5 @@ RPC_URL=http://localhost:9545 SERVER_URL=http://localhost:3001 cargo test --test
 
 - **Fee token must be set before `forge script`**: The deployer account's fee token must be explicitly set to `PATH_USD` *before* broadcasting transactions. Without this, `forge` fails with "Insufficient liquidity for fee token" even if simulation passes.
 - **TIP20Factory salt parameter**: The `ITIP20Factory.createToken` function requires a `bytes32 salt` parameter for deterministic token addresses. Update both `ITIP20Factory.sol` and `MultiVerse.sol` if the signature changes.
+- **Updating Tempo docker image**: On ARM Macs, must use `docker pull --platform linux/amd64 ghcr.io/tempoxyz/tempo:latest` to pull the latest image, then `docker-compose down && docker-compose up -d` to restart.
+- **Local devnet chain ID**: The local Tempo node uses chain ID `1337` (not `42429` like testnet).

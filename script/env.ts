@@ -212,7 +212,7 @@ async function main(): Promise<void> {
       // Start frontend for dev mode
       console.log('')
       console.log(cyan('Step 5:') + ' Starting frontend dev server...')
-      env.frontend = await startFrontend({ projectRoot, verbose })
+      env.frontend = await startFrontend({ projectRoot, rpcUrl: env.tempo?.rpcUrl, verbose })
       console.log(green('  ✓ Frontend running at ' + env.frontend.url))
 
       printDevSummary(projectRoot)
@@ -224,7 +224,7 @@ async function main(): Promise<void> {
       if (withFrontend) {
         console.log('')
         console.log(cyan('Step 5:') + ' Starting frontend for e2e tests...')
-        env.frontend = await startFrontend({ projectRoot, verbose })
+        env.frontend = await startFrontend({ projectRoot, rpcUrl: env.tempo?.rpcUrl, verbose })
         console.log(green('  ✓ Frontend running at ' + env.frontend.url))
       }
 

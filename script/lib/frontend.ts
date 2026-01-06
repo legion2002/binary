@@ -10,6 +10,7 @@ export const FRONTEND_PORT = Number(process.env.FRONTEND_PORT) || 5173
 
 export interface FrontendOptions {
   projectRoot: string
+  rpcUrl?: string
   verbose?: boolean
 }
 
@@ -21,7 +22,7 @@ export interface FrontendProcess {
 }
 
 export async function startFrontend(options: FrontendOptions): Promise<FrontendProcess> {
-  const { projectRoot, verbose = false } = options
+  const { projectRoot, rpcUrl, verbose = false } = options
 
   const port = FRONTEND_PORT
   const url = `http://localhost:${port}`
@@ -34,6 +35,7 @@ export async function startFrontend(options: FrontendOptions): Promise<FrontendP
       ...process.env,
       // Vite will use these
       VITE_BACKEND_URL: `http://127.0.0.1:3000`,
+      ...(rpcUrl && { VITE_RPC_URL: rpcUrl }),
     },
   })
 
