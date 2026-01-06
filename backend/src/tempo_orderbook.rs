@@ -348,33 +348,6 @@ impl<P: Provider + Clone + 'static> StablecoinExchangeClient<P> {
     }
 }
 
-/// Configuration for which orderbook pairs to create for a market
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct OrderbookConfig {
-    /// Create YES/quoteToken pair (for trading YES tokens)
-    pub create_yes_pair: bool,
-    /// Create NO/quoteToken pair (for trading NO tokens)
-    pub create_no_pair: bool,
-}
-
-impl OrderbookConfig {
-    pub fn default_config() -> Self {
-        Self {
-            create_yes_pair: true,
-            create_no_pair: true,
-        }
-    }
-}
-
-/// Result of orderbook pair creation
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreatedOrderbooks {
-    pub yes_pair_key: Option<String>,
-    pub no_pair_key: Option<String>,
-}
-
 /// Get orderbook info for market tokens
 /// Returns orderbook state for YES and NO tokens against their quote token
 pub async fn get_market_orderbook_info<P: Provider + Clone + 'static>(

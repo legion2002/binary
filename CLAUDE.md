@@ -1,18 +1,94 @@
 # Binary Markets - Development Notes
 
+## Quick Start
+
+```bash
+# Start full local environment (Tempo + contracts + backend + frontend)
+make dev
+# or
+bun run dev
+
+# Run integration tests
+make test
+
+# Run unit tests only (fast, no orchestration)
+make test-unit
+```
+
+## Project Structure
+
+```
+binary/
+├── backend/          # Rust/Axum API server
+├── frontend/         # React/Vite app
+├── src/              # Solidity contracts
+├── script/
+│   ├── env.ts        # Central orchestrator (main entry point)
+│   ├── deploy-tempo.ts # Testnet deploy script
+│   └── lib/          # Shared utilities
+├── Makefile          # Make targets (wrappers around bun commands)
+├── package.json      # Root package with unified commands
+└── docker-compose.yml # Tempo node config
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `make dev` / `bun run dev` | Start full local stack |
+| `make test` / `bun run test` | Run integration tests |
+| `make test-unit` | Run unit tests only |
+| `make build` | Build for production |
+| `bun run deploy:testnet` | Deploy to Tempo testnet |
+
 ## Backend Development
 
-- Admin API uses Bearer token authentication (`Authorization: Bearer <token>`), not `X-API-Key` header
-- Admin endpoint to create markets is `POST /admin/markets/open` with JSON body `{ "question": "...", "resolutionDeadline": <unix_timestamp> }` - the `resolutionDeadline` field must be camelCase and the timestamp must be in the future
-- SQLite connection string for dev mode should use `sqlite:./dev.db?mode=rwc` (not `sqlite://`) - the `mode=rwc` flag creates the file if it doesn't exist
+- Admin API uses Bearer token authentication (`Authorization: Bearer <token>`)
+- Admin endpoint: `POST /admin/markets/open` with JSON body `{ "question": "...", "resolutionDeadline": <unix_timestamp> }`
+- SQLite connection string for dev: `sqlite:./dev.db?mode=rwc`
 
 ## Frontend Development
 
-- CSS uses custom utility classes mimicking Tailwind (not actual Tailwind) - classes like `.bg-dark`, `.text-primary`, `.card-dark` are defined in `index.css`
-- Dark theme CSS variables are in `:root` in `index.css` - key variables include `--bg-primary`, `--accent-purple`, `--gradient-purple`, etc.
-- Google Fonts are loaded via `@import url()` at the top of `index.css` - currently uses DM Sans for body and JetBrains Mono for monospace
+- CSS uses custom utility classes (not Tailwind) - defined in `index.css`
+- Dark theme CSS variables in `:root` - `--bg-primary`, `--accent-purple`, etc.
+- Google Fonts: DM Sans (body), JetBrains Mono (code)
 
 ## Dev Environment Orchestrator
 
-- Frontend health check should use `http://localhost:${port}` (not `127.0.0.1`) and add `--host` flag to vite for network binding
-- The orchestrator script is at `script/env.ts` - run with `bun run script/env.ts dev` for interactive mode or `bun run script/env.ts test` for test mode
+The orchestrator at `script/env.ts` handles:
+1. Starting Tempo node via docker-compose
+2. Setting fee token to PathUSD
+3. Deploying contracts via forge
+4. Starting backend server
+5. Starting frontend dev server
+
+Environment variables are passed to backend/frontend automatically.
+
+## Testing
+
+Integration tests require the orchestrator to be running:
+```bash
+# Correct way
+make test
+
+# Or manually start env, then in another terminal:
+RPC_URL=http://localhost:9545 SERVER_URL=http://localhost:3001 cargo test --test integration_test -- --ignored
+```
+
+## Contract Addresses
+
+| Contract | Address |
+|----------|---------|
+| TIP-20 Factory | `0x20Fc000000000000000000000000000000000000` |
+| PATH_USD | `0x20C0000000000000000000000000000000000000` |
+| Stablecoin DEX | `0xDEc0000000000000000000000000000000000000` |
+
+## Contract Deployment
+
+- Local deployment uses `script/DeployAndSeedMarkets.s.sol` via the orchestrator
+- Testnet deployment uses `bun run deploy:testnet` which runs `script/deploy-tempo.ts`
+
+## Tempo Node Gotchas
+
+- **Fee token must be set before `forge script`**: The deployer account's fee token must be explicitly set to `PATH_USD` *before* broadcasting transactions. Without this, `forge` fails with "Insufficient liquidity for fee token" even if simulation passes.
+- **TIP20Factory salt parameter**: The `ITIP20Factory.createToken` function requires a `bytes32 salt` parameter for deterministic token addresses. Update both `ITIP20Factory.sol` and `MultiVerse.sol` if the signature changes.

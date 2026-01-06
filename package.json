@@ -1,24 +1,19 @@
 {
-  "name": "binary",
-  "version": "1.0.0",
-  "author": "0xtanishk",
-  "description": "**Price feeds from the future.**",
-  "homepage": "https://github.com/legion2002/binary#readme",
-  "bugs": {
-    "url": "https://github.com/legion2002/binary/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/legion2002/binary.git"
-  },
-  "license": "ISC",
-  "type": "commonjs",
-  "main": "index.js",
-  "directories": {
-    "lib": "lib",
-    "test": "test"
-  },
+  "name": "binary-markets",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Binary prediction markets on Tempo",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  }
+    "dev": "bun run script/env.ts dev",
+    "test": "bun run script/env.ts test",
+    "test:backend": "bun run script/env.ts test -- cargo test --test integration_test -- --ignored",
+    "test:e2e": "bun run script/env.ts test --with-frontend -- pnpm --prefix frontend test:e2e",
+    "deploy:testnet": "bun run script/deploy-tempo.ts",
+    "install:all": "cd backend && cargo fetch && cd ../frontend && pnpm install && cd ../script && bun install",
+    "build": "cd backend && cargo build --release && cd ../frontend && pnpm build",
+    "lint": "cd backend && cargo clippy && cd ../frontend && pnpm lint",
+    "clean": "cd backend && cargo clean && cd ../frontend && rm -rf dist node_modules/.vite"
+  },
+  "keywords": ["prediction-markets", "tempo", "blockchain"],
+  "license": "MIT"
 }

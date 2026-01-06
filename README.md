@@ -3,7 +3,7 @@
 **Price feeds from the future.**
 
 - *What will ETH trade at if FOCIL is included in the Glamsterdam hardfork?*  
-- *How will GPU prices diverge if Trump is (or isn’t) re-elected?*
+- *How will GPU prices diverge if Trump is (or isn't) re-elected?*
 
 Binary is a lean, highly-optimized prediction-market framework that spawns self-contained economies around every yes/no question.
 
@@ -49,19 +49,44 @@ Every economy—onchain or offchain—reduces to three building blocks:
 
 ## Price
 
-“**Price**” is distilled collective intelligence of all of humanity - a live forecast of future value.  
+"**Price**" is distilled collective intelligence of all of humanity - a live forecast of future value.  
 
 Binary markets allow us to use the concept of price, to extract valuable information from the future.
 
-Each possible answer spawns its own self-contained economy. The price feeds inside these separate “verses” reveal what every asset is worth under that specific outcome.
+Each possible answer spawns its own self-contained economy. The price feeds inside these separate "verses" reveal what every asset is worth under that specific outcome.
 
 Example:
 
 - **Market**: *Will FOCIL be included in the Glamsterdam hardfork?*  
-- **YES_ETH / YES_USDC** quotes ETH’s expected value *if the fix happens*.  
-- **NO_ETH / NO_USDC** quotes ETH’s value *if it doesn’t*.
+- **YES_ETH / YES_USDC** quotes ETH's expected value *if the fix happens*.  
+- **NO_ETH / NO_USDC** quotes ETH's value *if it doesn't*.
 
 Comparing the two feeds gives the Ethereum community a clear, quantitative signal about which path the future favors—and where to focus effort today.
+
+---
+
+## Quick Start
+
+```bash
+# Install dependencies
+make install
+
+# Start full local environment (Tempo + contracts + backend + frontend)
+make dev
+
+# Run integration tests
+make test
+```
+
+**Available Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `make dev` | Start full local stack (Tempo + contracts + backend + frontend) |
+| `make test` | Run integration tests against full stack |
+| `make test-unit` | Run unit tests only (fast, no Docker) |
+| `make build` | Build for production |
+| `make install` | Install all dependencies |
 
 ---
 
@@ -82,29 +107,29 @@ Binary is deployed on **Tempo** - a Layer 1 blockchain optimized for payments wi
 1. **Get testnet funds**: Request PATH_USD from the [Tempo Faucet](https://docs.tempo.xyz/quickstart/faucet)
 2. **Set private key**: Add `PRIVATE_KEY=...` to `.env`
 
-### Deploy
+### Deploy to Testnet
 
 ```bash
-./script/DeployTempo.sh
+bun run deploy:testnet
 ```
 
-Or manually:
+Or manually with forge:
 
 ```bash
-forge script script/DeployAll.s.sol:DeployAll \
-    --rpc-url tempo_testnet \
+forge script script/DeployAndSeedMarkets.s.sol:DeployAndSeedMarkets \
+    --rpc-url https://rpc.testnet.tempo.xyz \
     --broadcast \
-    --private-key $PRIVATE_KEY
+    --private-key $PRIVATE_KEY \
+    -vvv
 ```
 
-### Contract Addresses
-
-The contracts use Tempo's predeployed system contracts:
+### Tempo Precompile Addresses
 
 | Contract | Address |
 |----------|---------|
 | TIP-20 Factory | `0x20Fc000000000000000000000000000000000000` |
 | PATH_USD | `0x20C0000000000000000000000000000000000000` |
+| Stablecoin DEX | `0xDEc0000000000000000000000000000000000000` |
 
 ### Tempo-Specific Notes
 
@@ -116,29 +141,18 @@ The contracts use Tempo's predeployed system contracts:
 
 ## Local Development
 
-Run a local Tempo node for testing without deploying to testnet.
-
-### Option 1: Using Prool (Recommended)
+The local dev environment uses Docker to run a Tempo node and automatically deploys contracts.
 
 ```bash
-cd frontend
-bun run tempo:local
+make dev
 ```
 
-This starts a Docker-based Tempo node, funds a test account, and deploys contracts.
-
-### Option 2: Using Docker Compose
-
-```bash
-# Start local Tempo node
-docker-compose up -d
-
-# Deploy contracts
-./script/deploy-local.sh
-
-# Stop when done
-docker-compose down
-```
+This will:
+1. Start a local Tempo node (Docker)
+2. Configure fee token to PathUSD
+3. Deploy contracts with seeded markets
+4. Start the backend server
+5. Start the frontend dev server
 
 ### Local Node Details
 
@@ -148,3 +162,48 @@ docker-compose down
 | Chain ID | `42429` |
 | Test Private Key | `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` |
 | Test Account | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` |
+
+---
+
+## Project Structure
+
+```
+binary/
+├── backend/           # Rust/Axum API server
+│   ├── src/           # Backend source code
+│   └── tests/         # Integration tests
+├── frontend/          # React/Vite app
+│   └── src/           # Frontend source code
+├── src/               # Solidity contracts
+│   ├── MultiVerse.sol # Core prediction market contract
+│   └── TrustedOracle.sol # Oracle implementation
+├── script/
+│   ├── env.ts         # Central orchestrator
+│   ├── deploy-tempo.ts # Testnet deploy script
+│   └── lib/           # Shared utilities
+├── Makefile           # Unified commands
+├── package.json       # Root package
+└── docker-compose.yml # Tempo node config
+```
+
+---
+
+## API Documentation
+
+See [backend/API.md](backend/API.md) for full API documentation.
+
+### Quick Reference
+
+```bash
+# Get all markets
+curl http://127.0.0.1:3000/markets
+
+# Get single market
+curl http://127.0.0.1:3000/markets/{marketHash}
+
+# Create market (admin)
+curl -X POST http://127.0.0.1:3000/admin/markets/open \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"question": "Will X happen?", "resolutionDeadline": 1767225600}'
+```

@@ -230,11 +230,15 @@ contract MultiVerse {
 
         ITIP20Factory factory = ITIP20Factory(TIP20_FACTORY);
 
+        // Generate deterministic salts for YES and NO tokens based on market and asset
+        bytes32 yesSalt = keccak256(abi.encode(marketHash, asset, "YES"));
+        bytes32 noSalt = keccak256(abi.encode(marketHash, asset, "NO"));
+
         // Create YES verse with PATH_USD as quote token
-        yesVerse = factory.createToken("Yes", "YES", "VERSE", PATH_USD, address(this));
+        yesVerse = factory.createToken("Yes", "YES", "USD", PATH_USD, address(this), yesSalt);
 
         // Create NO verse with PATH_USD as quote token
-        noVerse = factory.createToken("No", "NO", "VERSE", PATH_USD, address(this));
+        noVerse = factory.createToken("No", "NO", "USD", PATH_USD, address(this), noSalt);
 
         // Store in market mapping
         market.verses[asset] = VerseTokens(yesVerse, noVerse);
