@@ -3,9 +3,9 @@
 ## Commands
 
 ```bash
-pnpm run build   # Build for production
-pnpm run dev     # Start dev server
-pnpm run lint    # Run ESLint
+bun run build   # Build for production
+bun run dev     # Start dev server
+bun run lint    # Run ESLint
 ```
 
 ## Wagmi/Tempo API

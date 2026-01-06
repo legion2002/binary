@@ -1,69 +1,69 @@
-# React + TypeScript + Vite
+# Binary Markets Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite frontend for Binary prediction markets.
 
-Currently, two official plugins are available:
+## Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+# Install dependencies
+bun install
 
-## Expanding the ESLint configuration
+# Start dev server
+bun run dev
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# Build for production
+bun run build
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Run linter
+bun run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+The frontend connects to:
+- **Backend API**: `http://localhost:3000` (configurable via `VITE_BACKEND_URL`)
+- **Tempo RPC**: `http://localhost:9545` (configurable via `VITE_RPC_URL`)
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+For local development, use the orchestrator from the project root:
+
+```bash
+# From project root
+make dev
 ```
+
+This starts the Tempo node, deploys contracts, starts the backend, and the frontend together.
+
+## Stack
+
+- **React 19** with TypeScript
+- **Vite 7** for bundling
+- **Wagmi 3** for wallet connections with native Tempo support
+- **TanStack Query** for data fetching
+- **Custom CSS** (not Tailwind) with dark theme
+
+## Tempo Integration
+
+The frontend uses Wagmi's native Tempo support:
+
+```typescript
+import { webAuthn, KeyManager } from "wagmi/tempo";
+import { Hooks } from "wagmi/tempo";
+
+// WebAuthn passkey connector
+webAuthn({ keyManager: KeyManager.localStorage() })
+
+// Tempo DEX hooks
+Hooks.dex.useBuy()
+Hooks.dex.useSell()
+
+// Token hooks
+Hooks.token.useGetBalance()
+```
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_RPC_URL` | `http://localhost:9545` | Tempo RPC endpoint |
+| `VITE_BACKEND_URL` | `http://localhost:3000` | Backend API endpoint |
+| `VITE_FEE_PAYER_URL` | (auto) | Fee sponsor URL for gasless transactions |

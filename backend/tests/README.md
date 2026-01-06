@@ -2,44 +2,43 @@
 
 This directory contains end-to-end integration tests for the Binary backend server.
 
-## Prerequisites
+## Running Tests
 
-Before running the integration tests, make sure you have:
-
-1. **Anvil** (from Foundry) installed and in your PATH
-2. **Forge** (from Foundry) installed
-3. **Contracts** compiled - run `forge build` from the `contracts/` directory
-
-## Running the Tests
-
-The integration tests are marked with `#[ignore]` to prevent them from running during normal `cargo test`.
-
-### Run all integration tests:
+Integration tests require the full local environment (Tempo node + contracts). Use the orchestrator:
 
 ```bash
-cargo test --test integration_test -- --ignored
+# From project root
+make test
+
+# Or with bun
+bun run test
 ```
 
-### Run a specific integration test:
+The orchestrator will:
+1. Start a local Tempo node via Docker
+2. Deploy contracts (MultiVerse, TrustedOracle)
+3. Start the backend server
+4. Run `cargo test --test integration_test -- --ignored`
+5. Shut down all services
+
+### Run specific tests:
 
 ```bash
-cargo test --test integration_test test_full_flow -- --ignored
+bun run script/env.ts test -- cargo test --test integration_test test_full_flow -- --ignored
 ```
 
 ### Run with output:
 
 ```bash
-cargo test --test integration_test -- --ignored --nocapture
+bun run script/env.ts test -- cargo test --test integration_test -- --ignored --nocapture
 ```
 
 ## What the Tests Do
 
 ### `test_full_flow`
 
-1. Starts a local Anvil testnet on port 8545
-2. Deploys MultiVerse and TrustedOracle contracts
-3. Starts the backend server on port 3001 with in-memory SQLite
-4. Tests the following functionality:
+1. Uses the orchestrator-started Tempo node and backend
+2. Tests the following functionality:
    - Fetching empty markets list
    - Opening a new market via admin API
    - Verifying the market was indexed
@@ -55,49 +54,40 @@ cargo test --test integration_test -- --ignored --nocapture
 
 ## Test Configuration
 
-The tests use the following configuration:
+When run via the orchestrator, tests receive these environment variables:
 
-- **Anvil RPC**: `http://127.0.0.1:8545`
-- **Server Port**: `3001` (to avoid conflict with dev server on 3000)
-- **Database**: In-memory SQLite (`:memory:`)
-- **Private Key**: Anvil's default first account key
-- **API Key**: Test key `test_api_key_12345`
+| Variable | Value |
+|----------|-------|
+| `RPC_URL` | `http://localhost:9545` |
+| `SERVER_URL` | `http://localhost:3001` |
+| `ADMIN_API_KEY` | `test_api_key_12345` |
+| `MULTIVERSE_ADDRESS` | (deployed address) |
+| `ORACLE_ADDRESS` | (deployed address) |
 
-## Cleaning Up
+## Running Tests Manually
 
-The test environment automatically cleans up by:
-- Killing Anvil process on test completion
-- Killing server process on test completion
-- Using in-memory database (no cleanup needed)
+If you have the environment already running (via `make dev`):
 
-## Quick Manual Test (Production/Testnet)
+```bash
+cd backend
+RPC_URL=http://localhost:9545 \
+SERVER_URL=http://localhost:3001 \
+ADMIN_API_KEY=test_api_key_12345 \
+cargo test --test integration_test -- --ignored
+```
 
-If you want to manually test the admin API against a running server:
+## Quick Manual API Test
+
+Test the admin API against a running server:
 
 ```bash
 curl -X POST http://127.0.0.1:3000/admin/markets/open \
-  -H 'Authorization: Bearer YOUR_API_KEY_HERE' \
+  -H 'Authorization: Bearer test_api_key_12345' \
   -H 'Content-Type: application/json' \
   -d '{
     "question": "Will Ethereum reach $10k by end of 2025?",
-    "resolutionDeadline": 1767225600,
-    "assets": ["0x4200000000000000000000000000000000000006"]
+    "resolutionDeadline": 1767225600
   }'
-```
-
-Replace `YOUR_API_KEY_HERE` with your actual API key (generated via `cargo run --bin generate_api_key`).
-
-**Expected successful response:**
-```json
-{
-  "marketHash": "0x...",
-  "questionHash": "0x...",
-  "question": "Will Ethereum reach $10k by end of 2025?",
-  "resolutionDeadline": 1767225600,
-  "oracle": "0x...",
-  "transactionHash": "0x...",
-  "verseTokens": [...]
-}
 ```
 
 **Fetch all markets:**
@@ -107,14 +97,18 @@ curl http://127.0.0.1:3000/markets
 
 ## Troubleshooting
 
-### "Anvil not found"
-Install Foundry: `curl -L https://foundry.paradigm.xyz | bash && foundryup`
+### "Docker not running"
+Start Docker Desktop or the Docker daemon.
 
 ### "Contract deployment failed"
-Make sure the contracts compile: `cd ../contracts && forge build`
+Make sure contracts compile: `cd contracts && forge build`
 
 ### "Server failed to start"
-Check that port 3001 is available: `lsof -i :3001`
+Check that ports 3000/3001 and 9545 are available:
+```bash
+lsof -i :3000
+lsof -i :9545
+```
 
-### Tests hang
-Make sure no other Anvil instance is running on port 8545
+### Tests timeout
+The backend compilation can take time on first run. The orchestrator waits up to 120 seconds.

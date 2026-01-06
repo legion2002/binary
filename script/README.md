@@ -63,7 +63,7 @@ This starts the environment and runs the backend integration tests.
 bun run script/env.ts test -- cargo test --test integration_test -- --ignored
 
 # Run e2e tests with frontend
-bun run script/env.ts test --with-frontend -- pnpm --prefix frontend test:e2e
+bun run script/env.ts test --with-frontend -- bun --cwd frontend test:e2e
 ```
 
 ## Architecture

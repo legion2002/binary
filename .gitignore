@@ -14,5 +14,9 @@ docs/
 .env
 node_modules/
 
+# Lock files (use bun.lock only)
+package-lock.json
+pnpm-lock.yaml
+
 contracts/broadcast/
 .playwright-mcp/

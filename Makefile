@@ -24,10 +24,10 @@ test: ## Run integration tests against full stack
 test-unit: ## Run unit tests only (no orchestration needed)
 	@echo "$(CYAN)Running unit tests...$(RESET)"
 	cd backend && cargo test --lib
-	cd frontend && pnpm run lint
+	cd frontend && bun run lint
 
 test-e2e: ## Run e2e tests with frontend
-	bun run script/env.ts test --with-frontend -- pnpm --prefix frontend test:e2e
+	bun run script/env.ts test --with-frontend -- bun --cwd frontend test:e2e
 
 ## Build
 
@@ -39,7 +39,7 @@ build-backend: ## Build backend for release
 
 build-frontend: ## Build frontend for production
 	@echo "$(CYAN)Building frontend...$(RESET)"
-	cd frontend && pnpm run build
+	cd frontend && bun run build
 
 ## Docker (Tempo node only)
 
@@ -59,14 +59,14 @@ docker-logs: ## View Tempo node logs
 install: ## Install all dependencies
 	@echo "$(CYAN)Installing dependencies...$(RESET)"
 	cd backend && cargo fetch
-	cd frontend && pnpm install
+	cd frontend && bun install
 	cd script && bun install
 
 ## Linting
 
 lint: ## Run all linters
 	cd backend && cargo clippy
-	cd frontend && pnpm run lint
+	cd frontend && bun run lint
 
 ## Cleanup
 

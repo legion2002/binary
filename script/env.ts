@@ -16,7 +16,7 @@
  * Examples:
  *   bun run script/env.ts dev
  *   bun run script/env.ts test -- cargo test --test integration_test -- --ignored
- *   bun run script/env.ts test --with-frontend -- pnpm --prefix frontend test:e2e
+ *   bun run script/env.ts test --with-frontend -- bun --cwd frontend test:e2e
  */
 
 import { spawn } from 'child_process'
