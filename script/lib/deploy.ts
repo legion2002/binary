@@ -40,7 +40,7 @@ export async function deployContracts(options: DeployOptions): Promise<ContractA
       ${verbosity}`,
     {
       stdio: verbose ? 'inherit' : 'pipe',
-      cwd: projectRoot,
+      cwd: `${projectRoot}/contracts`,
     }
   )
 
@@ -55,7 +55,7 @@ export function parseBroadcastAddresses(projectRoot: string): ContractAddresses 
   let broadcastPath: string | undefined
 
   for (const chainId of chainIds) {
-    const path = join(projectRoot, `broadcast/DeployAndSeedMarkets.s.sol/${chainId}/run-latest.json`)
+    const path = join(projectRoot, `contracts/broadcast/DeployAndSeedMarkets.s.sol/${chainId}/run-latest.json`)
     if (existsSync(path)) {
       broadcastPath = path
       break

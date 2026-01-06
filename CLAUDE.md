@@ -21,7 +21,11 @@ make test-unit
 binary/
 ├── backend/          # Rust/Axum API server
 ├── frontend/         # React/Vite app
-├── src/              # Solidity contracts
+├── contracts/        # Solidity contracts
+│   ├── src/          # Contract source files
+│   ├── test/         # Contract tests
+│   ├── script/       # Forge deploy scripts
+│   └── lib/          # Forge dependencies (forge-std, solady)
 ├── script/
 │   ├── env.ts        # Central orchestrator (main entry point)
 │   ├── deploy-tempo.ts # Testnet deploy script
@@ -86,7 +90,7 @@ RPC_URL=http://localhost:9545 SERVER_URL=http://localhost:3001 cargo test --test
 
 ## Contract Deployment
 
-- Local deployment uses `script/DeployAndSeedMarkets.s.sol` via the orchestrator
+- Local deployment uses `contracts/script/DeployAndSeedMarkets.s.sol` via the orchestrator
 - Testnet deployment uses `bun run deploy:testnet` which runs `script/deploy-tempo.ts`
 
 ## Tempo Node Gotchas

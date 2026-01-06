@@ -102,19 +102,19 @@ async function main() {
 
   try {
     // Find the project root (where foundry.toml is)
-    const projectRoot = process.cwd().includes('frontend') 
+    const projectRoot = process.cwd().includes('frontend')
       ? process.cwd().replace('/frontend', '')
       : process.cwd()
-    
+
     execSync(
       `forge script script/DeployAndSeedMarkets.s.sol:DeployAndSeedMarkets \
         --rpc-url https://rpc.testnet.tempo.xyz \
         --broadcast \
         --private-key "${PRIVATE_KEY}" \
         -vvv`,
-      { 
+      {
         stdio: 'inherit',
-        cwd: projectRoot,
+        cwd: `${projectRoot}/contracts`,
       }
     )
     
