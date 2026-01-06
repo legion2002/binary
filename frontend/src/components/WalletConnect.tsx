@@ -9,8 +9,8 @@ export function WalletConnect() {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  // Get the webAuthn connector
-  const webAuthnConnector = connectors.find((c) => c.id === "webauthn");
+  // Get the webAuthn connector (id is "webAuthn" with camelCase)
+  const webAuthnConnector = connectors.find((c) => c.id === "webAuthn");
 
   if (isConnected && address) {
     return (
