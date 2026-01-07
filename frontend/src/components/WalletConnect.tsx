@@ -2,25 +2,42 @@ import { useAccount, useConnect, useDisconnect } from "wagmi";
 
 export function WalletConnect() {
   const { address, isConnected } = useAccount();
-  const { connect, connectors, isPending, error } = useConnect();
+  const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+
+  const handleConnect = (isSignUp: boolean) => {
+    const webAuthnConnector = connectors.find((c) => c.id === "webAuthn");
+    
+    if (webAuthnConnector) {
+      const capabilities = isSignUp 
+        ? { type: 'sign-up' as const, label: `Binary ${new Date().toLocaleDateString()}` }
+        : { type: 'sign-in' as const, selectAccount: true };
+      
+      connect(
+        { 
+          connector: webAuthnConnector,
+          capabilities,
+        } as any,
+        {
+          onError: (err) => {
+            console.error("[WalletConnect] Connect error:", err);
+          },
+        }
+      );
+    }
+  };
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  // Get the webAuthn connector (id is "webAuthn" with camelCase)
-  const webAuthnConnector = connectors.find((c) => c.id === "webAuthn");
-
   if (isConnected && address) {
     return (
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-secondary font-mono">
-          {formatAddress(address)}
-        </span>
+      <div className="flex gap-2 items-center">
+        <span className="text-sm">{formatAddress(address)}</span>
         <button
+          className="wallet-btn"
           onClick={() => disconnect()}
-          className="px-4 py-2 text-sm font-medium text-secondary bg-dark-tertiary rounded-lg hover:bg-dark-hover hover:text-primary transition-all border border-dark"
         >
           Sign Out
         </button>
@@ -29,19 +46,21 @@ export function WalletConnect() {
   }
 
   return (
-    <div className="flex flex-col items-end gap-2">
-      <div className="flex gap-2">
-        <button
-          onClick={() => webAuthnConnector && connect({ connector: webAuthnConnector })}
-          disabled={isPending || !webAuthnConnector}
-          className="btn-primary text-sm"
-        >
-          {isPending ? "Loading..." : "Connect with Passkey"}
-        </button>
-      </div>
-      {error && (
-        <span className="text-xs text-accent-red">{error.message}</span>
-      )}
+    <div className="flex gap-2">
+      <button
+        className="wallet-btn"
+        onClick={() => handleConnect(false)}
+        disabled={isPending}
+      >
+        {isPending ? "..." : "Log In"}
+      </button>
+      <button
+        className="wallet-btn"
+        onClick={() => handleConnect(true)}
+        disabled={isPending}
+      >
+        {isPending ? "..." : "Sign Up"}
+      </button>
     </div>
   );
 }

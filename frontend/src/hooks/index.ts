@@ -9,5 +9,8 @@ export {
   useSellSync,
 } from "./useTempoDex";
 
+// Price quotes for probability
+export { usePriceQuotes } from "./usePriceQuotes";
+
 // Contract interactions
 export { useWriteContract } from "./useContractWrite";

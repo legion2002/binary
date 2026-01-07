@@ -8,6 +8,8 @@
     "test": "bun run script/env.ts test",
     "test:backend": "bun run script/env.ts test -- cargo test --test integration_test -- --ignored",
     "test:e2e": "bun run script/env.ts test --with-frontend -- bun --cwd frontend test:e2e",
+    "test:unit": "bun --cwd frontend test:unit",
+    "test:all": "bun run test:unit && bun run test:e2e",
     "deploy:testnet": "bun run script/deploy-tempo.ts",
     "install:all": "cd backend && cargo fetch && cd ../frontend && bun install && cd ../script && bun install",
     "build": "cd backend && cargo build --release && cd ../frontend && bun run build",

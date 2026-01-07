@@ -1,0 +1,107 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchMarket } from "../api/client";
+import { usePriceQuotes } from "../hooks/usePriceQuotes";
+import { TradePanel } from "./TradePanel";
+import { CONTRACTS } from "../config/contracts";
+import type { MarketResponse } from "../api/types";
+
+interface MarketCardProps {
+  market: MarketResponse;
+}
+
+export function MarketCard({ market }: MarketCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const { data: marketDetail } = useQuery({
+    queryKey: ["market", market.marketHash],
+    queryFn: () => fetchMarket(market.marketHash),
+    enabled: isExpanded,
+  });
+
+  const verseToken = marketDetail?.verseTokens.find(
+    (t) => t.asset.toLowerCase() === CONTRACTS.USD.toLowerCase()
+  );
+
+  const { yesPrice, noPrice, yesProbability, noProbability, isLoading: priceLoading } =
+    usePriceQuotes(verseToken?.yesVerse, verseToken?.noVerse);
+
+  const displayProbability = isExpanded && !priceLoading ? yesProbability : 
+    (market.yesProbability != null ? Math.round(market.yesProbability * 100) : 50);
+
+  const formatDeadline = (timestamp: number) => {
+    return new Date(timestamp * 1000).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const isResolved = market.resolution && market.resolution !== "UNRESOLVED";
+
+  return (
+    <div className={`market-card ${isExpanded ? "expanded" : ""}`} data-testid="market-card">
+      <div className="market-header" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="flex-1">
+          <div className="market-question" data-testid="market-question">
+            {market.question || "Question not available"}
+          </div>
+          <div className="market-meta">
+            Resolves {formatDeadline(market.resolutionDeadline)}
+            {isResolved && (
+              <span
+                className={`status-badge ml-2 resolved-${market.resolution?.toLowerCase()}`}
+              >
+                {market.resolution}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="market-probability" data-testid="market-probability">{displayProbability}%</div>
+          <div className="market-probability-label">Yes</div>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="market-content" data-testid="market-content">
+          <div className="price-grid" data-testid="price-grid">
+            <div className="price-box yes" data-testid="price-box-yes">
+              <div className="price-label yes">YES</div>
+              <div className="price-value">
+                {priceLoading ? "..." : yesPrice != null ? `$${yesPrice.toFixed(2)}` : "$0.50"}
+              </div>
+              <div className="price-sub">{yesProbability}% probability</div>
+            </div>
+            <div className="price-box no" data-testid="price-box-no">
+              <div className="price-label no">NO</div>
+              <div className="price-value">
+                {priceLoading ? "..." : noPrice != null ? `$${noPrice.toFixed(2)}` : "$0.50"}
+              </div>
+              <div className="price-sub">{noProbability}% probability</div>
+            </div>
+          </div>
+
+          {!isResolved && (
+            <TradePanel
+              marketHash={market.marketHash}
+              yesTokenAddress={verseToken?.yesVerse}
+              noTokenAddress={verseToken?.noVerse}
+              yesPrice={yesPrice}
+              noPrice={noPrice}
+            />
+          )}
+
+          {isResolved && (
+            <div className="empty-state">
+              This market has been resolved to {market.resolution}.
+              {market.resolution === "YES" && " YES token holders can redeem $1 per token."}
+              {market.resolution === "NO" && " NO token holders can redeem $1 per token."}
+              {market.resolution === "EVEN" && " Both YES and NO holders can redeem $0.50 per token."}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

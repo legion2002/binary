@@ -6,8 +6,8 @@ export { MULTIVERSE_ABI, TIP20_ABI };
 // Contract addresses for Tempo Testnet (Andantino)
 export const CONTRACTS = {
   // Binary Protocol Contracts (deployed)
-  MULTIVERSE: "0x06A9F4629b75032f16D5E03B9672D8F11FA93AE3",
-  ORACLE: "0xDB875C7987584ED9Ccec95da132501eCeB145b13",
+  MULTIVERSE: "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
+  ORACLE: "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
   
   // Tempo System Precompiles
   PATH_USD: "0x20C0000000000000000000000000000000000000",  // pathUSD (tokenId 0)

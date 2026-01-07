@@ -58,6 +58,29 @@ const { mutate: buy } = Hooks.dex.useBuy();
 - Use `useAccount`, `useConnect`, `useDisconnect` from wagmi for wallet state
 - Fee sponsorship configured via `feePayer: true` in transaction params
 
+### WebAuthn Connection
+
+When using the `webAuthn` connector, pass `capabilities` to control sign-up vs sign-in behavior:
+
+```typescript
+// Sign up (create new passkey)
+connect({
+  connector: webAuthnConnector,
+  capabilities: { type: 'sign-up', label: 'My App' }
+});
+
+// Sign in (use existing passkey, allow selection if multiple)
+connect({
+  connector: webAuthnConnector,
+  capabilities: { type: 'sign-in', selectAccount: true }
+});
+```
+
+- `sign-up`: Creates a new passkey credential
+- `sign-in` with `selectAccount: true`: Prompts user to choose from available passkeys
+- Without `selectAccount`, it uses the last active credential automatically
+- Error `publicKey not found` means localStorage was cleared but browser still has the passkey - prompt user to sign up again
+
 ## Tempo Transaction Features
 
 These native Tempo features enable superior UX compared to traditional EVM:

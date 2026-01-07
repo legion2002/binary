@@ -72,9 +72,10 @@ binary/
 ## Frontend Development
 
 - CSS uses custom utility classes (not Tailwind) - defined in `index.css`
-- Dark theme CSS variables in `:root` - `--bg-primary`, `--accent-purple`, etc.
-- Google Fonts: DM Sans (body), JetBrains Mono (code)
+- Light theme with white background, yellow accents (`--accent-yellow`), black borders
+- JetBrains Mono font throughout (monospace, minimalist design)
 - **RPC URL configuration**: Frontend uses `VITE_RPC_URL` env var (defaults to `http://localhost:9545`). The orchestrator passes this automatically when starting the frontend.
+- **Component structure**: MarketList → MarketCard (expandable) → TradePanel (buy/sell/split)
 
 ## Dev Environment Orchestrator
 
