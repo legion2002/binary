@@ -3,6 +3,7 @@ import { useSendTransaction } from "wagmi";
 import { CONTRACTS, MULTIVERSE_ABI, TIP20_ABI } from "../config/contracts";
 
 interface SplitParams {
+  asset: Address;
   amount: bigint;
   marketHash: string;
 }
@@ -10,7 +11,7 @@ interface SplitParams {
 export function useSplit() {
   const { sendTransaction, isPending, isSuccess, error, reset } = useSendTransaction();
 
-  const split = async ({ amount, marketHash }: SplitParams) => {
+  const split = async ({ asset, amount, marketHash }: SplitParams) => {
     const approveData = encodeFunctionData({
       abi: TIP20_ABI,
       functionName: "approve",
@@ -20,13 +21,13 @@ export function useSplit() {
     const splitData = encodeFunctionData({
       abi: MULTIVERSE_ABI,
       functionName: "split",
-      args: [CONTRACTS.USD as Address, amount, marketHash as `0x${string}`],
+      args: [asset, amount, marketHash as `0x${string}`],
     });
 
     return sendTransaction({
       calls: [
         {
-          to: CONTRACTS.USD as Address,
+          to: asset,
           data: approveData,
         },
         {
@@ -35,7 +36,7 @@ export function useSplit() {
         },
       ],
       feePayer: true,
-    } as any);
+    } as Parameters<typeof sendTransaction>[0]);
   };
 
   return {

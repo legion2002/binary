@@ -1,8 +1,10 @@
 import { useState } from "react";
+import type { Address } from "viem";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMarket } from "../api/client";
 import { usePriceQuotes } from "../hooks/usePriceQuotes";
 import { TradePanel } from "./TradePanel";
+import { AssetSelector } from "./AssetSelector";
 import { CONTRACTS } from "../config/contracts";
 import type { MarketResponse } from "../api/types";
 
@@ -12,6 +14,15 @@ interface MarketCardProps {
 
 export function MarketCard({ market }: MarketCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<Address>(
+    CONTRACTS.ALPHA_USD as Address
+  );
+  const [selectedBalance, setSelectedBalance] = useState<bigint>(0n);
+
+  const handleAssetChange = (asset: Address, balance: bigint) => {
+    setSelectedAsset(asset);
+    setSelectedBalance(balance);
+  };
 
   const { data: marketDetail } = useQuery({
     queryKey: ["market", market.marketHash],
@@ -20,7 +31,7 @@ export function MarketCard({ market }: MarketCardProps) {
   });
 
   const verseToken = marketDetail?.verseTokens.find(
-    (t) => t.asset.toLowerCase() === CONTRACTS.USD.toLowerCase()
+    (t) => t.asset.toLowerCase() === selectedAsset.toLowerCase()
   );
 
   const { yesPrice, noPrice, yesProbability, noProbability, isLoading: priceLoading } =
@@ -83,13 +94,21 @@ export function MarketCard({ market }: MarketCardProps) {
           </div>
 
           {!isResolved && (
-            <TradePanel
-              marketHash={market.marketHash}
-              yesTokenAddress={verseToken?.yesVerse}
-              noTokenAddress={verseToken?.noVerse}
-              yesPrice={yesPrice}
-              noPrice={noPrice}
-            />
+            <>
+              <AssetSelector
+                selectedAsset={selectedAsset}
+                onAssetChange={handleAssetChange}
+              />
+              <TradePanel
+                marketHash={market.marketHash}
+                yesTokenAddress={verseToken?.yesVerse}
+                noTokenAddress={verseToken?.noVerse}
+                yesPrice={yesPrice}
+                noPrice={noPrice}
+                selectedAsset={selectedAsset}
+                selectedBalance={selectedBalance}
+              />
+            </>
           )}
 
           {isResolved && (

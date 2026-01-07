@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "../test/test-utils";
 import { TradePanel } from "./TradePanel";
+import { CONTRACTS } from "../config/contracts";
+import type { Address } from "viem";
 
 const mockBuy = vi.fn();
 const mockWriteContract = vi.fn();
@@ -35,6 +37,8 @@ const defaultProps = {
   noTokenAddress: "0xno",
   yesPrice: 0.6,
   noPrice: 0.4,
+  selectedAsset: CONTRACTS.ALPHA_USD as Address,
+  selectedBalance: 1000000000n, // 1000 USD (6 decimals)
 };
 
 describe("TradePanel", () => {

@@ -3,7 +3,6 @@ import { parseUnits, formatUnits, type Address } from "viem";
 import { useAccount } from "wagmi";
 import { useBuyQuote, useBuySync } from "../hooks/useTempoDex";
 import { useSplit } from "../hooks/useSplit";
-import { CONTRACTS } from "../config/contracts";
 
 type TradeMode = "buy-yes" | "buy-no" | "split";
 
@@ -13,6 +12,8 @@ interface TradePanelProps {
   noTokenAddress: string | undefined;
   yesPrice: number | null;
   noPrice: number | null;
+  selectedAsset: Address;
+  selectedBalance: bigint;
 }
 
 export function TradePanel({
@@ -21,6 +22,8 @@ export function TradePanel({
   noTokenAddress,
   yesPrice,
   noPrice,
+  selectedAsset,
+  selectedBalance,
 }: TradePanelProps) {
   const { isConnected } = useAccount();
   const [mode, setMode] = useState<TradeMode>("buy-yes");
@@ -30,10 +33,11 @@ export function TradePanel({
   const { split, isPending: isSplitPending } = useSplit();
 
   const parsedAmount = amount ? parseUnits(amount, 6) : 0n;
+  const exceedsBalance = parsedAmount > selectedBalance;
 
   const { data: yesBuyQuote, isLoading: yesQuoteLoading } = useBuyQuote({
-    tokenIn: CONTRACTS.USD as Address,
-    tokenOut: (yesTokenAddress ?? CONTRACTS.USD) as Address,
+    tokenIn: selectedAsset,
+    tokenOut: (yesTokenAddress ?? selectedAsset) as Address,
     amountOut: parsedAmount,
     query: {
       enabled: mode === "buy-yes" && !!yesTokenAddress && parsedAmount > 0n,
@@ -41,8 +45,8 @@ export function TradePanel({
   });
 
   const { data: noBuyQuote, isLoading: noQuoteLoading } = useBuyQuote({
-    tokenIn: CONTRACTS.USD as Address,
-    tokenOut: (noTokenAddress ?? CONTRACTS.USD) as Address,
+    tokenIn: selectedAsset,
+    tokenOut: (noTokenAddress ?? selectedAsset) as Address,
     amountOut: parsedAmount,
     query: {
       enabled: mode === "buy-no" && !!noTokenAddress && parsedAmount > 0n,
@@ -50,28 +54,34 @@ export function TradePanel({
   });
 
   const handleTrade = async () => {
-    if (!amount || !isConnected) return;
+    if (!amount || !isConnected || exceedsBalance) return;
 
     if (mode === "buy-yes" && yesTokenAddress) {
       buy({
-        tokenIn: CONTRACTS.USD as Address,
+        tokenIn: selectedAsset,
         tokenOut: yesTokenAddress as Address,
         amountOut: parsedAmount,
         maxAmountIn: yesBuyQuote ? (yesBuyQuote * 105n) / 100n : parsedAmount * 2n,
       });
     } else if (mode === "buy-no" && noTokenAddress) {
       buy({
-        tokenIn: CONTRACTS.USD as Address,
+        tokenIn: selectedAsset,
         tokenOut: noTokenAddress as Address,
         amountOut: parsedAmount,
         maxAmountIn: noBuyQuote ? (noBuyQuote * 105n) / 100n : parsedAmount * 2n,
       });
     } else if (mode === "split") {
       await split({
+        asset: selectedAsset,
         amount: parsedAmount,
         marketHash,
       });
     }
+  };
+
+  const handleMaxClick = () => {
+    const maxAmount = Number(selectedBalance) / 1e6;
+    setAmount(maxAmount.toString());
   };
 
   const isPending = isBuyPending || isSplitPending;
@@ -115,17 +125,30 @@ export function TradePanel({
       </div>
 
       <div className="input-group">
-        <label className="input-label">
-          {mode === "split" ? "USD to split" : "Tokens to buy"}
-        </label>
+        <div className="input-label-row">
+          <label className="input-label">
+            {mode === "split" ? "Amount to split" : "Tokens to buy"}
+          </label>
+          <button
+            type="button"
+            className="btn-max"
+            onClick={handleMaxClick}
+            disabled={!isConnected || isPending || selectedBalance === 0n}
+          >
+            Max
+          </button>
+        </div>
         <input
           type="number"
-          className="input-field"
+          className={`input-field ${exceedsBalance ? "input-error" : ""}`}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="0.00"
           disabled={!isConnected || isPending}
         />
+        {exceedsBalance && (
+          <div className="input-error-message">Insufficient balance</div>
+        )}
       </div>
 
       {mode === "split" && amount && parseFloat(amount) > 0 && (
@@ -168,7 +191,7 @@ export function TradePanel({
             : "btn-primary"
         }`}
         onClick={handleTrade}
-        disabled={!isConnected || !amount || isPending || parseFloat(amount || "0") <= 0}
+        disabled={!isConnected || !amount || isPending || parseFloat(amount || "0") <= 0 || exceedsBalance}
       >
         {isPending ? (
           <span className="inline-flex items-center gap-2">
