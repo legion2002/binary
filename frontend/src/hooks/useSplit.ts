@@ -1,7 +1,6 @@
 import { type Address, encodeFunctionData, zeroAddress } from "viem";
 import { useSendTransactionSync, usePublicClient } from "wagmi";
 import { CONTRACTS, MULTIVERSE_ABI, TIP20_ABI } from "../config/contracts";
-import { USD_TOKEN } from "../config/wagmi";
 
 interface SplitParams {
   asset: Address;
@@ -80,7 +79,7 @@ export function useSplit() {
       // Use feeToken instead of feePayer for local devnet without fee payer relay
       const receipt = await sendTransactionSync({
         calls,
-        feeToken: USD_TOKEN,
+        feeToken: CONTRACTS.PATH_USD,
       } as Parameters<typeof sendTransactionSync>[0]);
       
       console.log("[useSplit] Transaction receipt:", receipt);
