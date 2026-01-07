@@ -54,7 +54,12 @@ export function TradePanel({
   });
 
   const handleTrade = async () => {
-    if (!amount || !isConnected || exceedsBalance) return;
+    console.log("[TradePanel] handleTrade called:", { mode, amount, isConnected, exceedsBalance, parsedAmount: parsedAmount.toString() });
+    
+    if (!amount || !isConnected || exceedsBalance) {
+      console.log("[TradePanel] Early return:", { noAmount: !amount, notConnected: !isConnected, exceedsBalance });
+      return;
+    }
 
     if (mode === "buy-yes" && yesTokenAddress) {
       buy({
@@ -71,11 +76,17 @@ export function TradePanel({
         maxAmountIn: noBuyQuote ? (noBuyQuote * 105n) / 100n : parsedAmount * 2n,
       });
     } else if (mode === "split") {
-      await split({
-        asset: selectedAsset,
-        amount: parsedAmount,
-        marketHash,
-      });
+      console.log("[TradePanel] Calling split...");
+      try {
+        await split({
+          asset: selectedAsset,
+          amount: parsedAmount,
+          marketHash,
+        });
+        console.log("[TradePanel] Split completed");
+      } catch (err) {
+        console.error("[TradePanel] Split error:", err);
+      }
     }
   };
 

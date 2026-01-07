@@ -8,21 +8,38 @@ import {
 interface AssetSelectorProps {
   selectedAsset: Address;
   onAssetChange: (asset: Address, balance: bigint) => void;
+  availableAssets?: Address[];
   disabled?: boolean;
 }
 
 export function AssetSelector({
   selectedAsset,
   onAssetChange,
+  availableAssets,
   disabled = false,
 }: AssetSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { balances, isLoading } = useStablecoinBalances();
 
-  const selectedCoin = balances.find(
+  const filteredBalances = availableAssets
+    ? balances.filter((b) =>
+        availableAssets.some(
+          (a) => a.toLowerCase() === b.address.toLowerCase()
+        )
+      )
+    : balances;
+
+  const selectedCoin = filteredBalances.find(
     (b) => b.address.toLowerCase() === selectedAsset.toLowerCase()
   );
+
+  // Sync balance with parent when it loads or changes
+  useEffect(() => {
+    if (selectedCoin && !isLoading) {
+      onAssetChange(selectedCoin.address, selectedCoin.balance);
+    }
+  }, [selectedCoin?.balance, isLoading]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

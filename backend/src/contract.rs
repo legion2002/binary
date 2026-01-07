@@ -8,6 +8,7 @@ use std::sync::Arc;
 use crate::bindings::r#multi_verse::MultiVerse;
 use crate::tempo_orderbook::{StablecoinExchangeClient, OrderbookInfo, get_market_orderbook_info};
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MarketInfo {
@@ -18,6 +19,7 @@ pub struct MarketInfo {
     pub resolution: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VerseAddresses {
@@ -60,6 +62,7 @@ impl ContractClient {
         keccak256(&encoded)
     }
 
+    #[allow(dead_code)]
     pub async fn get_market(&self, market_hash: FixedBytes<32>) -> anyhow::Result<MarketInfo> {
         let multiverse = MultiVerse::new(self.multiverse_address, &self.provider);
 
@@ -85,6 +88,7 @@ impl ContractClient {
         })
     }
 
+    #[allow(dead_code)]
     pub async fn get_markets(
         &self,
         market_hashes: Vec<FixedBytes<32>>,
@@ -101,6 +105,7 @@ impl ContractClient {
         Ok(markets)
     }
 
+    #[allow(dead_code)]
     pub async fn get_verse_addresses(
         &self,
         asset: Address,
@@ -245,6 +250,7 @@ impl ContractClient {
     }
 
     /// Quote a swap on the Tempo DEX
+    #[allow(dead_code)]
     pub async fn quote_swap(
         &self,
         token_in: Address,
@@ -288,6 +294,7 @@ impl ContractClient {
     }
 
     /// Get resolution for multiple markets in parallel
+    #[allow(dead_code)]
     pub async fn get_resolutions(
         &self,
         market_hashes: Vec<FixedBytes<32>>,

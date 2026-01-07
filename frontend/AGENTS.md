@@ -3,9 +3,12 @@
 ## Commands
 
 ```bash
-bun run build   # Build for production
-bun run dev     # Start dev server
-bun run lint    # Run ESLint
+bun run build      # Build for production
+bun run dev        # Start dev server
+bun run lint       # Run ESLint
+bun run test       # Run unit tests (watch mode)
+bun run test:unit  # Run unit tests (single run)
+bun run test:e2e   # Run Playwright E2E tests
 ```
 
 ## Wagmi/Tempo API
@@ -89,3 +92,12 @@ These native Tempo features enable superior UX compared to traditional EVM:
 - **Fee sponsorship**: Gasless transactions via `feePayer: true` - app pays gas for users
 - **2D nonces**: `nonceKey` param enables parallel transaction submission without blocking
 - **Access keys**: Session keys with spending limits to avoid repeated passkey prompts
+
+## Testing
+
+- **Unit tests**: Vitest + React Testing Library in `src/**/*.test.{ts,tsx}`
+- **E2E tests**: Playwright in `e2e/tests/*.spec.ts`
+- **Test utilities**: Custom render with providers in `src/test/test-utils.tsx` - always import `render` from there
+- **E2E fixtures**: Use `e2e/fixtures/test-fixtures.ts` for extended test with API helper
+- **Before first E2E run**: Install browser with `bunx playwright install chromium`
+- **E2E environment**: Run via `bun run test:e2e` from root (orchestrator provides full stack)

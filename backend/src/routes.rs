@@ -1,6 +1,6 @@
 use crate::contract::ContractClient;
 use crate::db::Database;
-use crate::tempo_orderbook::{OrderbookInfo, calculate_probability_from_orderbooks, StablecoinExchangeClient, get_market_orderbook_info, PATH_USD_ADDRESS};
+use crate::tempo_orderbook::{OrderbookInfo, calculate_probability_from_orderbooks, PATH_USD_ADDRESS};
 use alloy::primitives::{Address, FixedBytes};
 use axum::{
     extract::{Path, Query, State},
