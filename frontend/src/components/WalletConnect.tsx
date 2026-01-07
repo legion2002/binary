@@ -1,9 +1,19 @@
+import { useState } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 
 export function WalletConnect() {
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+  const [copied, setCopied] = useState(false);
+
+  const copyAddress = async () => {
+    if (address) {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
 
   const handleConnect = (isSignUp: boolean) => {
     const webAuthnConnector = connectors.find((c) => c.id === "webAuthn");
@@ -17,7 +27,7 @@ export function WalletConnect() {
         { 
           connector: webAuthnConnector,
           capabilities,
-        } as any,
+        } as Parameters<typeof connect>[0],
         {
           onError: (err) => {
             console.error("[WalletConnect] Connect error:", err);
@@ -34,7 +44,13 @@ export function WalletConnect() {
   if (isConnected && address) {
     return (
       <div className="flex gap-2 items-center">
-        <span className="text-sm">{formatAddress(address)}</span>
+        <span 
+          className="text-sm cursor-pointer hover:opacity-70"
+          onClick={copyAddress}
+          title="Click to copy address"
+        >
+          {copied ? "Copied!" : formatAddress(address)}
+        </span>
         <button
           className="wallet-btn"
           onClick={() => disconnect()}
