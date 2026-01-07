@@ -3,10 +3,10 @@
  * Binary Protocol - Environment Orchestrator
  *
  * Single command to start the full development/testing environment:
- * - Local Tempo node (via prool/Docker)
- * - Contract deployment
- * - Backend server
- * - Frontend dev server (in dev mode)
+ * - Local Tempo node (via docker compose)
+ * - Contract deployment (via forge script)
+ * - Backend server (Rust/Axum)
+ * - Frontend dev server (Vite, in dev mode only)
  *
  * Usage:
  *   bun run script/env.ts dev              # Interactive development
