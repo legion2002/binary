@@ -48,8 +48,26 @@ binary/
 ## Backend Development
 
 - Admin API uses Bearer token authentication (`Authorization: Bearer <token>`)
-- Admin endpoint: `POST /admin/markets/open` with JSON body `{ "question": "...", "resolutionDeadline": <unix_timestamp> }`
 - SQLite connection string for dev: `sqlite:./dev.db?mode=rwc`
+
+### API Endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/markets` | GET | None | List markets (paginated) |
+| `/markets/:marketHash` | GET | None | Get market detail with orderbooks |
+| `/markets/:marketHash/verse-tokens` | GET | None | Get verse tokens for market |
+| `/admin/markets/open` | POST | Bearer | Create new market |
+
+### Admin Request Example
+
+```json
+{
+  "question": "Will ETH reach $5000?",
+  "resolutionDeadline": 1767225600,
+  "assets": ["0x20C0000000000000000000000000000000000000"]
+}
+```
 
 ## Frontend Development
 
@@ -71,7 +89,15 @@ Environment variables are passed to backend/frontend automatically.
 
 ## Testing
 
-Integration tests require the orchestrator to be running:
+### Unit Tests (Fast, no external dependencies)
+```bash
+# Run backend unit tests
+make test-unit
+# Or directly
+cd backend && cargo test --test unit_tests
+```
+
+### Integration Tests (Requires orchestrator)
 ```bash
 # Correct way
 make test

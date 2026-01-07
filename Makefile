@@ -22,8 +22,11 @@ test: ## Run integration tests against full stack
 	bun run script/env.ts test
 
 test-unit: ## Run unit tests only (no orchestration needed)
-	@echo "$(CYAN)Running unit tests...$(RESET)"
+	@echo "$(CYAN)Running backend unit tests...$(RESET)"
+	cd backend && cargo test --test unit_tests
+	@echo "$(CYAN)Running backend lib tests...$(RESET)"
 	cd backend && cargo test --lib
+	@echo "$(CYAN)Running frontend lint...$(RESET)"
 	cd frontend && bun run lint
 
 test-e2e: ## Run e2e tests with frontend

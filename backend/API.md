@@ -10,6 +10,8 @@ The MultiVerse backend provides a REST API for interacting with prediction marke
 http://127.0.0.1:3000
 ```
 
+**Note:** When running via `make dev`, the orchestrator starts the backend on port `3001` instead.
+
 For production deployments, replace with your server's domain.
 
 ## Authentication
