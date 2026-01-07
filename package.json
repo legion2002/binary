@@ -4,6 +4,7 @@
   "private": true,
   "description": "Binary prediction markets on Tempo",
   "scripts": {
+    "fund": "bun run script/fund.ts",
     "dev": "bun run script/env.ts dev",
     "test": "bun run script/env.ts test",
     "test:backend": "bun run script/env.ts test -- cargo test --test integration_test -- --ignored",

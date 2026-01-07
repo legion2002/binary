@@ -32,6 +32,7 @@ interface WrapperProps {
   children: ReactNode;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 function AllProviders({ children }: WrapperProps) {
   const queryClient = createTestQueryClient();
 
@@ -49,5 +50,6 @@ function customRender(
   return render(ui, { wrapper: AllProviders, ...options });
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export * from "@testing-library/react";
 export { customRender as render };

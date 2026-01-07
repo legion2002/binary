@@ -87,7 +87,7 @@ describe("WalletConnect", () => {
     vi.mocked(useAccount).mockReturnValue({
       address: "0x1234567890abcdef1234567890abcdef12345678",
       isConnected: true,
-    } as ReturnType<typeof useAccount>);
+    } as unknown as ReturnType<typeof useAccount>);
     vi.mocked(useConnect).mockReturnValue({
       connect: mockConnect,
       connectors: [{ id: "webAuthn" }],
@@ -103,7 +103,7 @@ describe("WalletConnect", () => {
     vi.mocked(useAccount).mockReturnValue({
       address: "0x1234567890abcdef1234567890abcdef12345678",
       isConnected: true,
-    } as ReturnType<typeof useAccount>);
+    } as unknown as ReturnType<typeof useAccount>);
     vi.mocked(useConnect).mockReturnValue({
       connect: mockConnect,
       connectors: [{ id: "webAuthn" }],
