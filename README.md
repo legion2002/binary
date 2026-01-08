@@ -113,11 +113,11 @@ Binary is deployed on **Tempo** - a Layer 1 blockchain optimized for payments wi
 bun run deploy:testnet
 ```
 
-Or manually with forge:
+Or manually with forge (contracts only, markets created via admin API):
 
 ```bash
 cd contracts
-forge script script/DeployAndSeedMarkets.s.sol:DeployAndSeedMarkets \
+forge script script/Deploy.s.sol:Deploy \
     --rpc-url https://rpc.testnet.tempo.xyz \
     --broadcast \
     --private-key $PRIVATE_KEY \
@@ -151,16 +151,17 @@ make dev
 This will:
 1. Start a local Tempo node (Docker)
 2. Configure fee token to PathUSD
-3. Deploy contracts with seeded markets
+3. Deploy contracts (MultiVerse + TrustedOracle)
 4. Start the backend server
-5. Start the frontend dev server
+5. Create seed markets via admin API
+6. Start the frontend dev server
 
 ### Local Node Details
 
 | Property | Value |
 |----------|-------|
 | RPC URL | `http://localhost:9545` |
-| Chain ID | `42429` |
+| Chain ID | `1337` |
 | Test Private Key | `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` |
 | Test Account | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` |
 
@@ -213,11 +214,13 @@ curl -X POST http://127.0.0.1:3000/admin/markets/open \
   -d '{"question": "Will X happen?", "resolutionDeadline": 1767225600}'
 ```
 ### TODOs
-- [ ] Convert Buy Yes, Buy No to Trade Yes Trade No, and add buy and sell buttons at the bottom.
-- [ ] Figure out how to create the UI for LPing. Maybe we do market price and limit price for the Buy and sell buttons.
+- [x] Convert Buy Yes, Buy No to Trade Yes Trade No, and add buy and sell buttons at the bottom.
+- [x] Figure out how to create the UI for LPing. Maybe we do market price and limit price for the Buy and sell buttons.
 - [ ] Figure out nice UI to show Yes and No token balance for each asset.
 - [x] On the display it should show, which network the market is connected to right now. Like testnet, devnet etc. Maybe the `On Tempo` display is extended to `On Tempo testnet/devnet/mainnet` .
 - [ ] Make the probability display a bar, with 2 colours, there should only be 1 number displayed.
 - [ ] Create a TUI to manage markets, and resolve them.   
 - [ ] Update the website logo
 - [ ] Deploy the thing somewhere, once testnet is live.
+- [ ] Create some kind of automated market maker script, which handles seeding markets with initial liquidity.
+- [ ] Add an orders tab next the markets tab, which allows people to view their order history, limit orders, cancel open orders etc.

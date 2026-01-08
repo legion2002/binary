@@ -59,7 +59,8 @@ binary/
 | `/markets` | GET | None | List markets (paginated) |
 | `/markets/:marketHash` | GET | None | Get market detail with orderbooks |
 | `/markets/:marketHash/verse-tokens` | GET | None | Get verse tokens for market |
-| `/admin/markets/open` | POST | Bearer | Create new market |
+| `/admin/markets/open` | POST | Bearer | Create new market on-chain |
+| `/admin/markets/add` | POST | Bearer | Add existing on-chain market to DB |
 
 ### Admin Request Example
 
@@ -84,9 +85,10 @@ binary/
 The orchestrator at `script/env.ts` handles:
 1. Starting Tempo node via docker-compose
 2. Setting fee token to PathUSD
-3. Deploying contracts via forge
+3. Deploying contracts via forge (`Deploy.s.sol`)
 4. Starting backend server
-5. Starting frontend dev server
+5. Creating seed markets via admin API
+6. Starting frontend dev server
 
 Environment variables are passed to backend/frontend automatically.
 
@@ -128,7 +130,7 @@ bun run test:e2e
 
 ## Contract Deployment
 
-- Local deployment uses `contracts/script/DeployAndSeedMarkets.s.sol` via the orchestrator
+- Local deployment uses `contracts/script/Deploy.s.sol` via the orchestrator (markets are seeded via admin API)
 - Testnet deployment uses `bun run deploy:testnet` which runs `script/deploy-tempo.ts`
 
 ## Tempo Node Gotchas

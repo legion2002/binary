@@ -1,21 +1,19 @@
 # Backend
 
-A Rust web server with real-time event indexing for the MultiVerse prediction market protocol.
+A Rust web server for the MultiVerse prediction market protocol.
 
 ## Features
 
-- **Real-time Event Indexing**: Listens to `MarketOpened` events via WebSocket and stores them in SQLite
-- **REST API**: Query indexed markets with pagination, get market details with live orderbook data
-- **Admin API**: Create new markets with authenticated endpoints
+- **REST API**: Query markets with pagination, get market details with live orderbook data
+- **Admin API**: Create new markets and add existing on-chain markets
 - **Tempo DEX Integration**: Live orderbook prices from Tempo's Stablecoin DEX
 - **Self-contained**: Embedded SQLite database, no external services required
 
 ## Architecture
 
 - **Database** (`src/db.rs`): SQLite schema and queries for markets, verse tokens, and orderbooks
-- **Event Listener** (`src/indexer.rs`): WebSocket subscription to MultiVerse contract events
 - **API Routes** (`src/routes.rs`): REST endpoints for querying markets
-- **Admin Routes** (`src/admin.rs`): Authenticated endpoints for creating markets
+- **Admin Routes** (`src/admin.rs`): Authenticated endpoints for creating/adding markets
 - **Auth Middleware** (`src/auth.rs`): Bearer token authentication
 - **Contract Client** (`src/contract.rs`): Alloy-based MultiVerse contract interaction
 - **Orderbook** (`src/tempo_orderbook.rs`): Tempo Stablecoin DEX integration
@@ -45,10 +43,9 @@ cd backend
 cp .env.example .env
 ```
 
-3. Update `.env` with your RPC URLs and contract addresses:
+3. Update `.env` with your RPC URL and contract addresses:
 ```env
 RPC_URL=https://tempo-testnet.rpc.example/v1/YOUR_KEY
-WS_RPC_URL=wss://tempo-testnet.rpc.example/v1/YOUR_KEY
 MULTIVERSE_ADDRESS=0x...
 DATABASE_URL=sqlite:./markets.db?mode=rwc
 ADMIN_API_KEY_HASH=$2b$12$...  # From generate_api_key
@@ -67,9 +64,9 @@ cargo run --bin backend
 
 The server will:
 1. Initialize SQLite database with markets, verse_tokens, and orderbook_markets tables
-2. Connect to WebSocket RPC
-3. Subscribe to MarketOpened events
-4. Start HTTP server on `127.0.0.1:3000`
+2. Start HTTP server on `127.0.0.1:3000`
+
+Markets are added via the admin API endpoints, not automatic indexing.
 
 ## API Endpoints
 
@@ -229,6 +226,57 @@ curl -X POST http://127.0.0.1:3000/admin/markets/open \
   -d '{"question": "Test market?", "resolutionDeadline": 1893456000, "assets": []}'
 ```
 
+#### POST /admin/markets/add
+
+Add an existing on-chain market to the database.
+
+**Headers:**
+```
+Authorization: Bearer <API_KEY>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "marketHash": "0x...",
+  "question": "Will ETH reach $5000 by end of 2025?",
+  "quoteToken": "0x20C0000000000000000000000000000000000000"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `marketHash` | string | Yes | The market hash from the blockchain |
+| `question` | string | Yes | Market question (must hash to match on-chain questionHash) |
+| `quoteToken` | string | No | Quote token for orderbook (defaults to pathUSD) |
+
+**Flow:**
+1. Fetches market data from blockchain via `MultiVerse.markets(marketHash)`
+2. Validates `keccak256(question) == questionHash`
+3. Queries historical `VerseTokensCreated` events for this market
+4. Inserts market, verse tokens, and orderbook data to database
+
+**Response:** `200 OK`
+```json
+{
+  "marketHash": "0x...",
+  "questionHash": "0x...",
+  "question": "Will ETH reach $5000 by end of 2025?",
+  "resolutionDeadline": 1767225600,
+  "oracle": "0x...",
+  "verseTokens": [...]
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://127.0.0.1:3000/admin/markets/add \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"marketHash": "0x123...", "question": "Will ETH reach $5000?"}'
+```
+
 ## Database Schema
 
 ```sql
@@ -289,20 +337,6 @@ make test
 
 # Or manually with env vars
 RPC_URL=http://localhost:9545 SERVER_URL=http://localhost:3001 cargo test --test integration_test -- --ignored
-```
-
-## Event Indexing
-
-The indexer automatically:
-- Subscribes to `MarketOpened` events from the MultiVerse contract
-- Stores new markets in the database as they're created
-- Resumes from the last indexed block on restart
-- Handles reconnections automatically
-
-When a new market is opened on-chain, you'll see logs like:
-```
-INFO backend::indexer: Received MarketOpened event: market_hash=0x..., block=12345
-INFO backend::indexer: Market indexed successfully
 ```
 
 ## Error Handling

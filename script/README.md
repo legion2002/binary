@@ -44,7 +44,8 @@ This starts:
 1. Local Tempo node (Docker) at `http://localhost:9545`
 2. Deploys contracts (MultiVerse, TrustedOracle)
 3. Starts backend server at `http://localhost:3000`
-4. Starts frontend dev server at `http://localhost:5173`
+4. Creates seed markets via admin API
+5. Starts frontend dev server at `http://localhost:5173`
 
 Press `Ctrl+C` to stop all services.
 
@@ -77,6 +78,7 @@ script/
 │   ├── backend.ts      # Backend server management
 │   ├── frontend.ts     # Frontend dev server management
 │   ├── fee-amm.ts      # Fee token configuration
+│   ├── seed-markets.ts # Seed market creation via admin API
 │   └── health.ts       # Health check utilities
 ├── package.json        # Script dependencies
 └── tsconfig.json       # TypeScript config
@@ -96,6 +98,20 @@ This is necessary because:
 - AlphaUSD (the default) requires a Fee AMM swap to PathUSD
 - The local dev node doesn't have Fee AMM liquidity pre-seeded
 - PathUSD doesn't require a swap (it's the base token)
+
+### Seed Market Creation
+
+After the backend starts, the orchestrator creates seed markets via the admin API:
+
+1. **No forge scripts for markets**: Markets are NOT created via Solidity scripts
+2. **Admin API**: The orchestrator calls `POST /admin/markets/open` for each seed market
+3. **Direct database insertion**: The backend creates markets on-chain AND inserts them directly to the database
+4. **Seed markets defined in `lib/seed-markets.ts`**: Edit this file to customize the initial markets
+
+This approach ensures:
+- Markets are only added to the database when explicitly approved by admin
+- No automatic indexing of random on-chain markets
+- Clean separation between contract deployment and market creation
 
 ### Docker Compose
 

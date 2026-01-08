@@ -337,6 +337,76 @@ curl -X POST http://127.0.0.1:3000/admin/markets/open \
   }'
 ```
 
+#### 5. Add Existing Market
+
+Add an existing on-chain market to the database. This is useful for markets created by others that you want to track.
+
+**Endpoint:** `POST /admin/markets/add`
+
+**Headers:**
+```
+Authorization: Bearer <API_KEY>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "marketHash": "0x123abc...",
+  "question": "Will ETH reach $5000?",
+  "quoteToken": "0x20c0000000000000000000000000000000000000"
+}
+```
+
+**Request Fields:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `marketHash` | string | Yes | The market hash (0x-prefixed 32-byte hex string) |
+| `question` | string | Yes | The question text (must match on-chain questionHash) |
+| `quoteToken` | string | No | Quote token for orderbook trading (defaults to pathUSD) |
+
+**Response:** `200 OK`
+```json
+{
+  "marketHash": "0x123abc...",
+  "questionHash": "0x456def...",
+  "question": "Will ETH reach $5000?",
+  "resolutionDeadline": 1767225600,
+  "oracle": "0x789ghi...",
+  "resolution": "UNRESOLVED",
+  "verseTokens": [
+    {
+      "asset": "0x20c0...",
+      "yesVerse": "0xabc...",
+      "noVerse": "0xdef..."
+    }
+  ],
+  "orderbooks": [...]
+}
+```
+
+**Notes:**
+- The backend fetches market data from on-chain and validates that the question text matches the `questionHash`
+- Verse tokens are auto-discovered by querying historical `VerseTokensCreated` events
+- Orderbook info is fetched for each discovered verse token pair
+
+**Error Responses:**
+- `400 Bad Request`: Invalid market hash format or question doesn't match on-chain hash
+- `401 Unauthorized`: Missing or invalid API key
+- `404 Not Found`: Market does not exist on-chain
+- `500 Internal Server Error`: Failed to fetch from chain or store in database
+
+**Example Request:**
+```bash
+curl -X POST http://127.0.0.1:3000/admin/markets/add \
+  -H 'Authorization: Bearer a1b2c3d4e5f6...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "marketHash": "0x123abc...",
+    "question": "Will ETH reach $5000?"
+  }'
+```
+
 ## Database Schema
 
 The backend uses SQLite to store indexed market data:
@@ -383,28 +453,6 @@ CREATE TABLE orderbook_markets (
 );
 ```
 
-## Real-Time Event Indexing
-
-The backend automatically indexes blockchain events via WebSocket connection:
-
-### Indexed Events
-- **MarketOpened**: Captures new markets created on-chain
-  - Stores market hash, question hash, deadline, oracle, and block number
-  - Note: Question text is only available for markets created via admin API
-
-### WebSocket Configuration
-
-Configure the WebSocket URL in your `.env` file:
-```env
-WS_RPC_URL=wss://base-sepolia.g.alchemy.com/v2/YOUR_KEY
-```
-
-The indexer will:
-1. Connect to the WebSocket RPC endpoint
-2. Subscribe to `MarketOpened` events from the MultiVerse contract
-3. Store new markets in the database in real-time
-4. Handle reconnections automatically
-
 ## Environment Variables
 
 Required environment variables for the backend:
@@ -418,7 +466,6 @@ PORT=3000
 MULTIVERSE_ADDRESS=0x...  # MultiVerse contract address
 ORACLE_ADDRESS=0x...       # Oracle contract address
 RPC_URL=https://rpc.testnet.tempo.xyz  # Tempo HTTP RPC endpoint
-WS_RPC_URL=wss://rpc.testnet.tempo.xyz # Tempo WebSocket RPC endpoint
 
 # Wallet Configuration
 PRIVATE_KEY=0x...          # Private key for signing transactions
