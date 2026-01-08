@@ -2,6 +2,7 @@ use alloy::primitives::FixedBytes;
 use chrono::Utc;
 use sqlx::{sqlite::SqlitePool, FromRow};
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, FromRow)]
 pub struct Market {
     pub market_hash: String,
@@ -13,6 +14,7 @@ pub struct Market {
     pub question_text: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, FromRow)]
 pub struct VerseToken {
     pub market_hash: String,
@@ -23,6 +25,7 @@ pub struct VerseToken {
     pub created_at: i64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, FromRow)]
 pub struct OrderbookData {
     pub market_hash: String,
@@ -174,6 +177,7 @@ impl Database {
     }
 
     /// Get all markets
+    #[allow(dead_code)]
     pub async fn get_all_markets(&self) -> anyhow::Result<Vec<Market>> {
         let markets = sqlx::query_as::<_, Market>(
             r#"

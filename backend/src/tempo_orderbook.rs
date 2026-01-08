@@ -101,6 +101,7 @@ pub struct OrderbookInfo {
 }
 
 /// Orderbook state with liquidity info
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderbookState {
@@ -125,6 +126,7 @@ pub fn tick_to_price_string(tick: i16) -> String {
 
 /// Convert a price to tick
 /// tick = (price - 1) * PRICE_SCALE
+#[allow(dead_code)]
 pub fn price_to_tick(price: f64) -> i16 {
     ((price - 1.0) * PRICE_SCALE as f64).round() as i16
 }
@@ -213,6 +215,7 @@ impl<P: Provider + Clone + 'static> StablecoinExchangeClient<P> {
     }
 
     /// Get the pair key for two tokens
+    #[allow(dead_code)]
     pub async fn get_pair_key(
         &self,
         token_a: Address,
@@ -280,6 +283,7 @@ impl<P: Provider + Clone + 'static> StablecoinExchangeClient<P> {
     }
 
     /// Quote a swap: how much tokenOut for a given tokenIn amount
+    #[allow(dead_code)]
     pub async fn quote_swap_exact_in(
         &self,
         token_in: Address,
@@ -295,6 +299,7 @@ impl<P: Provider + Clone + 'static> StablecoinExchangeClient<P> {
     }
 
     /// Quote a swap: how much tokenIn needed for a given tokenOut amount
+    #[allow(dead_code)]
     pub async fn quote_swap_exact_out(
         &self,
         token_in: Address,
@@ -310,6 +315,7 @@ impl<P: Provider + Clone + 'static> StablecoinExchangeClient<P> {
     }
 
     /// Get liquidity at a specific tick level
+    #[allow(dead_code)]
     pub async fn get_tick_liquidity(
         &self,
         base_token: Address,
@@ -322,6 +328,7 @@ impl<P: Provider + Clone + 'static> StablecoinExchangeClient<P> {
     }
 
     /// Get a user's balance on the DEX
+    #[allow(dead_code)]
     pub async fn get_dex_balance(
         &self,
         user: Address,
@@ -333,6 +340,7 @@ impl<P: Provider + Clone + 'static> StablecoinExchangeClient<P> {
     }
 
     /// Check if a pair exists by querying the books
+    #[allow(dead_code)]
     pub async fn pair_exists(
         &self,
         base_token: Address,
