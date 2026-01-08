@@ -3,12 +3,15 @@ import type { Address } from "viem";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMarket } from "../api/client";
 import { usePriceQuotes } from "../hooks/usePriceQuotes";
+import { useVerseTokens } from "../hooks/useVerseTokens";
 import { STABLECOINS } from "../hooks/useStablecoinBalances";
 import { TradePanel } from "./TradePanel";
 import { AssetSelector } from "./AssetSelector";
 import { TokenBalances } from "./TokenBalances";
-import { CONTRACTS } from "../config/contracts";
 import type { MarketResponse } from "../api/types";
+
+// Default asset for new selections (AlphaUSD - static precompile address)
+const DEFAULT_ASSET = "0x20C0000000000000000000000000000000000001" as Address;
 
 interface MarketCardProps {
   market: MarketResponse;
@@ -16,9 +19,7 @@ interface MarketCardProps {
 
 export function MarketCard({ market }: MarketCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState<Address>(
-    CONTRACTS.ALPHA_USD as Address
-  );
+  const [selectedAsset, setSelectedAsset] = useState<Address>(DEFAULT_ASSET);
   const [selectedBalance, setSelectedBalance] = useState<bigint>(0n);
 
   const handleAssetChange = (asset: Address, balance: bigint) => {
@@ -32,8 +33,10 @@ export function MarketCard({ market }: MarketCardProps) {
     enabled: isExpanded,
   });
 
-  const verseToken = marketDetail?.verseTokens.find(
-    (t) => t.asset.toLowerCase() === selectedAsset.toLowerCase()
+  // Query verse tokens directly from the contract (more reliable than backend)
+  const { data: verseTokens } = useVerseTokens(
+    isExpanded ? selectedAsset : undefined,
+    isExpanded ? market.marketHash : undefined
   );
 
   const selectedStablecoin = STABLECOINS.find(
@@ -41,7 +44,7 @@ export function MarketCard({ market }: MarketCardProps) {
   );
 
   const { yesPrice, noPrice, yesProbability, noProbability, isLoading: priceLoading } =
-    usePriceQuotes(verseToken?.yesVerse, verseToken?.noVerse);
+    usePriceQuotes(verseTokens?.yesVerse, verseTokens?.noVerse);
 
   const displayProbability = isExpanded && !priceLoading ? yesProbability : 
     (market.yesProbability != null ? Math.round(market.yesProbability * 100) : 50);
@@ -106,14 +109,14 @@ export function MarketCard({ market }: MarketCardProps) {
                 onAssetChange={handleAssetChange}
               />
               <TokenBalances
-                yesTokenAddress={verseToken?.yesVerse}
-                noTokenAddress={verseToken?.noVerse}
+                yesTokenAddress={verseTokens?.yesVerse}
+                noTokenAddress={verseTokens?.noVerse}
                 assetSymbol={selectedStablecoin?.symbol ?? "USD"}
               />
               <TradePanel
                 marketHash={market.marketHash}
-                yesTokenAddress={verseToken?.yesVerse}
-                noTokenAddress={verseToken?.noVerse}
+                yesTokenAddress={verseTokens?.yesVerse}
+                noTokenAddress={verseTokens?.noVerse}
                 yesPrice={yesPrice}
                 noPrice={noPrice}
                 selectedAsset={selectedAsset}

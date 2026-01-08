@@ -1,6 +1,9 @@
 // Token balances
 export { useTokenBalance, useBalances } from "./useBalances";
 
+// Verse token addresses from contract
+export { useVerseTokens, verseTokensQueryKey } from "./useVerseTokens";
+
 // Tempo DEX trading
 export {
   useBuyQuote,

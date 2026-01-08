@@ -1,6 +1,8 @@
 import { type Address, encodeFunctionData, zeroAddress } from "viem";
 import { useSendTransactionSync, usePublicClient } from "wagmi";
-import { CONTRACTS, MULTIVERSE_ABI, TIP20_ABI } from "../config/contracts";
+import { useQueryClient } from "@tanstack/react-query";
+import { useContracts, MULTIVERSE_ABI, TIP20_ABI } from "./useContracts";
+import { verseTokensQueryKey } from "./useVerseTokens";
 
 interface SplitParams {
   asset: Address;
@@ -11,8 +13,14 @@ interface SplitParams {
 export function useSplit() {
   const { mutateAsync: sendTransactionSync, isPending, isSuccess, error, reset } = useSendTransactionSync();
   const publicClient = usePublicClient();
+  const queryClient = useQueryClient();
+  const { contracts, isLoading: contractsLoading } = useContracts();
 
   const split = async ({ asset, amount, marketHash }: SplitParams) => {
+    if (!contracts) {
+      throw new Error("Contracts not loaded yet");
+    }
+
     console.log("[useSplit] split called with:", { asset, amount: amount.toString(), marketHash });
 
     const marketHashBytes = marketHash as `0x${string}`;
@@ -22,7 +30,7 @@ export function useSplit() {
     if (publicClient) {
       try {
         const [yesVerse] = await publicClient.readContract({
-          address: CONTRACTS.MULTIVERSE as Address,
+          address: contracts.MULTIVERSE,
           abi: MULTIVERSE_ABI,
           functionName: "getVerseAddress",
           args: [asset, marketHashBytes],
@@ -38,7 +46,7 @@ export function useSplit() {
     const approveData = encodeFunctionData({
       abi: TIP20_ABI,
       functionName: "approve",
-      args: [CONTRACTS.MULTIVERSE as Address, amount],
+      args: [contracts.MULTIVERSE, amount],
     });
 
     const createData = encodeFunctionData({
@@ -62,13 +70,13 @@ export function useSplit() {
 
     if (needsCreate) {
       calls.push({
-        to: CONTRACTS.MULTIVERSE as Address,
+        to: contracts.MULTIVERSE,
         data: createData,
       });
     }
 
     calls.push({
-      to: CONTRACTS.MULTIVERSE as Address,
+      to: contracts.MULTIVERSE,
       data: splitData,
     });
 
@@ -79,10 +87,33 @@ export function useSplit() {
       // Use feeToken instead of feePayer for local devnet without fee payer relay
       const receipt = await sendTransactionSync({
         calls,
-        feeToken: CONTRACTS.PATH_USD,
+        feeToken: contracts.PATH_USD,
       } as Parameters<typeof sendTransactionSync>[0]);
-      
+
       console.log("[useSplit] Transaction receipt:", receipt);
+
+      // Invalidate verse tokens query so YES/NO balances update
+      await queryClient.invalidateQueries({
+        queryKey: verseTokensQueryKey(asset, marketHash),
+      });
+
+      // Invalidate all token balance queries so stablecoin balance updates
+      // wagmi/tempo uses query keys containing the token address
+      await queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey;
+          // Match wagmi token balance queries (they contain 'getBalance' or the token address)
+          return (
+            Array.isArray(key) &&
+            key.some(
+              (k) =>
+                k === "getBalance" ||
+                (typeof k === "object" && k !== null && "token" in k)
+            )
+          );
+        },
+      });
+
       return receipt;
     } catch (err) {
       console.error("[useSplit] sendTransactionSync error:", err);
@@ -96,5 +127,6 @@ export function useSplit() {
     isSuccess,
     error,
     reset,
+    contractsLoading,
   };
 }
