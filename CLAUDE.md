@@ -148,3 +148,10 @@ bun run test:e2e
 - **Testnet fee sponsorship (viem)**: Use `withFeePayer(http(), http('https://sponsor.moderato.tempo.xyz'))` transport for sponsored transactions.
 - **Testnet faucet (viem)**: Call `client.faucet.fund({ account: address })` after extending client with `tempoActions()`. Funds 1M of each stablecoin.
 - **Test private key**: `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` (address: `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`) - prefunded on local devnet.
+
+## Stablecoin DEX Gotchas
+
+- **Minimum order size**: The Stablecoin DEX requires a minimum order size of 100 tokens (100_000_000 with 6 decimals). Orders below this fail with `BelowMinimumOrderSize` error (`0x46628371`).
+- **DEX tick range**: The DEX only supports ±2% from peg (tick range ±2000), meaning prices from $0.98 to $1.02. This limits prediction market probability ranges to ~49-51% when using mid-prices.
+- **Use viem/tempo native actions**: Prefer `client.token.approve()`, `client.dex.placeSync()`, `client.dex.createPair()` over raw `writeContract()` calls. Raw calls may fail with `InsufficientAllowance` (`0x13be252b`) even with correct approvals.
+- **Common DEX error signatures**: `0x46628371` = `BelowMinimumOrderSize(uint128)`, `0x13be252b` = `InsufficientAllowance()`, `0xbb55fd27` = `InsufficientLiquidity()`.
