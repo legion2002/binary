@@ -11,7 +11,7 @@
 #
 # The node will be available at:
 #   HTTP:  http://localhost:9545
-#   WS:    ws://localhost:9545
+#   WS:    ws://localhost:9546
 
 services:
   tempo:
@@ -20,6 +20,7 @@ services:
     container_name: tempo-local
     ports:
       - "9545:9545"
+      - "9546:9546"
     command:
       - node
       - --dev
@@ -28,6 +29,11 @@ services:
       - --http.port=9545
       - --http.api=all
       - --http.corsdomain=*
+      - --ws
+      - --ws.addr=0.0.0.0
+      - --ws.port=9546
+      - --ws.api=all
+      - --ws.origins=*
       - --faucet.enabled
       - --faucet.address=0x20c0000000000000000000000000000000000000
       - --faucet.address=0x20c0000000000000000000000000000000000001

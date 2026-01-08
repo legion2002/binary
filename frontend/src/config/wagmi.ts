@@ -1,7 +1,6 @@
 import { createConfig, createStorage, http } from "wagmi";
 import { tempoTestnet } from "wagmi/chains";
 import { webAuthn, KeyManager } from "wagmi/tempo";
-import type { Chain } from "viem";
 
 // RPC URL - defaults to local devnet, can be overridden via env or CLI
 const RPC_URL = import.meta.env.VITE_RPC_URL || "http://localhost:9545";
@@ -16,25 +15,20 @@ const FEE_PAYER_URL =
 export const USD_TOKEN =
   "0x20c0000000000000000000000000000000000001" as const;
 
-// PATH_USD token address - used as fee token on local devnet
-const PATH_USD = "0x20C0000000000000000000000000000000000000" as const;
-
 // Determine if we're connecting to local devnet
 const isLocalDevnet =
   RPC_URL.includes("localhost") || RPC_URL.includes("127.0.0.1");
 
-// Create the chain config for local devnet with Tempo properties
+// Create local devnet chain by extending tempoTestnet to inherit all Tempo formatters/serializers
+// This is critical for Tempo-specific features like `calls` batching and `feeToken`
 const localDevnet = {
+  ...tempoTestnet,
   id: 1337,
   name: "Tempo Local",
-  nativeCurrency: tempoTestnet.nativeCurrency,
   rpcUrls: {
     default: { http: [RPC_URL] },
   },
-  blockExplorers: tempoTestnet.blockExplorers,
-  // Tempo-specific: default fee token for transactions
-  feeToken: PATH_USD,
-} as const satisfies Chain & { feeToken: `0x${string}` };
+} as const;
 
 const testnetWithFeeToken = {
   ...tempoTestnet,

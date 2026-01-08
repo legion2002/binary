@@ -62,3 +62,8 @@ export interface MarketDetailResponse {
 export interface ErrorResponse {
   error: string;
 }
+
+export interface ConfigResponse {
+  multiverseAddress: string;
+  oracleAddress: string;
+}

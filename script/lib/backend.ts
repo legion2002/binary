@@ -4,6 +4,7 @@
 
 import { spawn, type ChildProcess } from 'child_process'
 import { join } from 'path'
+import { existsSync, unlinkSync } from 'fs'
 import { waitForHttp, clearLine } from './health'
 import { TEST_PRIVATE_KEY } from './tempo'
 import type { ContractAddresses } from './deploy'
@@ -45,6 +46,15 @@ export async function startBackend(options: BackendOptions): Promise<BackendProc
   const url = `http://127.0.0.1:${port}`
   const backendDir = join(projectRoot, 'backend')
 
+  // In dev mode, delete the old database to ensure fresh sync with redeployed contracts
+  if (mode === 'dev') {
+    const devDbPath = join(backendDir, 'dev.db')
+    if (existsSync(devDbPath)) {
+      unlinkSync(devDbPath)
+      console.log('  Removed stale dev.db for fresh chain sync')
+    }
+  }
+
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     HOST: '127.0.0.1',
@@ -52,7 +62,7 @@ export async function startBackend(options: BackendOptions): Promise<BackendProc
     MULTIVERSE_ADDRESS: contracts.multiverse,
     ORACLE_ADDRESS: contracts.oracle,
     RPC_URL: rpcUrl,
-    WS_RPC_URL: rpcUrl.replace('http', 'ws'),
+    WS_RPC_URL: rpcUrl.replace('http', 'ws').replace(':9545', ':9546'),
     PRIVATE_KEY: TEST_PRIVATE_KEY,
     DATABASE_URL: mode === 'dev' ? 'sqlite:./dev.db?mode=rwc' : 'sqlite::memory:',
     ADMIN_API_KEY_HASH: TEST_API_KEY_HASH,

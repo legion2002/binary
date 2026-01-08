@@ -1,10 +1,53 @@
 import type {
+  ConfigResponse,
   GetMarketsResponse,
   MarketDetailResponse,
   VerseTokenResponse,
 } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3000';
+
+// Cached config - fetched once at startup
+let cachedConfig: ConfigResponse | null = null;
+let configPromise: Promise<ConfigResponse> | null = null;
+
+/**
+ * Fetch backend config (contract addresses, etc.)
+ * Results are cached for the lifetime of the app
+ */
+export async function fetchConfig(): Promise<ConfigResponse> {
+  // Return cached config if available
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+
+  // If a fetch is in progress, wait for it
+  if (configPromise) {
+    return configPromise;
+  }
+
+  // Start the fetch
+  configPromise = (async () => {
+    const response = await fetch(`${API_URL}/config`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch config: ${response.statusText}`);
+    }
+
+    const config = await response.json() as ConfigResponse;
+    cachedConfig = config;
+    return config;
+  })();
+
+  return configPromise;
+}
+
+/**
+ * Get cached config synchronously (returns null if not yet fetched)
+ */
+export function getCachedConfig(): ConfigResponse | null {
+  return cachedConfig;
+}
 
 /**
  * Fetch all markets with pagination

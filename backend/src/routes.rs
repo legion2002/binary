@@ -14,6 +14,8 @@ use std::sync::Arc;
 pub struct AppState {
     pub contract_client: Arc<ContractClient>,
     pub db: Arc<Database>,
+    pub multiverse_address: Address,
+    pub oracle_address: Address,
 }
 
 #[derive(Debug, Deserialize)]
@@ -392,4 +394,21 @@ pub async fn get_verse_tokens(
     };
 
     (StatusCode::OK, Json(verse_tokens)).into_response()
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigResponse {
+    pub multiverse_address: String,
+    pub oracle_address: String,
+}
+
+/// GET /config
+/// Returns contract addresses and other configuration needed by the frontend
+pub async fn get_config(State(state): State<AppState>) -> impl IntoResponse {
+    let config = ConfigResponse {
+        multiverse_address: format!("{:?}", state.multiverse_address),
+        oracle_address: format!("{:?}", state.oracle_address),
+    };
+    (StatusCode::OK, Json(config))
 }

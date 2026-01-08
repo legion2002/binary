@@ -1,7 +1,14 @@
 import type { Address } from "viem";
 import { useAccount } from "wagmi";
 import { Hooks } from "wagmi/tempo";
-import { CONTRACTS } from "../config/contracts";
+
+// Static Tempo stablecoin precompile addresses (never change)
+const STABLECOIN_ADDRESSES = {
+  ALPHA_USD: "0x20C0000000000000000000000000000000000001" as Address,
+  PATH_USD: "0x20C0000000000000000000000000000000000000" as Address,
+  BETA_USD: "0x20C0000000000000000000000000000000000002" as Address,
+  THETA_USD: "0x20C0000000000000000000000000000000000003" as Address,
+} as const;
 
 export interface StablecoinInfo {
   address: Address;
@@ -10,10 +17,10 @@ export interface StablecoinInfo {
 }
 
 export const STABLECOINS: StablecoinInfo[] = [
-  { address: CONTRACTS.ALPHA_USD as Address, symbol: "αUSD", name: "Alpha USD" },
-  { address: CONTRACTS.PATH_USD as Address, symbol: "pUSD", name: "Path USD" },
-  { address: CONTRACTS.BETA_USD as Address, symbol: "βUSD", name: "Beta USD" },
-  { address: CONTRACTS.THETA_USD as Address, symbol: "θUSD", name: "Theta USD" },
+  { address: STABLECOIN_ADDRESSES.ALPHA_USD, symbol: "αUSD", name: "Alpha USD" },
+  { address: STABLECOIN_ADDRESSES.PATH_USD, symbol: "pUSD", name: "Path USD" },
+  { address: STABLECOIN_ADDRESSES.BETA_USD, symbol: "βUSD", name: "Beta USD" },
+  { address: STABLECOIN_ADDRESSES.THETA_USD, symbol: "θUSD", name: "Theta USD" },
 ];
 
 export interface StablecoinBalance extends StablecoinInfo {
@@ -26,25 +33,25 @@ export function useStablecoinBalances() {
 
   const alphaQuery = Hooks.token.useGetBalance({
     account: address!,
-    token: CONTRACTS.ALPHA_USD as Address,
+    token: STABLECOIN_ADDRESSES.ALPHA_USD,
     query: { enabled: !!address },
   });
 
   const pathQuery = Hooks.token.useGetBalance({
     account: address!,
-    token: CONTRACTS.PATH_USD as Address,
+    token: STABLECOIN_ADDRESSES.PATH_USD,
     query: { enabled: !!address },
   });
 
   const betaQuery = Hooks.token.useGetBalance({
     account: address!,
-    token: CONTRACTS.BETA_USD as Address,
+    token: STABLECOIN_ADDRESSES.BETA_USD,
     query: { enabled: !!address },
   });
 
   const thetaQuery = Hooks.token.useGetBalance({
     account: address!,
-    token: CONTRACTS.THETA_USD as Address,
+    token: STABLECOIN_ADDRESSES.THETA_USD,
     query: { enabled: !!address },
   });
 

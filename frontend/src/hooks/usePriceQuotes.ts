@@ -1,7 +1,8 @@
 import { type Address, parseUnits, formatUnits } from "viem";
 import { Hooks } from "wagmi/tempo";
-import { CONTRACTS } from "../config/contracts";
 
+// AlphaUSD - primary trading currency (static precompile address)
+const USD_TOKEN = "0x20C0000000000000000000000000000000000001" as Address;
 const ONE_TOKEN = parseUnits("1", 6);
 
 interface PriceQuotesResult {
@@ -17,8 +18,8 @@ export function usePriceQuotes(
   noTokenAddress: string | undefined
 ): PriceQuotesResult {
   const { data: yesBuyQuote, isLoading: yesLoading } = Hooks.dex.useBuyQuote({
-    tokenIn: CONTRACTS.USD as Address,
-    tokenOut: (yesTokenAddress ?? CONTRACTS.USD) as Address,
+    tokenIn: USD_TOKEN,
+    tokenOut: (yesTokenAddress ?? USD_TOKEN) as Address,
     amountOut: ONE_TOKEN,
     query: {
       enabled: !!yesTokenAddress,
@@ -26,8 +27,8 @@ export function usePriceQuotes(
   });
 
   const { data: noBuyQuote, isLoading: noLoading } = Hooks.dex.useBuyQuote({
-    tokenIn: CONTRACTS.USD as Address,
-    tokenOut: (noTokenAddress ?? CONTRACTS.USD) as Address,
+    tokenIn: USD_TOKEN,
+    tokenOut: (noTokenAddress ?? USD_TOKEN) as Address,
     amountOut: ONE_TOKEN,
     query: {
       enabled: !!noTokenAddress,

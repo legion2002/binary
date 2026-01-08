@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "../test/test-utils";
 import { TradePanel } from "./TradePanel";
-import { CONTRACTS } from "../config/contracts";
 import type { Address } from "viem";
+
+// Static precompile address for tests
+const ALPHA_USD = "0x20C0000000000000000000000000000000000001" as Address;
 
 const mockBuy = vi.fn();
 const mockWriteContract = vi.fn();
@@ -32,6 +34,21 @@ vi.mock("../hooks/useContractWrite", () => ({
   })),
 }));
 
+vi.mock("../hooks/useContracts", () => ({
+  useContracts: vi.fn(() => ({
+    contracts: {
+      MULTIVERSE: "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
+      ORACLE: "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
+      PATH_USD: "0x20C0000000000000000000000000000000000000",
+      ALPHA_USD: "0x20C0000000000000000000000000000000000001",
+    },
+    isLoading: false,
+    error: null,
+  })),
+  MULTIVERSE_ABI: [],
+  TIP20_ABI: [],
+}));
+
 import { useAccount } from "wagmi";
 
 const defaultProps = {
@@ -40,7 +57,7 @@ const defaultProps = {
   noTokenAddress: "0xno",
   yesPrice: 0.6,
   noPrice: 0.4,
-  selectedAsset: CONTRACTS.ALPHA_USD as Address,
+  selectedAsset: ALPHA_USD,
   selectedBalance: 1000000000n, // 1000 USD (6 decimals)
 };
 
