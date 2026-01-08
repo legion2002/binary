@@ -212,3 +212,12 @@ curl -X POST http://127.0.0.1:3000/admin/markets/open \
   -H 'Content-Type: application/json' \
   -d '{"question": "Will X happen?", "resolutionDeadline": 1767225600}'
 ```
+### TODOs
+- [ ] Convert Buy Yes, Buy No to Trade Yes Trade No, and add buy and sell buttons at the bottom.
+- [ ] Figure out how to create the UI for LPing. Maybe we do market price and limit price for the Buy and sell buttons.
+- [ ] Figure out nice UI to show Yes and No token balance for each asset.
+- [x] On the display it should show, which network the market is connected to right now. Like testnet, devnet etc. Maybe the `On Tempo` display is extended to `On Tempo testnet/devnet/mainnet` .
+- [ ] Make the probability display a bar, with 2 colours, there should only be 1 number displayed.
+- [ ] Create a TUI to manage markets, and resolve them.   
+- [ ] Update the website logo
+- [ ] Deploy the thing somewhere, once testnet is live.

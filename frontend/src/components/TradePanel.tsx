@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { parseUnits, formatUnits, type Address } from "viem";
+import { Tick } from "viem/tempo";
 import { useAccount } from "wagmi";
-import { useBuyQuote, useBuySync } from "../hooks/useTempoDex";
+import { useBuyQuote, useBuySync, useSellQuote, useSellSync, usePlaceOrderSync } from "../hooks/useTempoDex";
 import { useSplit } from "../hooks/useSplit";
 
-type TradeMode = "buy-yes" | "buy-no" | "split";
+type TradeMode = "trade-yes" | "trade-no" | "split";
+type ActionType = "buy" | "sell";
+type OrderType = "market" | "limit";
 
 interface TradePanelProps {
   marketHash: string;
@@ -26,66 +29,87 @@ export function TradePanel({
   selectedBalance,
 }: TradePanelProps) {
   const { isConnected } = useAccount();
-  const [mode, setMode] = useState<TradeMode>("buy-yes");
+  const [mode, setMode] = useState<TradeMode>("trade-yes");
+  const [action, setAction] = useState<ActionType>("buy");
+  const [orderType, setOrderType] = useState<OrderType>("market");
   const [amount, setAmount] = useState("");
+  const [limitPrice, setLimitPrice] = useState("");
 
   const { mutate: buy, isPending: isBuyPending } = useBuySync();
+  const { mutate: sell, isPending: isSellPending } = useSellSync();
+  const { mutate: placeOrder, isPending: isPlacePending } = usePlaceOrderSync();
   const { split, isPending: isSplitPending } = useSplit();
 
   const parsedAmount = amount ? parseUnits(amount, 6) : 0n;
   const exceedsBalance = parsedAmount > selectedBalance;
 
-  const { data: yesBuyQuote, isLoading: yesQuoteLoading } = useBuyQuote({
+  const currentToken = mode === "trade-yes" ? yesTokenAddress : noTokenAddress;
+
+  // Buy quotes: how much USD to pay for X tokens
+  const { data: buyQuote, isLoading: buyQuoteLoading } = useBuyQuote({
     tokenIn: selectedAsset,
-    tokenOut: (yesTokenAddress ?? selectedAsset) as Address,
+    tokenOut: (currentToken ?? selectedAsset) as Address,
     amountOut: parsedAmount,
     query: {
-      enabled: mode === "buy-yes" && !!yesTokenAddress && parsedAmount > 0n,
+      enabled: mode !== "split" && action === "buy" && orderType === "market" && !!currentToken && parsedAmount > 0n,
     },
   });
 
-  const { data: noBuyQuote, isLoading: noQuoteLoading } = useBuyQuote({
-    tokenIn: selectedAsset,
-    tokenOut: (noTokenAddress ?? selectedAsset) as Address,
-    amountOut: parsedAmount,
+  // Sell quotes: how much USD received for selling X tokens
+  const { data: sellQuote, isLoading: sellQuoteLoading } = useSellQuote({
+    tokenIn: (currentToken ?? selectedAsset) as Address,
+    tokenOut: selectedAsset,
+    amountIn: parsedAmount,
     query: {
-      enabled: mode === "buy-no" && !!noTokenAddress && parsedAmount > 0n,
+      enabled: mode !== "split" && action === "sell" && orderType === "market" && !!currentToken && parsedAmount > 0n,
     },
   });
 
   const handleTrade = async () => {
-    console.log("[TradePanel] handleTrade called:", { mode, amount, isConnected, exceedsBalance, parsedAmount: parsedAmount.toString() });
-    
     if (!amount || !isConnected || exceedsBalance) {
-      console.log("[TradePanel] Early return:", { noAmount: !amount, notConnected: !isConnected, exceedsBalance });
       return;
     }
 
-    if (mode === "buy-yes" && yesTokenAddress) {
-      buy({
-        tokenIn: selectedAsset,
-        tokenOut: yesTokenAddress as Address,
-        amountOut: parsedAmount,
-        maxAmountIn: yesBuyQuote ? (yesBuyQuote * 105n) / 100n : parsedAmount * 2n,
-      });
-    } else if (mode === "buy-no" && noTokenAddress) {
-      buy({
-        tokenIn: selectedAsset,
-        tokenOut: noTokenAddress as Address,
-        amountOut: parsedAmount,
-        maxAmountIn: noBuyQuote ? (noBuyQuote * 105n) / 100n : parsedAmount * 2n,
-      });
-    } else if (mode === "split") {
-      console.log("[TradePanel] Calling split...");
+    if (mode === "split") {
       try {
         await split({
           asset: selectedAsset,
           amount: parsedAmount,
           marketHash,
         });
-        console.log("[TradePanel] Split completed");
       } catch (err) {
         console.error("[TradePanel] Split error:", err);
+      }
+      return;
+    }
+
+    if (!currentToken) return;
+
+    if (orderType === "limit") {
+      if (!limitPrice || parseFloat(limitPrice) <= 0) return;
+      
+      const tick = Tick.fromPrice(limitPrice);
+      placeOrder({
+        token: currentToken as Address,
+        amount: parsedAmount,
+        tick,
+        type: action,
+      });
+    } else {
+      if (action === "buy") {
+        buy({
+          tokenIn: selectedAsset,
+          tokenOut: currentToken as Address,
+          amountOut: parsedAmount,
+          maxAmountIn: buyQuote ? (buyQuote * 105n) / 100n : parsedAmount * 2n,
+        });
+      } else {
+        sell({
+          tokenIn: currentToken as Address,
+          tokenOut: selectedAsset,
+          amountIn: parsedAmount,
+          minAmountOut: sellQuote ? (sellQuote * 95n) / 100n : 0n,
+        });
       }
     }
   };
@@ -95,36 +119,40 @@ export function TradePanel({
     setAmount(maxAmount.toString());
   };
 
-  const isPending = isBuyPending || isSplitPending;
-  const isQuoteLoading = yesQuoteLoading || noQuoteLoading;
+  const isPending = isBuyPending || isSellPending || isSplitPending || isPlacePending;
+  const isQuoteLoading = buyQuoteLoading || sellQuoteLoading;
 
   const getQuoteDisplay = () => {
-    if (mode === "split") {
-      return null;
-    }
-    const quote = mode === "buy-yes" ? yesBuyQuote : noBuyQuote;
+    if (mode === "split" || orderType === "limit") return null;
+    const quote = action === "buy" ? buyQuote : sellQuote;
     if (!quote) return null;
     return formatUnits(quote, 6);
   };
 
   const quoteValue = getQuoteDisplay();
+  const tokenLabel = mode === "trade-yes" ? "YES" : "NO";
+  const currentPrice = mode === "trade-yes" ? yesPrice : noPrice;
+
+  const isTradeDisabled = !isConnected || !amount || isPending || 
+    parseFloat(amount || "0") <= 0 || exceedsBalance ||
+    (orderType === "limit" && (!limitPrice || parseFloat(limitPrice) <= 0));
 
   return (
     <div className="trade-section" data-testid="trade-panel">
       <div className="trade-tabs" data-testid="trade-tabs">
         <button
-          className={`trade-tab ${mode === "buy-yes" ? "active buy-yes" : ""}`}
-          onClick={() => setMode("buy-yes")}
-          data-testid="tab-buy-yes"
+          className={`trade-tab ${mode === "trade-yes" ? "active trade-yes" : ""}`}
+          onClick={() => setMode("trade-yes")}
+          data-testid="tab-trade-yes"
         >
-          Buy YES
+          Trade YES
         </button>
         <button
-          className={`trade-tab ${mode === "buy-no" ? "active buy-no" : ""}`}
-          onClick={() => setMode("buy-no")}
-          data-testid="tab-buy-no"
+          className={`trade-tab ${mode === "trade-no" ? "active trade-no" : ""}`}
+          onClick={() => setMode("trade-no")}
+          data-testid="tab-trade-no"
         >
-          Buy NO
+          Trade NO
         </button>
         <button
           className={`trade-tab ${mode === "split" ? "active" : ""}`}
@@ -138,16 +166,36 @@ export function TradePanel({
       <div className="input-group">
         <div className="input-label-row">
           <label className="input-label">
-            {mode === "split" ? "Amount to split" : "Tokens to buy"}
+            {mode === "split" ? "Amount to split" : `${tokenLabel} tokens to ${action}`}
           </label>
-          <button
-            type="button"
-            className="btn-max"
-            onClick={handleMaxClick}
-            disabled={!isConnected || isPending || selectedBalance === 0n}
-          >
-            Max
-          </button>
+          <div className="input-actions">
+            {mode !== "split" && (
+              <div className="order-type-toggle" data-testid="order-type-toggle">
+                <button
+                  className={`order-type-btn ${orderType === "market" ? "active" : ""}`}
+                  onClick={() => setOrderType("market")}
+                  data-testid="order-type-market"
+                >
+                  Market
+                </button>
+                <button
+                  className={`order-type-btn ${orderType === "limit" ? "active" : ""}`}
+                  onClick={() => setOrderType("limit")}
+                  data-testid="order-type-limit"
+                >
+                  Limit
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              className="btn-max"
+              onClick={handleMaxClick}
+              disabled={!isConnected || isPending || selectedBalance === 0n}
+            >
+              Max
+            </button>
+          </div>
         </div>
         <input
           type="number"
@@ -161,6 +209,25 @@ export function TradePanel({
           <div className="input-error-message">Insufficient balance</div>
         )}
       </div>
+
+      {mode !== "split" && orderType === "limit" && (
+        <div className="input-group">
+          <label className="input-label">Price per token</label>
+          <input
+            type="number"
+            className="input-field"
+            value={limitPrice}
+            onChange={(e) => setLimitPrice(e.target.value)}
+            placeholder="0.00"
+            step="0.01"
+            min="0.01"
+            max="0.99"
+            disabled={!isConnected || isPending}
+            data-testid="limit-price-input"
+          />
+          <div className="input-hint">Enter price between $0.01 and $0.99</div>
+        </div>
+      )}
 
       {mode === "split" && amount && parseFloat(amount) > 0 && (
         <div className="split-info">
@@ -176,10 +243,12 @@ export function TradePanel({
         </div>
       )}
 
-      {mode !== "split" && amount && parseFloat(amount) > 0 && (
+      {mode !== "split" && orderType === "market" && amount && parseFloat(amount) > 0 && (
         <div className="quote-box">
           <div className="quote-row">
-            <span className="quote-label">You pay</span>
+            <span className="quote-label">
+              {action === "buy" ? "You pay" : "You receive"}
+            </span>
             <span className="quote-value">
               {isQuoteLoading ? "..." : quoteValue ? `$${quoteValue}` : "—"}
             </span>
@@ -187,37 +256,83 @@ export function TradePanel({
           <div className="quote-row mt-2">
             <span className="quote-label">Price per token</span>
             <span className="quote-value">
-              ${mode === "buy-yes" ? (yesPrice?.toFixed(2) ?? "—") : (noPrice?.toFixed(2) ?? "—")}
+              ${currentPrice?.toFixed(2) ?? "—"}
             </span>
           </div>
         </div>
       )}
 
-      <button
-        className={`btn ${
-          mode === "buy-yes"
-            ? "btn-green"
-            : mode === "buy-no"
-            ? "btn-red"
-            : "btn-primary"
-        }`}
-        onClick={handleTrade}
-        disabled={!isConnected || !amount || isPending || parseFloat(amount || "0") <= 0 || exceedsBalance}
-      >
-        {isPending ? (
-          <span className="inline-flex items-center gap-2">
-            <span className="spinner" /> Processing...
-          </span>
-        ) : !isConnected ? (
-          "Connect Wallet"
-        ) : mode === "buy-yes" ? (
-          "Buy YES Tokens"
-        ) : mode === "buy-no" ? (
-          "Buy NO Tokens"
-        ) : (
-          "Split USD"
-        )}
-      </button>
+      {mode !== "split" && orderType === "limit" && amount && parseFloat(amount) > 0 && limitPrice && parseFloat(limitPrice) > 0 && (
+        <div className="quote-box">
+          <div className="quote-row">
+            <span className="quote-label">
+              {action === "buy" ? "Total cost" : "Total received"}
+            </span>
+            <span className="quote-value">
+              ${(parseFloat(amount) * parseFloat(limitPrice)).toFixed(2)}
+            </span>
+          </div>
+          <div className="quote-row mt-2">
+            <span className="quote-label">Limit price</span>
+            <span className="quote-value">${limitPrice}</span>
+          </div>
+        </div>
+      )}
+
+      {mode === "split" ? (
+        <button
+          className="btn btn-primary"
+          onClick={handleTrade}
+          disabled={!isConnected || !amount || isPending || parseFloat(amount || "0") <= 0 || exceedsBalance}
+        >
+          {isPending ? (
+            <span className="inline-flex items-center gap-2">
+              <span className="spinner" /> Processing...
+            </span>
+          ) : !isConnected ? (
+            "Connect Wallet"
+          ) : (
+            "Split USD"
+          )}
+        </button>
+      ) : (
+        <div className="trade-action-buttons">
+          <button
+            className={`btn btn-green`}
+            onClick={() => {
+              setAction("buy");
+              if (action === "buy") handleTrade();
+            }}
+            disabled={!isConnected || (action === "buy" && isTradeDisabled)}
+            data-testid="btn-buy"
+          >
+            {isPending && action === "buy" ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="spinner" /> Processing...
+              </span>
+            ) : (
+              "Buy"
+            )}
+          </button>
+          <button
+            className={`btn btn-red`}
+            onClick={() => {
+              setAction("sell");
+              if (action === "sell") handleTrade();
+            }}
+            disabled={!isConnected || (action === "sell" && isTradeDisabled)}
+            data-testid="btn-sell"
+          >
+            {isPending && action === "sell" ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="spinner" /> Processing...
+              </span>
+            ) : (
+              "Sell"
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

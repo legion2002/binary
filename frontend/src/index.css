@@ -315,14 +315,70 @@ body {
   color: var(--text-primary);
 }
 
-.trade-tab.active.buy-yes {
+.trade-tab.active.trade-yes {
   background: var(--accent-green);
   color: white;
 }
 
-.trade-tab.active.buy-no {
+.trade-tab.active.trade-no {
   background: var(--accent-red);
   color: white;
+}
+
+/* Input actions row */
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Order type toggle */
+.order-type-toggle {
+  display: flex;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  padding: 1px;
+}
+
+.order-type-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+
+.order-type-btn:hover {
+  color: var(--text-primary);
+}
+
+.order-type-btn.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Trade action buttons */
+.trade-action-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.trade-action-buttons .btn {
+  flex: 1;
+}
+
+/* Input hint */
+.input-hint {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
 }
 
 /* Input */

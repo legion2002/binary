@@ -34,6 +34,14 @@ interface SellParams {
   feeToken?: Address;
 }
 
+interface PlaceOrderParams {
+  token: Address;
+  amount: bigint;
+  tick: number;
+  type: "buy" | "sell";
+  feeToken?: Address;
+}
+
 /**
  * Hook to get a buy quote from the Tempo DEX
  * Returns the amount of tokenIn needed to buy amountOut of tokenOut
@@ -131,6 +139,38 @@ export function useSellSync() {
         tokenOut: params.tokenOut,
         amountIn: params.amountIn,
         minAmountOut: params.minAmountOut,
+        feeToken: params.feeToken ?? USD_TOKEN,
+        feePayer: true,
+      });
+    },
+  };
+}
+
+/**
+ * Hook to place a limit order on the Tempo DEX orderbook
+ * Supports gasless transactions via feePayer option
+ */
+export function usePlaceOrderSync() {
+  const place = Hooks.dex.usePlaceSync();
+
+  return {
+    ...place,
+    mutate: (params: PlaceOrderParams) => {
+      place.mutate({
+        token: params.token,
+        amount: params.amount,
+        tick: params.tick,
+        type: params.type,
+        feeToken: params.feeToken ?? USD_TOKEN,
+        feePayer: true,
+      });
+    },
+    mutateAsync: async (params: PlaceOrderParams) => {
+      return place.mutateAsync({
+        token: params.token,
+        amount: params.amount,
+        tick: params.tick,
+        type: params.type,
         feeToken: params.feeToken ?? USD_TOKEN,
         feePayer: true,
       });
