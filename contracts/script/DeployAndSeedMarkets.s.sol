@@ -106,7 +106,7 @@ contract DeployAndSeedMarkets is Script {
         console.log("\n========================================");
         console.log("DEPLOYMENT SUMMARY");
         console.log("========================================");
-        console.log("Network: Tempo Testnet (Chain ID: 42429)");
+        console.log("Network: Tempo Testnet (Chain ID: 42431)");
         console.log("TrustedOracle:", address(oracle));
         console.log("MultiVerse:", address(multiverse));
         console.log("\nMarkets Created: 4");

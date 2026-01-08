@@ -41,7 +41,7 @@ async function main() {
   console.log('Binary Protocol - Tempo Testnet Deployment')
   console.log('==========================================')
   console.log('')
-  console.log(`Network:  Tempo Testnet (Chain ID: 42429)`)
+  console.log(`Network:  Tempo Testnet (Chain ID: 42431)`)
   console.log(`Deployer: ${account.address}`)
   console.log('')
 
@@ -51,7 +51,7 @@ async function main() {
     chain: tempoTestnet,
     transport: withFeePayer(
       http(),
-      http('https://sponsor.testnet.tempo.xyz')
+      http('https://sponsor.moderato.tempo.xyz')
     ),
   })
     .extend(publicActions)
@@ -108,7 +108,7 @@ async function main() {
 
     execSync(
       `forge script script/DeployAndSeedMarkets.s.sol:DeployAndSeedMarkets \
-        --rpc-url https://rpc.testnet.tempo.xyz \
+        --rpc-url https://rpc.moderato.tempo.xyz \
         --broadcast \
         --private-key "${PRIVATE_KEY}" \
         -vvv`,

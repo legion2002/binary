@@ -26,7 +26,7 @@ async function main() {
     chain: tempoTestnet,
     transport: withFeePayer(
       http(),
-      http('https://sponsor.testnet.tempo.xyz')
+      http('https://sponsor.moderato.tempo.xyz')
     ),
   })
     .extend(publicActions)

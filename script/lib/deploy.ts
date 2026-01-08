@@ -51,8 +51,8 @@ export async function deployContracts(options: DeployOptions): Promise<ContractA
 }
 
 export function parseBroadcastAddresses(projectRoot: string): ContractAddresses {
-  // Try dev chain ID first (1337), then Tempo testnet (42429)
-  const chainIds = ['1337', '42429']
+  // Try dev chain ID first (1337), then Tempo testnet (42431)
+  const chainIds = ['1337', '42431']
   let broadcastPath: string | undefined
 
   for (const chainId of chainIds) {

@@ -20,7 +20,7 @@ export const PATH_USD = '0x20C0000000000000000000000000000000000000' as const
 
 // Local Tempo chain definition
 export const tempoLocal: Chain = {
-  id: 42429,
+  id: 42431,
   name: 'Tempo Local',
   nativeCurrency: { name: 'USD', symbol: 'USD', decimals: 6 },
   rpcUrls: {

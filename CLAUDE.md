@@ -138,13 +138,13 @@ bun run test:e2e
 - **Fee token must be set before `forge script`**: The deployer account's fee token must be explicitly set to `PATH_USD` *before* broadcasting transactions. Without this, `forge` fails with "Insufficient liquidity for fee token" even if simulation passes.
 - **TIP20Factory salt parameter**: The `ITIP20Factory.createToken` function requires a `bytes32 salt` parameter for deterministic token addresses. Update both `ITIP20Factory.sol` and `MultiVerse.sol` if the signature changes.
 - **Updating Tempo docker image**: On ARM Macs, must use `docker pull --platform linux/amd64 ghcr.io/tempoxyz/tempo:latest` to pull the latest image, then `docker-compose down && docker-compose up -d` to restart.
-- **Local devnet chain ID**: The local Tempo node uses chain ID `1337` (not `42429` like testnet).
+- **Local devnet chain ID**: The local Tempo node uses chain ID `1337` (not `42431` like testnet).
 
 ## Tempo RPC & Cast Commands
 
 - **Sending tokens with cast**: Use `cast erc20 transfer --fee-token <FEE_TOKEN> <TOKEN> <TO> <AMOUNT> --rpc-url <RPC> --private-key <KEY>`. The flag is `--fee-token`, NOT `--fee-payer`.
 - **Local devnet fee token**: Use PATH_USD (`0x20C0...0000`) as fee token on local devnet. AlphaUSD may fail with "Insufficient liquidity for fee token" error.
 - **Token decimals**: Stablecoins (PATH_USD, AlphaUSD, etc.) use 6 decimals. To send 1000 tokens, use `1000000000` (1000 * 10^6).
-- **Testnet fee sponsorship (viem)**: Use `withFeePayer(http(), http('https://sponsor.testnet.tempo.xyz'))` transport for sponsored transactions.
+- **Testnet fee sponsorship (viem)**: Use `withFeePayer(http(), http('https://sponsor.moderato.tempo.xyz'))` transport for sponsored transactions.
 - **Testnet faucet (viem)**: Call `client.faucet.fund({ account: address })` after extending client with `tempoActions()`. Funds 1M of each stablecoin.
 - **Test private key**: `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` (address: `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`) - prefunded on local devnet.

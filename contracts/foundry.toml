@@ -20,10 +20,10 @@ runs = 256
 depth = 15
 runs = 10
 
-# Tempo Testnet (Andantino) Configuration
+# Tempo Testnet (Moderato) Configuration
 [rpc_endpoints]
-tempo_testnet = "https://rpc.testnet.tempo.xyz"
+tempo_testnet = "https://rpc.moderato.tempo.xyz"
 
 [etherscan]
-tempo_testnet = { key = "", url = "https://explore.tempo.xyz/api", chain = 42429 }
+tempo_testnet = { key = "", url = "https://explore.tempo.xyz/api", chain = 42431 }
 

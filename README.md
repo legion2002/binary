@@ -94,12 +94,12 @@ make test
 
 Binary is deployed on **Tempo** - a Layer 1 blockchain optimized for payments with native TIP-20 token support.
 
-### Network: Tempo Testnet (Andantino)
+### Network: Tempo Testnet (Moderato)
 
 | Property | Value |
 |----------|-------|
-| Chain ID | `42429` |
-| RPC URL | `https://rpc.testnet.tempo.xyz` |
+| Chain ID | `42431` |
+| RPC URL | `https://rpc.moderato.tempo.xyz` |
 | Explorer | [explore.tempo.xyz](https://explore.tempo.xyz) |
 
 ### Prerequisites
@@ -118,7 +118,7 @@ Or manually with forge (contracts only, markets created via admin API):
 ```bash
 cd contracts
 forge script script/Deploy.s.sol:Deploy \
-    --rpc-url https://rpc.testnet.tempo.xyz \
+    --rpc-url https://rpc.moderato.tempo.xyz \
     --broadcast \
     --private-key $PRIVATE_KEY \
     -vvv
@@ -216,7 +216,7 @@ curl -X POST http://127.0.0.1:3000/admin/markets/open \
 ### TODOs
 - [x] Convert Buy Yes, Buy No to Trade Yes Trade No, and add buy and sell buttons at the bottom.
 - [x] Figure out how to create the UI for LPing. Maybe we do market price and limit price for the Buy and sell buttons.
-- [ ] Figure out nice UI to show Yes and No token balance for each asset.
+- [x] Figure out nice UI to show Yes and No token balance for each asset.
 - [x] On the display it should show, which network the market is connected to right now. Like testnet, devnet etc. Maybe the `On Tempo` display is extended to `On Tempo testnet/devnet/mainnet` .
 - [ ] Make the probability display a bar, with 2 colours, there should only be 1 number displayed.
 - [ ] Create a TUI to manage markets, and resolve them.   

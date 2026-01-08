@@ -465,7 +465,7 @@ PORT=3000
 # Blockchain Configuration (Tempo Testnet)
 MULTIVERSE_ADDRESS=0x...  # MultiVerse contract address
 ORACLE_ADDRESS=0x...       # Oracle contract address
-RPC_URL=https://rpc.testnet.tempo.xyz  # Tempo HTTP RPC endpoint
+RPC_URL=https://rpc.moderato.tempo.xyz  # Tempo HTTP RPC endpoint
 
 # Wallet Configuration
 PRIVATE_KEY=0x...          # Private key for signing transactions
