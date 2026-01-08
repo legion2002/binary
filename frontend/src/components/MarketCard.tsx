@@ -3,8 +3,10 @@ import type { Address } from "viem";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMarket } from "../api/client";
 import { usePriceQuotes } from "../hooks/usePriceQuotes";
+import { STABLECOINS } from "../hooks/useStablecoinBalances";
 import { TradePanel } from "./TradePanel";
 import { AssetSelector } from "./AssetSelector";
+import { TokenBalances } from "./TokenBalances";
 import { CONTRACTS } from "../config/contracts";
 import type { MarketResponse } from "../api/types";
 
@@ -32,6 +34,10 @@ export function MarketCard({ market }: MarketCardProps) {
 
   const verseToken = marketDetail?.verseTokens.find(
     (t) => t.asset.toLowerCase() === selectedAsset.toLowerCase()
+  );
+
+  const selectedStablecoin = STABLECOINS.find(
+    (s) => s.address.toLowerCase() === selectedAsset.toLowerCase()
   );
 
   const { yesPrice, noPrice, yesProbability, noProbability, isLoading: priceLoading } =
@@ -98,6 +104,11 @@ export function MarketCard({ market }: MarketCardProps) {
               <AssetSelector
                 selectedAsset={selectedAsset}
                 onAssetChange={handleAssetChange}
+              />
+              <TokenBalances
+                yesTokenAddress={verseToken?.yesVerse}
+                noTokenAddress={verseToken?.noVerse}
+                assetSymbol={selectedStablecoin?.symbol ?? "USD"}
               />
               <TradePanel
                 marketHash={market.marketHash}

@@ -325,6 +325,32 @@ body {
   color: white;
 }
 
+/* Verse token balances (below asset selector) */
+.verse-balances {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.verse-balance {
+  font-variant-numeric: tabular-nums;
+}
+
+.verse-balance.yes {
+  color: var(--accent-green);
+}
+
+.verse-balance.no {
+  color: var(--accent-red);
+}
+
+.verse-balance-divider {
+  color: var(--border-primary);
+}
+
 /* Input actions row */
 .input-actions {
   display: flex;
