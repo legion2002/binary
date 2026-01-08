@@ -1,11 +1,13 @@
 use alloy::primitives::{Address, FixedBytes, keccak256, B256};
-use alloy::providers::{DynProvider, ProviderBuilder};
+use alloy::providers::{DynProvider, Provider, ProviderBuilder};
+use alloy::rpc::types::Filter;
 use alloy::signers::local::PrivateKeySigner;
-use alloy::sol_types::SolValue;
+use alloy::sol_types::{SolEvent, SolValue};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::bindings::r#multi_verse::MultiVerse;
+use crate::bindings::r#multi_verse::MultiVerse::VerseTokensCreated;
 use crate::tempo_orderbook::{StablecoinExchangeClient, OrderbookInfo, get_market_orderbook_info};
 
 #[allow(dead_code)]
@@ -62,7 +64,6 @@ impl ContractClient {
         keccak256(&encoded)
     }
 
-    #[allow(dead_code)]
     pub async fn get_market(&self, market_hash: FixedBytes<32>) -> anyhow::Result<MarketInfo> {
         let multiverse = MultiVerse::new(self.multiverse_address, &self.provider);
 
@@ -313,5 +314,32 @@ impl ContractClient {
             .collect();
 
         Ok(join_all(futures).await)
+    }
+
+    /// Get all VerseTokensCreated events for a specific market hash
+    /// Returns a list of (asset, yes_verse, no_verse) tuples
+    pub async fn get_verse_tokens_created_events(
+        &self,
+        market_hash: FixedBytes<32>,
+    ) -> anyhow::Result<Vec<(Address, Address, Address)>> {
+        // Build filter for VerseTokensCreated events with specific marketHash
+        let filter = Filter::new()
+            .address(self.multiverse_address)
+            .event_signature(VerseTokensCreated::SIGNATURE_HASH)
+            .topic1(market_hash)
+            .from_block(0);
+
+        // Query logs
+        let logs = self.provider.get_logs(&filter).await?;
+
+        // Decode logs into VerseTokensCreated events
+        let mut results = Vec::new();
+        for log in logs {
+            if let Ok(event) = VerseTokensCreated::decode_log(&log.inner) {
+                results.push((event.asset, event.yesVerse, event.noVerse));
+            }
+        }
+
+        Ok(results)
     }
 }

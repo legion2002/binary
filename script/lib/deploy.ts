@@ -32,8 +32,9 @@ export async function deployContracts(options: DeployOptions): Promise<ContractA
   // Deploy using standard EVM transactions.
   // The user's fee token preference must be set to PathUSD BEFORE calling this
   // (via setUserFeeToken in env.ts). This ensures all transactions use PathUSD for fees.
+  // Note: Markets are created via admin API after backend starts, not in this script.
   execSync(
-    `forge script script/DeployAndSeedMarkets.s.sol:DeployAndSeedMarkets \
+    `forge script script/Deploy.s.sol:Deploy \
       --rpc-url ${rpcUrl} \
       --broadcast \
       --private-key "${privateKey}" \
@@ -55,7 +56,7 @@ export function parseBroadcastAddresses(projectRoot: string): ContractAddresses 
   let broadcastPath: string | undefined
 
   for (const chainId of chainIds) {
-    const path = join(projectRoot, `contracts/broadcast/DeployAndSeedMarkets.s.sol/${chainId}/run-latest.json`)
+    const path = join(projectRoot, `contracts/broadcast/Deploy.s.sol/${chainId}/run-latest.json`)
     if (existsSync(path)) {
       broadcastPath = path
       break

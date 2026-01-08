@@ -25,6 +25,7 @@ import { deployContracts, getProjectRoot, type ContractAddresses } from './lib/d
 import { startBackend, TEST_API_KEY, type BackendProcess } from './lib/backend'
 import { startFrontend, type FrontendProcess } from './lib/frontend'
 import { setUserFeeToken } from './lib/fee-amm'
+import { createSeedMarkets } from './lib/seed-markets'
 
 // Colors for console output
 const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`
@@ -207,11 +208,17 @@ async function main(): Promise<void> {
     })
     console.log(green('  ✓ Backend running at ' + env.backend.url))
 
-    // Step 5: Handle mode-specific logic
+    // Step 5: Create seed markets via admin API
+    console.log('')
+    console.log(cyan('Step 5:') + ' Creating seed markets...')
+    const marketsCreated = await createSeedMarkets({ backendUrl: env.backend.url })
+    console.log(green(`  ✓ Created ${marketsCreated} seed markets`))
+
+    // Step 6: Handle mode-specific logic
     if (mode === 'dev') {
       // Start frontend for dev mode
       console.log('')
-      console.log(cyan('Step 5:') + ' Starting frontend dev server...')
+      console.log(cyan('Step 6:') + ' Starting frontend dev server...')
       env.frontend = await startFrontend({ projectRoot, rpcUrl: env.tempo?.rpcUrl, verbose })
       console.log(green('  ✓ Frontend running at ' + env.frontend.url))
 
@@ -223,13 +230,13 @@ async function main(): Promise<void> {
       // Test mode
       if (withFrontend) {
         console.log('')
-        console.log(cyan('Step 5:') + ' Starting frontend for e2e tests...')
+        console.log(cyan('Step 6:') + ' Starting frontend for e2e tests...')
         env.frontend = await startFrontend({ projectRoot, rpcUrl: env.tempo?.rpcUrl, verbose })
         console.log(green('  ✓ Frontend running at ' + env.frontend.url))
       }
 
       console.log('')
-      console.log(cyan('Step ' + (withFrontend ? '6' : '5') + ':') + ' Running tests...')
+      console.log(cyan('Step ' + (withFrontend ? '7' : '6') + ':') + ' Running tests...')
       console.log('')
 
       const exitCode = await runTests(testCmd, projectRoot)

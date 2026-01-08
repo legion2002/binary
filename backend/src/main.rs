@@ -4,18 +4,16 @@ mod bindings;
 mod config;
 mod contract;
 mod db;
-mod indexer;
 mod routes;
 mod tempo_orderbook;
 
-use admin::{open_market, AdminState};
+use admin::{add_market, open_market, AdminState};
 use auth::require_admin_api_key;
 use axum::{middleware, routing::{get, post}, Router};
 use config::Config;
 use contract::ContractClient;
 use db::Database;
-use indexer::EventIndexer;
-use routes::{get_market, get_markets, get_verse_tokens, AppState};
+use routes::{get_config, get_market, get_markets, get_verse_tokens, AppState};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -52,25 +50,12 @@ async fn main() -> anyhow::Result<()> {
         config.signer.clone(),
     ));
 
-    // Start event indexer in background task
-    let ws_rpc_url = std::env::var("WS_RPC_URL")
-        .expect("WS_RPC_URL must be set");
-    let indexer = EventIndexer::new(
-        config.multiverse_address,
-        ws_rpc_url,
-        db.clone(),
-    );
-
-    tokio::spawn(async move {
-        if let Err(e) = indexer.start().await {
-            tracing::error!("Event indexer error: {}", e);
-        }
-    });
-
     // Create app state
     let state = AppState {
         contract_client: contract_client.clone(),
         db: db.clone(),
+        multiverse_address: config.multiverse_address,
+        oracle_address: config.oracle_address,
     };
 
     // Create admin state
@@ -89,6 +74,7 @@ async fn main() -> anyhow::Result<()> {
     // Build admin routes (protected by API key)
     let admin_routes = Router::new()
         .route("/markets/open", post(open_market))
+        .route("/markets/add", post(add_market))
         .route_layer(middleware::from_fn_with_state(
             config.admin_api_key_hash.clone(),
             require_admin_api_key,
@@ -97,6 +83,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Build main router
     let app = Router::new()
+        .route("/config", get(get_config))
         .route("/markets", get(get_markets))
         .route("/markets/:marketHash", get(get_market))
         .route("/markets/:marketHash/verse-tokens", get(get_verse_tokens))
