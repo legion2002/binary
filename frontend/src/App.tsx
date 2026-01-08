@@ -34,7 +34,7 @@ function AppContent() {
       <header className="header" data-testid="header">
         <div className="header-inner">
           <a href="/" className="logo" data-testid="logo">
-            <span className="logo-dot" />
+            <span className="logo-icon">01</span>
             Binary
           </a>
           <div className="flex items-center gap-3">
