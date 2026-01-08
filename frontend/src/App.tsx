@@ -1,35 +1,61 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider } from "wagmi";
+import { WagmiProvider, useChainId } from "wagmi";
 import { wagmiConfig } from "./config/wagmi";
 import { MarketList } from "./components/MarketList";
 import { WalletConnect } from "./components/WalletConnect";
 
+function getNetworkName(chainId: number | undefined): string {
+  switch (chainId) {
+    case 1337:
+      return "devnet";
+    case 42429:
+      return "testnet";
+    default:
+      return "";
+  }
+}
+
 const queryClient = new QueryClient();
+
+function TempoBadge() {
+  const chainId = useChainId();
+  const networkName = getNetworkName(chainId);
+
+  return (
+    <div className="tempo-badge" data-testid="tempo-badge">
+      on <span>Tempo{networkName ? ` ${networkName}` : ""}</span>
+    </div>
+  );
+}
+
+function AppContent() {
+  return (
+    <div className="min-h-screen">
+      <header className="header" data-testid="header">
+        <div className="header-inner">
+          <a href="/" className="logo" data-testid="logo">
+            <span className="logo-dot" />
+            Binary
+          </a>
+          <div className="flex items-center gap-3">
+            <TempoBadge />
+            <WalletConnect />
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-3xl mx-auto px-4 py-6">
+        <MarketList />
+      </main>
+    </div>
+  );
+}
 
 function App() {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <div className="min-h-screen">
-          <header className="header" data-testid="header">
-            <div className="header-inner">
-              <a href="/" className="logo" data-testid="logo">
-                <span className="logo-dot" />
-                Binary
-              </a>
-              <div className="flex items-center gap-3">
-                <div className="tempo-badge" data-testid="tempo-badge">
-                  on <span>Tempo</span>
-                </div>
-                <WalletConnect />
-              </div>
-            </div>
-          </header>
-
-          <main className="max-w-3xl mx-auto px-4 py-6">
-            <MarketList />
-          </main>
-        </div>
+        <AppContent />
       </QueryClientProvider>
     </WagmiProvider>
   );
