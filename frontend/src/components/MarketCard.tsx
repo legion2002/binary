@@ -46,8 +46,10 @@ export function MarketCard({ market }: MarketCardProps) {
   const { yesPrice, noPrice, yesProbability, noProbability, isLoading: priceLoading } =
     usePriceQuotes(verseTokens?.yesVerse, verseTokens?.noVerse);
 
-  const displayProbability = isExpanded && !priceLoading ? yesProbability : 
-    (market.yesProbability != null ? Math.round(market.yesProbability * 100) : 50);
+  // Use backend's mid-price probability when expanded, fall back to list API probability
+  const displayProbability = isExpanded && marketDetail?.yesProbability != null
+    ? Math.round(marketDetail.yesProbability * 100)
+    : (market.yesProbability != null ? Math.round(market.yesProbability * 100) : 50);
 
   const formatDeadline = (timestamp: number) => {
     return new Date(timestamp * 1000).toLocaleDateString("en-US", {
@@ -79,26 +81,35 @@ export function MarketCard({ market }: MarketCardProps) {
         </div>
         <div className="text-right">
           <div className="market-probability" data-testid="market-probability">{displayProbability}%</div>
-          <div className="market-probability-label">Yes</div>
         </div>
       </div>
 
       {isExpanded && (
         <div className="market-content" data-testid="market-content">
-          <div className="price-grid" data-testid="price-grid">
-            <div className="price-box yes" data-testid="price-box-yes">
-              <div className="price-label yes">YES</div>
-              <div className="price-value">
-                {priceLoading ? "..." : yesPrice != null ? `$${yesPrice.toFixed(2)}` : "$0.50"}
+          <div className="expanded-probability" data-testid="price-grid">
+            <div className="expanded-probability-labels">
+              <div className="expanded-prob-label yes">
+                <span className="expanded-prob-pct">{yesProbability}%</span>
+                <span className="expanded-prob-price">
+                  {priceLoading ? "..." : yesPrice != null ? `$${yesPrice.toFixed(2)}` : "$0.50"}
+                </span>
               </div>
-              <div className="price-sub">{yesProbability}% probability</div>
+              <div className="expanded-prob-label no">
+                <span className="expanded-prob-price">
+                  {priceLoading ? "..." : noPrice != null ? `$${noPrice.toFixed(2)}` : "$0.50"}
+                </span>
+                <span className="expanded-prob-pct">{noProbability}%</span>
+              </div>
             </div>
-            <div className="price-box no" data-testid="price-box-no">
-              <div className="price-label no">NO</div>
-              <div className="price-value">
-                {priceLoading ? "..." : noPrice != null ? `$${noPrice.toFixed(2)}` : "$0.50"}
-              </div>
-              <div className="price-sub">{noProbability}% probability</div>
+            <div className="expanded-probability-bar">
+              <div
+                className="probability-bar-yes"
+                style={{ width: `${displayProbability}%` }}
+              />
+              <div
+                className="probability-bar-no"
+                style={{ width: `${100 - displayProbability}%` }}
+              />
             </div>
           </div>
 
