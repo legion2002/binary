@@ -16,7 +16,10 @@ export const TEMPO_IMAGE = process.env.TEMPO_IMAGE || 'ghcr.io/tempoxyz/tempo:la
 
 // Test private key (from standard test mnemonic - DO NOT use in production)
 export const TEST_PRIVATE_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80' as const
+
+// Token addresses
 export const PATH_USD = '0x20C0000000000000000000000000000000000000' as const
+export const ALPHA_USD = '0x20C0000000000000000000000000000000000001' as const
 
 // Local Tempo chain definition
 export const tempoLocal: Chain = {

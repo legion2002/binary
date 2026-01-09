@@ -34,11 +34,14 @@ export function TradePanel({
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [amount, setAmount] = useState("");
   const [limitPrice, setLimitPrice] = useState("");
+  const [tradeError, setTradeError] = useState<string | null>(null);
 
-  const { mutate: buy, isPending: isBuyPending } = useBuySync();
-  const { mutate: sell, isPending: isSellPending } = useSellSync();
-  const { mutate: placeOrder, isPending: isPlacePending } = usePlaceOrderSync();
+  const { mutate: buy, isPending: isBuyPending, error: buyError } = useBuySync();
+  const { mutate: sell, isPending: isSellPending, error: sellError } = useSellSync();
+  const { mutate: placeOrder, isPending: isPlacePending, error: placeError } = usePlaceOrderSync();
   const { split, isPending: isSplitPending } = useSplit();
+
+  const displayError = tradeError || (buyError?.message) || (sellError?.message) || (placeError?.message);
 
   const parsedAmount = amount ? parseUnits(amount, 6) : 0n;
   const exceedsBalance = parsedAmount > selectedBalance;
@@ -70,6 +73,9 @@ export function TradePanel({
       return;
     }
 
+    // Clear any previous error
+    setTradeError(null);
+
     if (mode === "split") {
       try {
         await split({
@@ -79,6 +85,7 @@ export function TradePanel({
         });
       } catch (err) {
         console.error("[TradePanel] Split error:", err);
+        setTradeError(err instanceof Error ? err.message : "Split failed");
       }
       return;
     }
@@ -207,6 +214,9 @@ export function TradePanel({
         />
         {exceedsBalance && (
           <div className="input-error-message">Insufficient balance</div>
+        )}
+        {displayError && (
+          <div className="input-error-message">{displayError}</div>
         )}
       </div>
 

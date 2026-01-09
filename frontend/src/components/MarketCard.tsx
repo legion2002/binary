@@ -44,7 +44,7 @@ export function MarketCard({ market }: MarketCardProps) {
   );
 
   const { yesPrice, noPrice, yesProbability, noProbability, isLoading: priceLoading } =
-    usePriceQuotes(verseTokens?.yesVerse, verseTokens?.noVerse);
+    usePriceQuotes(verseTokens?.yesVerse, verseTokens?.noVerse, selectedAsset);
 
   // Use backend's mid-price probability when expanded, fall back to list API probability
   const displayProbability = isExpanded && marketDetail?.yesProbability != null
@@ -89,16 +89,16 @@ export function MarketCard({ market }: MarketCardProps) {
           <div className="expanded-probability" data-testid="price-grid">
             <div className="expanded-probability-labels">
               <div className="expanded-prob-label yes">
-                <span className="expanded-prob-pct">{yesProbability}%</span>
+                <span className="expanded-prob-pct">{yesProbability.toFixed(2)}%</span>
                 <span className="expanded-prob-price">
-                  {priceLoading ? "..." : yesPrice != null ? `$${yesPrice.toFixed(2)}` : "$0.50"}
+                  {priceLoading ? "..." : yesPrice != null ? `$${yesPrice.toFixed(4)}` : "$0.50"}
                 </span>
               </div>
               <div className="expanded-prob-label no">
                 <span className="expanded-prob-price">
-                  {priceLoading ? "..." : noPrice != null ? `$${noPrice.toFixed(2)}` : "$0.50"}
+                  {priceLoading ? "..." : noPrice != null ? `$${noPrice.toFixed(4)}` : "$0.50"}
                 </span>
-                <span className="expanded-prob-pct">{noProbability}%</span>
+                <span className="expanded-prob-pct">{noProbability.toFixed(2)}%</span>
               </div>
             </div>
             <div className="expanded-probability-bar">

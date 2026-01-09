@@ -25,7 +25,9 @@ import { deployContracts, getProjectRoot, type ContractAddresses } from './lib/d
 import { startBackend, TEST_API_KEY, type BackendProcess } from './lib/backend'
 import { startFrontend, type FrontendProcess } from './lib/frontend'
 import { setUserFeeToken } from './lib/fee-amm'
-import { createSeedMarkets } from './lib/seed-markets'
+import { createSeedMarkets, type SeedMarketsResult } from './lib/seed-markets'
+import { seedMarketLiquidity, DEFAULT_SEED_CONFIG, ensureStablecoinRouting, type MarketLiquidityParams } from './lib/seed-liquidity'
+import type { Address } from 'viem'
 
 // Colors for console output
 const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`
@@ -211,14 +213,43 @@ async function main(): Promise<void> {
     // Step 5: Create seed markets via admin API
     console.log('')
     console.log(cyan('Step 5:') + ' Creating seed markets...')
-    const marketsCreated = await createSeedMarkets({ backendUrl: env.backend.url })
-    console.log(green(`  ✓ Created ${marketsCreated} seed markets`))
+    const seedResult = await createSeedMarkets({ backendUrl: env.backend.url })
+    console.log(green(`  ✓ Created ${seedResult.count} seed markets`))
 
-    // Step 6: Handle mode-specific logic
+    // Step 6: Ensure stablecoin routing liquidity
+    console.log('')
+    console.log(cyan('Step 6:') + ' Setting up stablecoin routing...')
+    await ensureStablecoinRouting(env.tempo.client)
+
+    // Step 7: Seed liquidity for markets
+    console.log('')
+    console.log(cyan('Step 7:') + ' Seeding market liquidity...')
+    let liquiditySeeded = 0
+    for (const market of seedResult.markets) {
+      for (const asset of market.assets) {
+        try {
+          await seedMarketLiquidity(
+            env.tempo.client,
+            {
+              marketHash: market.marketHash as `0x${string}`,
+              multiVerseAddress: env.contracts.multiverse as Address,
+              quoteToken: asset as Address,
+            },
+            DEFAULT_SEED_CONFIG
+          )
+          liquiditySeeded++
+        } catch (e) {
+          console.warn(`  Warning: Failed to seed liquidity for ${market.marketHash.slice(0, 10)}... / ${asset.slice(0, 10)}...`)
+        }
+      }
+    }
+    console.log(green(`  ✓ Seeded liquidity for ${liquiditySeeded} market/asset pairs`))
+
+    // Step 8: Handle mode-specific logic
     if (mode === 'dev') {
       // Start frontend for dev mode
       console.log('')
-      console.log(cyan('Step 6:') + ' Starting frontend dev server...')
+      console.log(cyan('Step 8:') + ' Starting frontend dev server...')
       env.frontend = await startFrontend({ projectRoot, rpcUrl: env.tempo?.rpcUrl, verbose })
       console.log(green('  ✓ Frontend running at ' + env.frontend.url))
 
@@ -230,13 +261,13 @@ async function main(): Promise<void> {
       // Test mode
       if (withFrontend) {
         console.log('')
-        console.log(cyan('Step 6:') + ' Starting frontend for e2e tests...')
+        console.log(cyan('Step 8:') + ' Starting frontend for e2e tests...')
         env.frontend = await startFrontend({ projectRoot, rpcUrl: env.tempo?.rpcUrl, verbose })
         console.log(green('  ✓ Frontend running at ' + env.frontend.url))
       }
 
       console.log('')
-      console.log(cyan('Step ' + (withFrontend ? '7' : '6') + ':') + ' Running tests...')
+      console.log(cyan('Step ' + (withFrontend ? '9' : '8') + ':') + ' Running tests...')
       console.log('')
 
       const exitCode = await runTests(testCmd, projectRoot)

@@ -11,13 +11,22 @@ const FEE_PAYER_URL =
   import.meta.env.VITE_FEE_PAYER_URL ||
   (isTestnet ? "https://sponsor.testnet.tempo.xyz" : undefined);
 
-// USD token address on Tempo (native stablecoin) - AlphaUSD
+// Token addresses on Tempo
+// AlphaUSD - the stablecoin users trade with
 export const USD_TOKEN =
   "0x20c0000000000000000000000000000000000001" as const;
+
+// PATH_USD - the root quote token (validators accept this for fees)
+export const PATH_USD =
+  "0x20c0000000000000000000000000000000000000" as const;
 
 // Determine if we're connecting to local devnet
 const isLocalDevnet =
   RPC_URL.includes("localhost") || RPC_URL.includes("127.0.0.1");
+
+// Fee token to use - on local devnet, use PATH_USD directly (no Fee AMM liquidity)
+// On testnet, use AlphaUSD (Fee AMM converts it)
+export const FEE_TOKEN = isLocalDevnet ? PATH_USD : USD_TOKEN;
 
 // Create local devnet chain by extending tempoTestnet to inherit all Tempo formatters/serializers
 // This is critical for Tempo-specific features like `calls` batching and `feeToken`

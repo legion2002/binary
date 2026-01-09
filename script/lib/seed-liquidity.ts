@@ -8,9 +8,14 @@
  * - For 50/50 markets, both YES and NO should have the same price (~1.0)
  *
  * Flow:
- * 1. Split stablecoins into YES/NO tokens
- * 2. Create DEX pairs for YES/quote and NO/quote
- * 3. Place symmetric bid/ask orders around the peg
+ * 1. Ensure stablecoin routing pairs exist (AlphaUSD/pathUSD, etc.)
+ * 2. Split stablecoins into YES/NO tokens
+ * 3. Create DEX pairs for YES/quote and NO/quote
+ * 4. Place symmetric bid/ask orders around the peg
+ *
+ * Important: The DEX routes all swaps through pathUSD. When a user swaps
+ * YES → AlphaUSD, it actually routes: YES → pathUSD → AlphaUSD.
+ * This means we need liquidity on AlphaUSD/pathUSD pair for routing to work!
  */
 
 import {
@@ -25,6 +30,91 @@ const STABLECOIN_DEX = '0xDEc0000000000000000000000000000000000000' as const
 // Token addresses (imported from tempo.ts)
 import { PATH_USD, ALPHA_USD } from './tempo'
 export { PATH_USD, ALPHA_USD }
+
+/**
+ * Ensure stablecoin routing pairs have liquidity
+ * The DEX routes all swaps through pathUSD, so we need liquidity on
+ * standard stablecoin pairs like AlphaUSD/pathUSD for routing to work.
+ */
+export async function ensureStablecoinRouting(client: TempoClient): Promise<void> {
+  const account = client.account.address
+  const routingLiquidity = BigInt(10000) * BigInt(1e6) // 10k tokens per pair
+
+  console.log('  Ensuring stablecoin routing liquidity...')
+
+  // Mint PATH_USD and ALPHA_USD for routing liquidity
+  try {
+    await client.token.mint({
+      token: PATH_USD as `0x${string}`,
+      to: account,
+      amount: routingLiquidity * 2n,
+    })
+    await client.token.mint({
+      token: ALPHA_USD as `0x${string}`,
+      to: account,
+      amount: routingLiquidity * 2n,
+    })
+  } catch (e) {
+    console.log('    (Mint not available, assuming account is funded)')
+  }
+
+  // Create AlphaUSD/pathUSD pair if it doesn't exist
+  try {
+    await client.dex.createPair({
+      base: ALPHA_USD as `0x${string}`,
+      feeToken: PATH_USD,
+    })
+    console.log('    Created AlphaUSD/pathUSD pair')
+  } catch (e: unknown) {
+    const error = e as Error
+    if (error.message?.includes('PAIR_EXISTS') || error.message?.includes('PairAlreadyExists')) {
+      console.log('    AlphaUSD/pathUSD pair already exists')
+    } else {
+      console.log('    AlphaUSD pair creation failed:', error.message?.slice(0, 50))
+    }
+  }
+
+  // Approve DEX to spend both tokens
+  const maxApproval = BigInt(2) ** BigInt(128) - 1n
+  await client.token.approve({
+    token: PATH_USD as `0x${string}`,
+    spender: STABLECOIN_DEX,
+    amount: maxApproval,
+    feeToken: PATH_USD,
+  })
+  await client.token.approve({
+    token: ALPHA_USD as `0x${string}`,
+    spender: STABLECOIN_DEX,
+    amount: maxApproval,
+    feeToken: PATH_USD,
+  })
+
+  // Wait for approvals
+  await new Promise(r => setTimeout(r, 500))
+
+  // Place orders at tick=0 (1:1 price) for AlphaUSD/pathUSD
+  // Bids: buy AlphaUSD with pathUSD
+  // Asks: sell AlphaUSD for pathUSD
+  try {
+    await client.dex.placeSync({
+      token: ALPHA_USD as `0x${string}`,
+      amount: routingLiquidity,
+      type: 'buy',
+      tick: -10, // Slightly below peg
+      feeToken: PATH_USD,
+    })
+    await client.dex.placeSync({
+      token: ALPHA_USD as `0x${string}`,
+      amount: routingLiquidity,
+      type: 'sell',
+      tick: 10, // Slightly above peg
+      feeToken: PATH_USD,
+    })
+    console.log('    ✓ Placed AlphaUSD/pathUSD routing liquidity')
+  } catch (e) {
+    console.warn('    Warning: Failed to place routing liquidity:', e)
+  }
+}
 
 // DEX constants
 const PRICE_SCALE = 100_000
