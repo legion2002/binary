@@ -6,6 +6,7 @@ import { execSync } from 'child_process'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { TEST_PRIVATE_KEY } from './tempo'
+import { TESTNET_RPC_URL, TESTNET_CHAIN_ID } from './testnet'
 
 export interface ContractAddresses {
   multiverse: string
@@ -17,6 +18,8 @@ export interface DeployOptions {
   privateKey?: string
   projectRoot?: string
   verbose?: boolean
+  /** Chain ID for broadcast file lookup */
+  chainId?: number
 }
 
 export async function deployContracts(options: DeployOptions): Promise<ContractAddresses> {
@@ -25,6 +28,7 @@ export async function deployContracts(options: DeployOptions): Promise<ContractA
     privateKey = TEST_PRIVATE_KEY,
     projectRoot = process.cwd(),
     verbose = false,
+    chainId,
   } = options
 
   const verbosity = verbose ? '-vvvv' : '-vvv'
@@ -46,13 +50,60 @@ export async function deployContracts(options: DeployOptions): Promise<ContractA
   )
 
   // Parse broadcast JSON to get contract addresses
-  const addresses = parseBroadcastAddresses(projectRoot)
+  const addresses = parseBroadcastAddresses(projectRoot, chainId)
   return addresses
 }
 
-export function parseBroadcastAddresses(projectRoot: string): ContractAddresses {
-  // Try dev chain ID first (1337), then Tempo testnet (42431)
-  const chainIds = ['1337', '42431']
+/**
+ * Deploy contracts to Tempo testnet
+ * Uses the testnet RPC URL and expects a funded private key
+ */
+export async function deployContractsTestnet(options: {
+  privateKey: string
+  projectRoot?: string
+  verbose?: boolean
+}): Promise<ContractAddresses> {
+  const {
+    privateKey,
+    projectRoot = process.cwd(),
+    verbose = true,
+  } = options
+
+  console.log('  Deploying contracts to Tempo testnet...')
+
+  // Deploy using forge script from tempo-foundry (requires alloy-chains 0.2.25+ for chain 42431)
+  // Use local tempo-foundry build if available, otherwise fall back to system forge
+  const forgeCmd = process.env.FORGE_PATH || 'forge'
+  
+  // --chain: Explicitly set chain ID for Tempo Moderato testnet (42431)
+  // --skip-simulation: Skip simulation since Tempo uses custom precompiles
+  // --slow: Send transactions one at a time to avoid nonce issues
+  execSync(
+    `${forgeCmd} script script/Deploy.s.sol:Deploy \
+      --rpc-url ${TESTNET_RPC_URL} \
+      --chain ${TESTNET_CHAIN_ID} \
+      --broadcast \
+      --private-key "${privateKey}" \
+      --skip-simulation \
+      --slow \
+      -vvv`,
+    {
+      stdio: verbose ? 'inherit' : 'pipe',
+      cwd: `${projectRoot}/contracts`,
+    }
+  )
+
+  // Parse broadcast JSON to get contract addresses
+  const addresses = parseBroadcastAddresses(projectRoot, TESTNET_CHAIN_ID)
+  return addresses
+}
+
+export function parseBroadcastAddresses(projectRoot: string, specificChainId?: number): ContractAddresses {
+  // If specific chain ID provided, try that first
+  // Otherwise try dev chain ID first (1337), then Tempo testnet (42431)
+  const chainIds = specificChainId
+    ? [String(specificChainId), '1337', '42431']
+    : ['1337', '42431']
   let broadcastPath: string | undefined
 
   for (const chainId of chainIds) {
