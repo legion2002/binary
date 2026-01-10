@@ -27,13 +27,14 @@ binary/
 │   ├── script/       # Forge deploy scripts
 │   └── lib/          # Forge dependencies (forge-std, solady)
 ├── script/
-│   ├── env.ts        # Central orchestrator (main entry point)
+│   ├── env.ts        # Local dev orchestrator
+│   ├── env-testnet.ts # Testnet orchestrator (fault-tolerant)
 │   ├── fund.ts       # Fund addresses with stablecoins
-│   ├── deploy-tempo.ts # Testnet deploy script
-│   └── lib/          # Shared utilities
+│   └── lib/          # Shared utilities (tempo, deploy, backend, etc.)
 ├── Makefile          # Make targets (wrappers around bun commands)
 ├── package.json      # Root package with unified commands
-└── docker-compose.yml # Tempo node config
+├── docker-compose.yml # Local Tempo node config
+└── .testnet-config.json # Testnet contract addresses (generated)
 ```
 
 ## Commands
@@ -44,8 +45,10 @@ binary/
 | `make test` / `bun run test` | Run integration tests |
 | `make test-unit` | Run unit tests only |
 | `make build` | Build for production |
-| `bun run deploy:testnet` | Deploy to Tempo testnet |
-| `bun run fund <addr> [amt] [-t token]` | Fund address with stablecoins on local devnet |
+| `bun run testnet` | Deploy and run full stack on testnet |
+| `bun run testnet:backend` | Backend only on testnet (no frontend) |
+| `bun run testnet:redeploy` | Force redeploy contracts on testnet |
+| `bun run fund <addr> [amt] [-t token] [--chain <id>] [--faucet]` | Fund address with stablecoins (local or testnet) |
 
 ## Backend Development
 
@@ -131,7 +134,82 @@ bun run test:e2e
 ## Contract Deployment
 
 - Local deployment uses `contracts/script/Deploy.s.sol` via the orchestrator (markets are seeded via admin API)
-- Testnet deployment uses `bun run deploy:testnet` which runs `script/deploy-tempo.ts`
+- Testnet deployment uses `bun run testnet` which runs `script/env-testnet.ts`
+
+## Testnet Deployment
+
+The testnet orchestrator (`script/env-testnet.ts`) provides a fault-tolerant deployment for Tempo testnet:
+
+### Quick Start
+
+```bash
+# Set your private key
+export PRIVATE_KEY=0x...
+
+# Deploy and run full stack
+bun run testnet
+
+# Or backend only (for production deployment)
+bun run testnet:backend
+```
+
+### Features
+
+- **Auto-funding**: Funds deployer via faucet if balance is low
+- **Idempotent**: Safe to run multiple times - checks if contracts already deployed
+- **Persistent**: Contract addresses saved to `.testnet-config.json`, database persists at `testnet.db`
+- **Fault-tolerant**: Backend can be restarted without losing data
+
+### How It Works
+
+1. Checks deployer balance, funds via faucet if needed
+2. Checks if contracts are deployed at saved addresses (verifies bytecode exists)
+3. Deploys contracts only if not already deployed (or `--redeploy` flag used)
+4. Starts backend with persistent SQLite database
+5. Seeds markets via admin API (idempotent - duplicates ignored)
+6. Seeds DEX liquidity (pair creation is idempotent)
+7. Starts frontend (unless `--skip-frontend`)
+
+### Persistent Files
+
+| File | Description |
+|------|-------------|
+| `.testnet-config.json` | Contract addresses, deployer info |
+| `backend/testnet.db` | SQLite database for markets |
+
+### Redeploying
+
+To force redeploy contracts (creates new contract instances):
+
+```bash
+bun run testnet:redeploy
+# or
+rm .testnet-config.json && bun run testnet
+```
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PRIVATE_KEY` | Yes | - | Deployer private key |
+| `FORGE_PATH` | No | `forge` | Path to tempo-foundry forge binary (required for chain 42431 support) |
+| `DATABASE_URL` | No | `sqlite:./testnet.db?mode=rwc` | Backend database |
+| `ADMIN_API_KEY_HASH` | No | Test hash | bcrypt hash for admin API |
+| `PORT` | No | `3000` | Backend server port |
+
+### Tempo-Foundry Requirements
+
+The testnet deployment requires a tempo-foundry build with alloy-chains 0.2.25+ for Tempo Moderato (chain ID 42431) support. If you have tempo-foundry cloned locally:
+
+```bash
+# Update alloy-chains and rebuild
+cd /path/to/tempo-foundry
+cargo update alloy-chains
+cargo build --release -p forge
+
+# Then run testnet with FORGE_PATH
+FORGE_PATH=/path/to/tempo-foundry/target/release/forge bun run testnet
+```
 
 ## Tempo Node Gotchas
 
@@ -139,6 +217,7 @@ bun run test:e2e
 - **TIP20Factory salt parameter**: The `ITIP20Factory.createToken` function requires a `bytes32 salt` parameter for deterministic token addresses. Update both `ITIP20Factory.sol` and `MultiVerse.sol` if the signature changes.
 - **Updating Tempo docker image**: On ARM Macs, must use `docker pull --platform linux/amd64 ghcr.io/tempoxyz/tempo:latest` to pull the latest image, then `docker-compose down && docker-compose up -d` to restart.
 - **Local devnet chain ID**: The local Tempo node uses chain ID `1337` (not `42431` like testnet).
+- **viem tempoModerato chain not in published viem**: The `tempoModerato` chain (ID 42431) may not be in the published viem package. If so, inline the chain definition manually (see `script/lib/testnet.ts`).
 
 ## Tempo RPC & Cast Commands
 
@@ -155,3 +234,4 @@ bun run test:e2e
 - **DEX tick range**: The DEX only supports ±2% from peg (tick range ±2000), meaning prices from $0.98 to $1.02. This limits prediction market probability ranges to ~49-51% when using mid-prices.
 - **Use viem/tempo native actions**: Prefer `client.token.approve()`, `client.dex.placeSync()`, `client.dex.createPair()` over raw `writeContract()` calls. Raw calls may fail with `InsufficientAllowance` (`0x13be252b`) even with correct approvals.
 - **Common DEX error signatures**: `0x46628371` = `BelowMinimumOrderSize(uint128)`, `0x13be252b` = `InsufficientAllowance()`, `0xbb55fd27` = `InsufficientLiquidity()`.
+- **DEX pairs must exist before trading**: Operations like `dex.placeSync()` fail with `PairDoesNotExist` error if the token pair hasn't been created first. Use `client.dex.createPair({ base: token, feeToken: PATH_USD })` before placing orders. Pair creation is idempotent (ignores `PairAlreadyExists`).
