@@ -110,7 +110,7 @@ Binary is deployed on **Tempo** - a Layer 1 blockchain optimized for payments wi
 ### Deploy to Testnet
 
 ```bash
-bun run deploy:testnet
+bun run testnet
 ```
 
 Or manually with forge (contracts only, markets created via admin API):
@@ -184,8 +184,8 @@ binary/
 │   ├── script/        # Forge deploy scripts
 │   └── lib/           # Forge dependencies (forge-std, solady)
 ├── script/
-│   ├── env.ts         # Central orchestrator
-│   ├── deploy-tempo.ts # Testnet deploy script
+│   ├── env.ts         # Local dev orchestrator
+│   ├── env-testnet.ts # Testnet orchestrator
 │   └── lib/           # Shared utilities
 ├── Makefile           # Unified commands
 ├── package.json       # Root package
@@ -213,14 +213,12 @@ curl -X POST http://127.0.0.1:3000/admin/markets/open \
   -H 'Content-Type: application/json' \
   -d '{"question": "Will X happen?", "resolutionDeadline": 1767225600}'
 ```
-### TODOs
-- [x] Convert Buy Yes, Buy No to Trade Yes Trade No, and add buy and sell buttons at the bottom.
-- [x] Figure out how to create the UI for LPing. Maybe we do market price and limit price for the Buy and sell buttons.
-- [x] Figure out nice UI to show Yes and No token balance for each asset.
-- [x] On the display it should show, which network the market is connected to right now. Like testnet, devnet etc. Maybe the `On Tempo` display is extended to `On Tempo testnet/devnet/mainnet` .
-- [x] Make the probability display a bar, with 2 colours, there should only be 1 number displayed.
-- [ ] Create a TUI to manage markets, and resolve them.   
-- [x] Update the website logo
-- [ ] Deploy the thing somewhere, once testnet is live.
-- [ ] Create some kind of automated market maker script, which handles seeding markets with initial liquidity.
-- [ ] Add an orders tab next the markets tab, which allows people to view their order history, limit orders, cancel open orders etc.
+
+---
+
+### Roadmap
+
+- Create a TUI to manage markets and resolve them
+- Deploy to production once testnet is stable
+- Automated market maker script for seeding initial liquidity
+- Orders tab for order history, limit orders, and cancellations
