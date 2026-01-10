@@ -14,6 +14,14 @@ docs/
 .env
 node_modules/
 
+# Generated testnet config
+.testnet-config.json
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
 # Lock files (use bun.lock only)
 package-lock.json
 pnpm-lock.yaml

@@ -11,6 +11,10 @@
     "test:e2e": "bun run script/env.ts test --with-frontend -- bun --cwd frontend test:e2e",
     "test:unit": "bun --cwd frontend test:unit",
     "test:all": "bun run test:unit && bun run test:e2e",
+    "testnet": "bun run script/env-testnet.ts",
+    "testnet:backend": "bun run script/env-testnet.ts --skip-frontend",
+    "testnet:redeploy": "bun run script/env-testnet.ts --redeploy",
+    "testnet:seed": "bun run script/seed-testnet-liquidity.ts",
     "deploy:testnet": "bun run script/deploy-tempo.ts",
     "install:all": "cd backend && cargo fetch && cd ../frontend && bun install && cd ../script && bun install",
     "build": "cd backend && cargo build --release && cd ../frontend && bun run build",
@@ -18,5 +22,8 @@
     "clean": "cd backend && cargo clean && cd ../frontend && rm -rf dist node_modules/.vite"
   },
   "keywords": ["prediction-markets", "tempo", "blockchain"],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "viem": "^2.44.1"
+  }
 }
