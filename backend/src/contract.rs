@@ -65,9 +65,11 @@ impl ContractClient {
     }
 
     pub async fn get_market(&self, market_hash: FixedBytes<32>) -> anyhow::Result<MarketInfo> {
+        tracing::debug!("get_market: Fetching market {:?} from multiverse {:?}", market_hash, self.multiverse_address);
         let multiverse = MultiVerse::new(self.multiverse_address, &self.provider);
 
         let market = multiverse.markets(market_hash).call().await?;
+        tracing::debug!("get_market: Got market data, fetching resolution...");
         let resolution_value = multiverse.resolutions(market_hash).call().await?;
 
         // Resolution is a u8: 0=NULL, 1=UNRESOLVED, 2=YES, 3=NO, 4=EVEN
@@ -134,12 +136,14 @@ impl ContractClient {
         let rpc_url = std::env::var("RPC_URL")
             .map_err(|_| "RPC_URL not set".to_string())?;
 
+        tracing::info!("open_market: Using RPC_URL: {}", rpc_url);
+
         let signed_provider = ProviderBuilder::new()
             .with_gas_estimation()
             .wallet(wallet)
             .connect(&rpc_url)
             .await
-            .map_err(|e| format!("Failed to create signed provider: {}", e))?;
+            .map_err(|e| format!("Failed to create signed provider at {}: {}", rpc_url, e))?;
 
         let multiverse = MultiVerse::new(self.multiverse_address, &signed_provider);
 
