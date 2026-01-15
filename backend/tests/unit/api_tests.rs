@@ -165,100 +165,86 @@ mod verse_token_format {
     }
 }
 
-/// Test orderbook response format
-mod orderbook_format {
+/// Test AMM pair response format
+mod pair_format {
     use super::*;
 
     #[derive(Debug, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
-    struct OrderbookInfo {
+    struct PairInfo {
         pair_type: String,
-        pair_key: String,
+        pair_address: String,
         base_token: String,
         quote_token: String,
-        best_bid_tick: Option<i32>,
-        best_ask_tick: Option<i32>,
-        best_bid_price: Option<String>,
-        best_ask_price: Option<String>,
-        mid_price: Option<String>,
-        spread_bps: Option<f64>,
+        base_reserve: String,
+        quote_reserve: String,
+        price: Option<String>,
+        liquidity: Option<String>,
     }
 
     #[test]
-    fn test_orderbook_camel_case() {
-        let orderbook = OrderbookInfo {
+    fn test_pair_camel_case() {
+        let pair = PairInfo {
             pair_type: "YES/QUOTE".to_string(),
-            pair_key: "0x123".to_string(),
+            pair_address: "0x123".to_string(),
             base_token: "0xabc".to_string(),
             quote_token: "0xdef".to_string(),
-            best_bid_tick: Some(-10),
-            best_ask_tick: Some(10),
-            best_bid_price: Some("0.999900".to_string()),
-            best_ask_price: Some("1.000100".to_string()),
-            mid_price: Some("1.000000".to_string()),
-            spread_bps: Some(2.0),
+            base_reserve: "1000000".to_string(),
+            quote_reserve: "500000".to_string(),
+            price: Some("0.500000".to_string()),
+            liquidity: Some("707106".to_string()),
         };
 
-        let json = serde_json::to_value(&orderbook).unwrap();
+        let json = serde_json::to_value(&pair).unwrap();
 
         assert!(json.get("pairType").is_some());
-        assert!(json.get("pairKey").is_some());
+        assert!(json.get("pairAddress").is_some());
         assert!(json.get("baseToken").is_some());
         assert!(json.get("quoteToken").is_some());
-        assert!(json.get("bestBidTick").is_some());
-        assert!(json.get("bestAskTick").is_some());
-        assert!(json.get("bestBidPrice").is_some());
-        assert!(json.get("bestAskPrice").is_some());
-        assert!(json.get("midPrice").is_some());
-        assert!(json.get("spreadBps").is_some());
+        assert!(json.get("baseReserve").is_some());
+        assert!(json.get("quoteReserve").is_some());
+        assert!(json.get("price").is_some());
+        assert!(json.get("liquidity").is_some());
     }
 
     #[test]
-    fn test_orderbook_pair_types() {
+    fn test_pair_types() {
         let valid_pair_types = vec!["YES/QUOTE", "NO/QUOTE"];
 
         for pair_type in valid_pair_types {
-            let orderbook = OrderbookInfo {
+            let pair = PairInfo {
                 pair_type: pair_type.to_string(),
-                pair_key: "0x123".to_string(),
+                pair_address: "0x123".to_string(),
                 base_token: "0xabc".to_string(),
                 quote_token: "0xdef".to_string(),
-                best_bid_tick: None,
-                best_ask_tick: None,
-                best_bid_price: None,
-                best_ask_price: None,
-                mid_price: None,
-                spread_bps: None,
+                base_reserve: "0".to_string(),
+                quote_reserve: "0".to_string(),
+                price: None,
+                liquidity: None,
             };
 
-            let json = serde_json::to_value(&orderbook).unwrap();
+            let json = serde_json::to_value(&pair).unwrap();
             assert_eq!(json.get("pairType").unwrap().as_str().unwrap(), pair_type);
         }
     }
 
     #[test]
-    fn test_orderbook_empty_no_orders() {
-        let orderbook = OrderbookInfo {
+    fn test_pair_empty_no_liquidity() {
+        let pair = PairInfo {
             pair_type: "YES/QUOTE".to_string(),
-            pair_key: "0x123".to_string(),
+            pair_address: "0x123".to_string(),
             base_token: "0xabc".to_string(),
             quote_token: "0xdef".to_string(),
-            best_bid_tick: None,
-            best_ask_tick: None,
-            best_bid_price: None,
-            best_ask_price: None,
-            mid_price: None,
-            spread_bps: None,
+            base_reserve: "0".to_string(),
+            quote_reserve: "0".to_string(),
+            price: None,
+            liquidity: None,
         };
 
-        let json = serde_json::to_value(&orderbook).unwrap();
+        let json = serde_json::to_value(&pair).unwrap();
 
-        assert!(json.get("bestBidTick").unwrap().is_null());
-        assert!(json.get("bestAskTick").unwrap().is_null());
-        assert!(json.get("bestBidPrice").unwrap().is_null());
-        assert!(json.get("bestAskPrice").unwrap().is_null());
-        assert!(json.get("midPrice").unwrap().is_null());
-        assert!(json.get("spreadBps").unwrap().is_null());
+        assert!(json.get("price").unwrap().is_null());
+        assert!(json.get("liquidity").unwrap().is_null());
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::contract::ContractClient;
 use crate::db::Database;
-use crate::tempo_orderbook::{OrderbookInfo, calculate_probability_from_orderbooks, PATH_USD_ADDRESS};
+use crate::tempo_amm::{PairInfo, calculate_probability_from_pairs, PATH_USD_ADDRESS};
 use alloy::primitives::{Address, FixedBytes};
 use axum::{
     extract::{Path, Query, State},
@@ -150,8 +150,8 @@ pub struct MarketDetailResponse {
     pub oracle: String,
     pub block_number: i64,
     pub verse_tokens: Vec<VerseTokenResponse>,
-    pub orderbooks: Vec<OrderbookInfo>,
-    // Probability derived from orderbook prices (0.0 - 1.0)
+    pub pairs: Vec<PairInfo>,
+    // Probability derived from AMM prices (0.0 - 1.0)
     pub yes_probability: Option<f64>,
     pub no_probability: Option<f64>,
     // Resolution status: "UNRESOLVED", "YES", "NO", "EVEN"
@@ -213,8 +213,8 @@ pub async fn get_market(
         .and_then(|bytes| <Vec<u8> as TryInto<[u8; 32]>>::try_into(bytes).ok())
         .map(FixedBytes::from);
 
-    // Fetch live orderbook data and resolution
-    let mut orderbooks: Vec<OrderbookInfo> = Vec::new();
+    // Fetch live AMM pair data and resolution
+    let mut pairs: Vec<PairInfo> = Vec::new();
     let mut resolution: Option<String> = None;
 
     if let Some(hash_bytes) = market_hash_bytes {
@@ -224,7 +224,7 @@ pub async fn get_market(
             Err(e) => tracing::warn!("Failed to fetch resolution: {}", e),
         }
 
-        // Fetch live orderbook data for each verse token pair
+        // Fetch live AMM pair data for each verse token pair
         for verse in &verse_tokens_db {
             // Parse addresses
             let yes_addr: Option<Address> = verse.yes_verse
@@ -238,85 +238,38 @@ pub async fn get_market(
                 .ok();
 
             if let (Some(yes), Some(no), Some(_asset)) = (yes_addr, no_addr, asset_addr) {
-                // Fetch live orderbook state from Tempo DEX
-                match state.contract_client.get_market_orderbooks(hash_bytes, yes, PATH_USD_ADDRESS).await {
-                    Ok(mut live_orderbooks) => {
+                // Fetch live pair state from UniV2 AMM
+                match state.contract_client.get_market_pairs(hash_bytes, yes, PATH_USD_ADDRESS).await {
+                    Ok(mut live_pairs) => {
                         // Update pair types
-                        for ob in &mut live_orderbooks {
-                            if ob.base_token.contains(&format!("{:?}", yes)) {
-                                ob.pair_type = "YES/QUOTE".to_string();
+                        for pair in &mut live_pairs {
+                            if pair.base_token.contains(&format!("{:?}", yes)) {
+                                pair.pair_type = "YES/QUOTE".to_string();
                             }
                         }
-                        orderbooks.extend(live_orderbooks);
+                        pairs.extend(live_pairs);
                     }
-                    Err(e) => tracing::debug!("No orderbook for YES token: {}", e),
+                    Err(e) => tracing::debug!("No pair for YES token: {}", e),
                 }
 
-                match state.contract_client.get_market_orderbooks(hash_bytes, no, PATH_USD_ADDRESS).await {
-                    Ok(mut live_orderbooks) => {
-                        for ob in &mut live_orderbooks {
-                            if ob.base_token.contains(&format!("{:?}", no)) {
-                                ob.pair_type = "NO/QUOTE".to_string();
+                match state.contract_client.get_market_pairs(hash_bytes, no, PATH_USD_ADDRESS).await {
+                    Ok(mut live_pairs) => {
+                        for pair in &mut live_pairs {
+                            if pair.base_token.contains(&format!("{:?}", no)) {
+                                pair.pair_type = "NO/QUOTE".to_string();
                             }
                         }
-                        orderbooks.extend(live_orderbooks);
+                        pairs.extend(live_pairs);
                     }
-                    Err(e) => tracing::debug!("No orderbook for NO token: {}", e),
+                    Err(e) => tracing::debug!("No pair for NO token: {}", e),
                 }
             }
         }
     }
 
-    // Fall back to database orderbook info if live fetch failed
-    if orderbooks.is_empty() {
-        orderbooks = match state.db.get_orderbooks_for_market(&market_hash).await {
-            Ok(orderbook_data) => {
-                orderbook_data
-                    .into_iter()
-                    .flat_map(|data| {
-                        let mut infos = Vec::new();
-                        if let Some(pair_key) = data.yes_pair_key {
-                            infos.push(OrderbookInfo {
-                                pair_type: "YES/QUOTE".to_string(),
-                                pair_key,
-                                base_token: format!("YES_{}", data.asset_address),
-                                quote_token: data.quote_token_address.clone(),
-                                best_bid_tick: None,
-                                best_ask_tick: None,
-                                best_bid_price: None,
-                                best_ask_price: None,
-                                mid_price: None,
-                                spread_bps: None,
-                            });
-                        }
-                        if let Some(pair_key) = data.no_pair_key {
-                            infos.push(OrderbookInfo {
-                                pair_type: "NO/QUOTE".to_string(),
-                                pair_key,
-                                base_token: format!("NO_{}", data.asset_address),
-                                quote_token: data.quote_token_address,
-                                best_bid_tick: None,
-                                best_ask_tick: None,
-                                best_bid_price: None,
-                                best_ask_price: None,
-                                mid_price: None,
-                                spread_bps: None,
-                            });
-                        }
-                        infos
-                    })
-                    .collect()
-            }
-            Err(e) => {
-                tracing::warn!("Failed to fetch orderbooks: {}", e);
-                Vec::new()
-            }
-        };
-    }
-
-    // Calculate probability from orderbook data
-    let (yes_prob, no_prob) = calculate_probability_from_orderbooks(&orderbooks);
-    let (yes_probability, no_probability) = if yes_prob == 0.5 && no_prob == 0.5 && orderbooks.iter().all(|o| o.mid_price.is_none()) {
+    // Calculate probability from AMM pair data
+    let (yes_prob, no_prob) = calculate_probability_from_pairs(&pairs);
+    let (yes_probability, no_probability) = if yes_prob == 0.5 && no_prob == 0.5 && pairs.iter().all(|p| p.price.is_none()) {
         // No price data available
         (None, None)
     } else {
@@ -333,7 +286,7 @@ pub async fn get_market(
             oracle: market.oracle,
             block_number: market.block_number,
             verse_tokens,
-            orderbooks,
+            pairs,
             yes_probability,
             no_probability,
             resolution,

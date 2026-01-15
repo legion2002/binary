@@ -27,6 +27,7 @@ import { startFrontend, type FrontendProcess } from './lib/frontend'
 import { setUserFeeToken } from './lib/fee-amm'
 import { createSeedMarkets, type SeedMarketsResult } from './lib/seed-markets'
 import { seedMarketLiquidity, DEFAULT_SEED_CONFIG, ensureStablecoinRouting, type MarketLiquidityParams } from './lib/seed-liquidity'
+import { initUniV2Config } from './lib/univ2'
 import type { Address } from 'viem'
 
 // Colors for console output
@@ -197,6 +198,17 @@ async function main(): Promise<void> {
     console.log(green('  ✓ Contracts deployed'))
     console.log(`    MultiVerse: ${env.contracts.multiverse}`)
     console.log(`    Oracle:     ${env.contracts.oracle}`)
+    if (env.contracts.uniV2Factory && env.contracts.uniV2Router) {
+      console.log(`    UniV2 Factory: ${env.contracts.uniV2Factory}`)
+      console.log(`    UniV2 Router:  ${env.contracts.uniV2Router}`)
+      // Initialize UniV2 config for seed-liquidity to use
+      const chainId = await env.tempo.client.getChainId()
+      initUniV2Config(
+        env.contracts.uniV2Factory as Address,
+        env.contracts.uniV2Router as Address,
+        chainId
+      )
+    }
 
     // Step 4: Start backend
     console.log('')
@@ -250,7 +262,13 @@ async function main(): Promise<void> {
       // Start frontend for dev mode
       console.log('')
       console.log(cyan('Step 8:') + ' Starting frontend dev server...')
-      env.frontend = await startFrontend({ projectRoot, rpcUrl: env.tempo?.rpcUrl, verbose })
+      env.frontend = await startFrontend({
+        projectRoot,
+        rpcUrl: env.tempo?.rpcUrl,
+        uniV2Factory: env.contracts?.uniV2Factory,
+        uniV2Router: env.contracts?.uniV2Router,
+        verbose,
+      })
       console.log(green('  ✓ Frontend running at ' + env.frontend.url))
 
       printDevSummary(projectRoot)
@@ -262,7 +280,13 @@ async function main(): Promise<void> {
       if (withFrontend) {
         console.log('')
         console.log(cyan('Step 8:') + ' Starting frontend for e2e tests...')
-        env.frontend = await startFrontend({ projectRoot, rpcUrl: env.tempo?.rpcUrl, verbose })
+        env.frontend = await startFrontend({
+          projectRoot,
+          rpcUrl: env.tempo?.rpcUrl,
+          uniV2Factory: env.contracts?.uniV2Factory,
+          uniV2Router: env.contracts?.uniV2Router,
+          verbose,
+        })
         console.log(green('  ✓ Frontend running at ' + env.frontend.url))
       }
 

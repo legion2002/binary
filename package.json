@@ -2,7 +2,7 @@
   "name": "binary-markets",
   "version": "0.1.0",
   "private": true,
-  "description": "Binary prediction markets on Tempo",
+  "description": "Binary prediction markets on Tempo with UniswapV2 AMM",
   "scripts": {
     "fund": "bun run script/fund.ts",
     "dev": "bun run script/env.ts dev",
@@ -14,16 +14,16 @@
     "testnet": "bun run script/env-testnet.ts",
     "testnet:backend": "bun run script/env-testnet.ts --skip-frontend",
     "testnet:redeploy": "bun run script/env-testnet.ts --redeploy",
-    "testnet:seed": "bun run script/seed-testnet-liquidity.ts",
-    "production:seed": "bun run script/seed-production.ts",
+    "testnet:liquidity": "bun run script/seed-testnet-liquidity.ts",
+    "production:liquidity": "bun run script/seed-production.ts",
     "deploy:backend": "cd backend && fly deploy --cwd backend",
     "deploy:frontend": "cd frontend && bun run build && wrangler pages deploy dist --project-name=binary-markets",
     "install:all": "cd backend && cargo fetch && cd ../frontend && bun install && cd ../script && bun install",
     "build": "cd backend && cargo build --release && cd ../frontend && bun run build",
     "lint": "cd backend && cargo clippy && cd ../frontend && bun run lint",
-    "clean": "cd backend && cargo clean && cd ../frontend && rm -rf dist node_modules/.vite"
+    "clean": "cd backend && cargo clean && cd ../frontend && rm -rf dist node_modules/.vite && rm -f .univ2-config.json"
   },
-  "keywords": ["prediction-markets", "tempo", "blockchain"],
+  "keywords": ["prediction-markets", "tempo", "blockchain", "uniswap-v2", "amm"],
   "license": "MIT",
   "dependencies": {
     "viem": "^2.44.1"

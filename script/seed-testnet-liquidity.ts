@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
- * Seed liquidity for markets on testnet
+ * Seed liquidity for markets on testnet using UniswapV2
  * 
- * This script creates DEX pairs and seeds liquidity for verse tokens on testnet.
+ * This script creates UniV2 pairs and adds liquidity for verse tokens on testnet.
  * 
  * Usage:
  *   PRIVATE_KEY=0x... bun run script/seed-testnet-liquidity.ts
@@ -11,7 +11,7 @@
 import { createClient, http, publicActions, walletActions, parseAbi } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { tempoActions, withFeePayer } from 'viem/tempo'
-import type { Chain } from 'viem'
+import type { Address, Chain } from 'viem'
 
 // Testnet configuration
 const TESTNET_CHAIN_ID = 42431
@@ -22,7 +22,6 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:3000'
 // Token addresses
 const PATH_USD = '0x20C0000000000000000000000000000000000000' as const
 const ALPHA_USD = '0x20C0000000000000000000000000000000000001' as const
-const STABLECOIN_DEX = '0xDEc0000000000000000000000000000000000000' as const
 
 const tempoModerato = {
   id: TESTNET_CHAIN_ID,
@@ -61,10 +60,10 @@ async function getMarkets(): Promise<Market[]> {
   for (const m of data.markets || []) {
     const verseRes = await fetch(`${BACKEND_URL}/markets/${m.marketHash}/verse-tokens`)
     if (verseRes.ok) {
-      const verseData = await verseRes.json() as { verseTokens: Market['verseTokens'] }
+      const verseData = await verseRes.json() as Array<{ asset: string; yesVerse: string; noVerse: string }>
       markets.push({
         marketHash: m.marketHash,
-        verseTokens: verseData.verseTokens || [],
+        verseTokens: verseData || [],
       })
     }
   }
@@ -103,61 +102,65 @@ async function main() {
   })
   console.log(`PathUSD balance: ${Number(balance) / 1e6}`)
 
+  // Load UniV2 and testnet config
+  console.log('')
+  console.log('Loading configuration...')
+  
+  let multiVerseAddress: Address
+  let uniV2Router: Address
+  let uniV2Factory: Address
+  
+  try {
+    const config = await Bun.file('./.testnet-config.json').json()
+    multiVerseAddress = config.multiverse as Address
+    console.log(`  MultiVerse: ${multiVerseAddress}`)
+  } catch (e) {
+    console.error('  Failed to load .testnet-config.json')
+    process.exit(1)
+  }
+
+  try {
+    const uniV2Config = await Bun.file('./.univ2-config.json').json()
+    uniV2Router = uniV2Config.router as Address
+    uniV2Factory = uniV2Config.factory as Address
+    console.log(`  UniV2 Router: ${uniV2Router}`)
+    console.log(`  UniV2 Factory: ${uniV2Factory}`)
+  } catch (e) {
+    console.error('  Failed to load .univ2-config.json')
+    console.error('  Run the testnet orchestrator first to deploy UniV2')
+    process.exit(1)
+  }
+
+  // Import UniV2 functions
+  const { createPair, addLiquidity, pairExists } = await import('./lib/univ2')
+
   // Step 1: Ensure stablecoin routing pair exists
   console.log('')
   console.log('Step 1: Setting up stablecoin routing...')
   
-  try {
-    await client.dex.createPair({
-      base: ALPHA_USD,
-      feeToken: PATH_USD,
-    })
-    console.log('  Created AlphaUSD/pathUSD pair')
-  } catch (e: any) {
-    if (e.message?.includes('PairAlreadyExists')) {
-      console.log('  AlphaUSD/pathUSD pair already exists')
-    } else {
-      console.log('  Pair creation error:', e.message?.slice(0, 80))
-    }
+  const routingAmount = BigInt(1000) * BigInt(1e6) // 1000 tokens
+
+  // Check if AlphaUSD/PathUSD pair exists
+  const routingPairExists = await pairExists(client, ALPHA_USD as Address, PATH_USD as Address)
+  if (!routingPairExists) {
+    console.log('  Creating AlphaUSD/PathUSD pair...')
+    await createPair(client, ALPHA_USD as Address, PATH_USD as Address)
+  } else {
+    console.log('  AlphaUSD/PathUSD pair already exists')
   }
 
-  // Approve DEX
-  const maxApproval = BigInt(2) ** BigInt(128) - 1n
-  console.log('  Approving DEX...')
-  await client.token.approve({
-    token: PATH_USD,
-    spender: STABLECOIN_DEX,
-    amount: maxApproval,
-    feeToken: PATH_USD,
-  })
-  await client.token.approve({
-    token: ALPHA_USD,
-    spender: STABLECOIN_DEX,
-    amount: maxApproval,
-    feeToken: PATH_USD,
-  })
-
-  // Place routing liquidity
-  const routingAmount = BigInt(1000) * BigInt(1e6) // 1000 tokens
+  // Add routing liquidity
   try {
-    console.log('  Placing routing liquidity...')
-    await client.dex.placeSync({
-      token: ALPHA_USD,
-      amount: routingAmount,
-      type: 'buy',
-      tick: -10,
-      feeToken: PATH_USD,
+    console.log('  Adding routing liquidity...')
+    await addLiquidity(client, {
+      tokenA: ALPHA_USD as Address,
+      tokenB: PATH_USD as Address,
+      amountA: routingAmount,
+      amountB: routingAmount,
     })
-    await client.dex.placeSync({
-      token: ALPHA_USD,
-      amount: routingAmount,
-      type: 'sell',
-      tick: 10,
-      feeToken: PATH_USD,
-    })
-    console.log('  ✓ Routing liquidity placed')
+    console.log('  ✓ Routing liquidity added')
   } catch (e: any) {
-    console.log('  Routing liquidity error:', e.message?.slice(0, 80))
+    console.log('  Routing liquidity:', e.message?.slice(0, 80))
   }
 
   // Step 2: Fetch markets from backend
@@ -181,22 +184,10 @@ async function main() {
 
   // Step 3: Seed liquidity for each market
   console.log('')
-  console.log('Step 3: Seeding market liquidity...')
-
-  // Load testnet config to get multiverse address
-  const configPath = './testnet-config.json'
-  let multiVerseAddress: `0x${string}`
-  try {
-    const config = await Bun.file('./.testnet-config.json').json()
-    multiVerseAddress = config.multiverse as `0x${string}`
-    console.log(`  MultiVerse: ${multiVerseAddress}`)
-  } catch (e) {
-    console.error('  Failed to load .testnet-config.json')
-    process.exit(1)
-  }
+  console.log('Step 3: Seeding market liquidity with UniV2...')
 
   const seedAmount = BigInt(500) * BigInt(1e6) // 500 tokens to split
-  const orderAmount = BigInt(150) * BigInt(1e6) // 150 per order level
+  const liquidityPerPair = seedAmount / 2n // 250 per pair (YES and NO)
 
   for (const market of markets) {
     console.log('')
@@ -210,7 +201,7 @@ async function main() {
         address: multiVerseAddress,
         abi: multiVerseAbi,
         functionName: 'getVerseAddress',
-        args: [vt.asset as `0x${string}`, market.marketHash as `0x${string}`],
+        args: [vt.asset as Address, market.marketHash as `0x${string}`],
       })
 
       if (yesVerse === '0x0000000000000000000000000000000000000000') {
@@ -221,28 +212,29 @@ async function main() {
       console.log(`    YES: ${yesVerse}`)
       console.log(`    NO:  ${noVerse}`)
 
-      // Create DEX pairs
-      console.log(`    Creating DEX pairs...`)
-      for (const [name, verse] of [['YES', yesVerse], ['NO', noVerse]] as const) {
-        try {
-          await client.dex.createPair({
-            base: verse,
-            feeToken: PATH_USD,
-          })
-          console.log(`      Created ${name}/pathUSD pair`)
-        } catch (e: any) {
-          if (e.message?.includes('PairAlreadyExists')) {
-            console.log(`      ${name}/pathUSD pair exists`)
-          } else {
-            console.log(`      ${name} pair error:`, e.message?.slice(0, 50))
-          }
-        }
+      // Create UniV2 pairs
+      console.log(`    Creating UniV2 pairs...`)
+      
+      const yesPairExists = await pairExists(client, yesVerse as Address, PATH_USD as Address)
+      if (!yesPairExists) {
+        await createPair(client, yesVerse as Address, PATH_USD as Address)
+        console.log(`      Created YES/PathUSD pair`)
+      } else {
+        console.log(`      YES/PathUSD pair exists`)
+      }
+
+      const noPairExists = await pairExists(client, noVerse as Address, PATH_USD as Address)
+      if (!noPairExists) {
+        await createPair(client, noVerse as Address, PATH_USD as Address)
+        console.log(`      Created NO/PathUSD pair`)
+      } else {
+        console.log(`      NO/PathUSD pair exists`)
       }
 
       // Approve MultiVerse to split tokens
       console.log(`    Approving tokens...`)
       await client.token.approve({
-        token: vt.asset as `0x${string}`,
+        token: vt.asset as Address,
         spender: multiVerseAddress,
         amount: seedAmount * 10n,
         feeToken: PATH_USD,
@@ -255,7 +247,7 @@ async function main() {
           address: multiVerseAddress,
           abi: multiVerseAbi,
           functionName: 'split',
-          args: [vt.asset as `0x${string}`, seedAmount, market.marketHash as `0x${string}`],
+          args: [vt.asset as Address, seedAmount, market.marketHash as `0x${string}`],
           feeToken: PATH_USD,
         })
       } catch (e: any) {
@@ -263,47 +255,38 @@ async function main() {
         continue
       }
 
-      // Approve DEX to spend verse tokens
-      console.log(`    Approving DEX for verse tokens...`)
-      await client.token.approve({
-        token: yesVerse,
-        spender: STABLECOIN_DEX,
-        amount: maxApproval,
-        feeToken: PATH_USD,
-      })
-      await client.token.approve({
-        token: noVerse,
-        spender: STABLECOIN_DEX,
-        amount: maxApproval,
-        feeToken: PATH_USD,
-      })
-
-      // Wait for approvals
+      // Wait for split to confirm
       await new Promise(r => setTimeout(r, 1000))
 
-      // Place orders
-      console.log(`    Placing orders...`)
-      const ticks = [-20, -10, 10, 20]
-      
-      for (const [name, verse] of [['YES', yesVerse], ['NO', noVerse]] as const) {
-        for (const tick of ticks) {
-          const type = tick < 0 ? 'buy' : 'sell'
-          try {
-            await client.dex.placeSync({
-              token: verse,
-              amount: orderAmount,
-              type: type as 'buy' | 'sell',
-              tick,
-              feeToken: PATH_USD,
-            })
-            console.log(`      ${name} ${type}@${tick}: ✓`)
-          } catch (e: any) {
-            console.log(`      ${name} ${type}@${tick}: ✗ ${e.message?.slice(0, 40)}`)
-          }
-        }
+      // Add liquidity to YES/PathUSD pair (1:1 ratio for 50/50 probability)
+      console.log(`    Adding liquidity to YES/PathUSD...`)
+      try {
+        await addLiquidity(client, {
+          tokenA: yesVerse as Address,
+          tokenB: PATH_USD as Address,
+          amountA: liquidityPerPair,
+          amountB: liquidityPerPair,
+        })
+        console.log(`      ✓ Added ${Number(liquidityPerPair) / 1e6} YES + ${Number(liquidityPerPair) / 1e6} PathUSD`)
+      } catch (e: any) {
+        console.log(`      ✗ ${e.message?.slice(0, 60)}`)
       }
 
-      console.log(`    ✓ Liquidity seeded for ${vt.asset.slice(0, 10)}...`)
+      // Add liquidity to NO/PathUSD pair
+      console.log(`    Adding liquidity to NO/PathUSD...`)
+      try {
+        await addLiquidity(client, {
+          tokenA: noVerse as Address,
+          tokenB: PATH_USD as Address,
+          amountA: liquidityPerPair,
+          amountB: liquidityPerPair,
+        })
+        console.log(`      ✓ Added ${Number(liquidityPerPair) / 1e6} NO + ${Number(liquidityPerPair) / 1e6} PathUSD`)
+      } catch (e: any) {
+        console.log(`      ✗ ${e.message?.slice(0, 60)}`)
+      }
+
+      console.log(`    ✓ Liquidity added for ${vt.asset.slice(0, 10)}...`)
     }
   }
 

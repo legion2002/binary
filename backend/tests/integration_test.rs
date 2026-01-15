@@ -673,7 +673,7 @@ async fn test_response_format() -> Result<()> {
     assert!(detail["resolutionDeadline"].is_number());
     assert!(detail["blockNumber"].is_number());
     assert!(detail["verseTokens"].is_array());
-    assert!(detail["orderbooks"].is_array());
+    assert!(detail["pairs"].is_array());
     // Resolution should be present in detail view
     assert!(detail["resolution"].is_string() || detail["resolution"].is_null());
     println!("✓ Detail response format correct");

@@ -27,12 +27,12 @@ pub struct VerseToken {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, FromRow)]
-pub struct OrderbookData {
+pub struct PairData {
     pub market_hash: String,
     pub asset_address: String,
     pub quote_token_address: String,
-    pub yes_pair_key: Option<String>,
-    pub no_pair_key: Option<String>,
+    pub yes_pair_address: Option<String>,
+    pub no_pair_address: Option<String>,
     pub created_at: i64,
 }
 
@@ -109,16 +109,16 @@ impl Database {
         .execute(&pool)
         .await?;
 
-        // Create orderbook_markets table for Tempo Stablecoin DEX
+        // Create pair_markets table for UniV2 AMM pairs
         sqlx::query(
             r#"
-            CREATE TABLE IF NOT EXISTS orderbook_markets (
+            CREATE TABLE IF NOT EXISTS pair_markets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 market_hash TEXT NOT NULL,
                 asset_address TEXT NOT NULL,
                 quote_token_address TEXT NOT NULL,
-                yes_pair_key TEXT,
-                no_pair_key TEXT,
+                yes_pair_address TEXT,
+                no_pair_address TEXT,
                 created_at INTEGER NOT NULL,
                 UNIQUE(market_hash, asset_address),
                 FOREIGN KEY (market_hash) REFERENCES markets(market_hash)
@@ -128,11 +128,11 @@ impl Database {
         .execute(&pool)
         .await?;
 
-        // Create index on market_hash for orderbook_markets
+        // Create index on market_hash for pair_markets
         sqlx::query(
             r#"
-            CREATE INDEX IF NOT EXISTS idx_orderbook_markets_market
-            ON orderbook_markets(market_hash)
+            CREATE INDEX IF NOT EXISTS idx_pair_markets_market
+            ON pair_markets(market_hash)
             "#,
         )
         .execute(&pool)
@@ -144,6 +144,7 @@ impl Database {
     }
 
     /// Insert a new market from MarketOpened event
+    #[allow(dead_code)]
     pub async fn insert_market(
         &self,
         market_hash: FixedBytes<32>,
@@ -327,14 +328,14 @@ impl Database {
         Ok(verse_tokens)
     }
 
-    /// Insert orderbook data for a market
-    pub async fn insert_orderbook_market(
+    /// Insert AMM pair data for a market
+    pub async fn insert_pair_market(
         &self,
         market_hash: FixedBytes<32>,
         asset_address: alloy::primitives::Address,
         quote_token_address: alloy::primitives::Address,
-        yes_pair_key: Option<String>,
-        no_pair_key: Option<String>,
+        yes_pair_address: Option<String>,
+        no_pair_address: Option<String>,
     ) -> anyhow::Result<()> {
         let market_hash_str = format!("0x{}", hex::encode(market_hash));
         let asset_str = format!("{:?}", asset_address);
@@ -343,16 +344,16 @@ impl Database {
 
         sqlx::query(
             r#"
-            INSERT OR REPLACE INTO orderbook_markets
-            (market_hash, asset_address, quote_token_address, yes_pair_key, no_pair_key, created_at)
+            INSERT OR REPLACE INTO pair_markets
+            (market_hash, asset_address, quote_token_address, yes_pair_address, no_pair_address, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(market_hash_str)
         .bind(asset_str)
         .bind(quote_str)
-        .bind(yes_pair_key)
-        .bind(no_pair_key)
+        .bind(yes_pair_address)
+        .bind(no_pair_address)
         .bind(created_at)
         .execute(&self.pool)
         .await?;
@@ -360,15 +361,16 @@ impl Database {
         Ok(())
     }
 
-    /// Get orderbook data for a specific market
-    pub async fn get_orderbooks_for_market(
+    /// Get AMM pair data for a specific market
+    #[allow(dead_code)]
+    pub async fn get_pairs_for_market(
         &self,
         market_hash: &str,
-    ) -> anyhow::Result<Vec<OrderbookData>> {
-        let orderbook_data = sqlx::query_as::<_, OrderbookData>(
+    ) -> anyhow::Result<Vec<PairData>> {
+        let pair_data = sqlx::query_as::<_, PairData>(
             r#"
-            SELECT market_hash, asset_address, quote_token_address, yes_pair_key, no_pair_key, created_at
-            FROM orderbook_markets
+            SELECT market_hash, asset_address, quote_token_address, yes_pair_address, no_pair_address, created_at
+            FROM pair_markets
             WHERE market_hash = ?
             ORDER BY created_at ASC
             "#,
@@ -377,6 +379,6 @@ impl Database {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(orderbook_data)
+        Ok(pair_data)
     }
 }

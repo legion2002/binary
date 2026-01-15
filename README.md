@@ -82,9 +82,11 @@ make test
 
 | Command | Description |
 |---------|-------------|
-| `make dev` | Start full local stack (Tempo + contracts + backend + frontend) |
+| `make dev` | Start full local stack (Tempo + UniV2 + contracts + backend + frontend) |
 | `make test` | Run integration tests against full stack |
 | `make test-unit` | Run unit tests only (fast, no Docker) |
+| `make testnet` | Deploy and run full stack on Tempo testnet |
+| `make testnet-liquidity` | Add UniV2 liquidity to testnet markets |
 | `make build` | Build for production |
 | `make install` | Install all dependencies |
 
@@ -124,13 +126,14 @@ forge script script/Deploy.s.sol:Deploy \
     -vvv
 ```
 
-### Tempo Precompile Addresses
+### Contract Addresses
 
 | Contract | Address |
 |----------|---------|
 | TIP-20 Factory | `0x20Fc000000000000000000000000000000000000` |
 | PATH_USD | `0x20C0000000000000000000000000000000000000` |
-| Stablecoin DEX | `0xDEc0000000000000000000000000000000000000` |
+| UniV2 Factory | Deployed dynamically (see `.univ2-config.json`) |
+| UniV2 Router | Deployed dynamically (see `.univ2-config.json`) |
 
 ### Tempo-Specific Notes
 
@@ -151,10 +154,11 @@ make dev
 This will:
 1. Start a local Tempo node (Docker)
 2. Configure fee token to PathUSD
-3. Deploy contracts (MultiVerse + TrustedOracle)
+3. Deploy contracts (MultiVerse + TrustedOracle + UniV2 Factory/Router)
 4. Start the backend server
 5. Create seed markets via admin API
-6. Start the frontend dev server
+6. Add UniV2 liquidity for market trading pairs
+7. Start the frontend dev server
 
 ### Local Node Details
 
@@ -220,5 +224,5 @@ curl -X POST http://127.0.0.1:3000/admin/markets/open \
 
 - Create a TUI to manage markets and resolve them
 - Deploy to production once testnet is stable
-- Automated market maker script for seeding initial liquidity
-- Orders tab for order history, limit orders, and cancellations
+- Advanced AMM features (concentrated liquidity, dynamic fees)
+- Cross-market arbitrage detection and alerts

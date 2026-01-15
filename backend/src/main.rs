@@ -5,7 +5,7 @@ mod config;
 mod contract;
 mod db;
 mod routes;
-mod tempo_orderbook;
+mod tempo_amm;
 
 use admin::{add_market, open_market, AdminState};
 use auth::require_admin_api_key;
@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("MultiVerse Address: {:?}", config.multiverse_address);
     tracing::info!("Oracle Address: {:?}", config.oracle_address);
-    tracing::info!("Using Tempo Stablecoin Exchange at: {:?}", tempo_orderbook::STABLECOIN_EXCHANGE_ADDRESS);
+    tracing::info!("UniV2 Factory Address: {:?}", config.univ2_factory_address);
 
     // Initialize database
     let database_url = std::env::var("DATABASE_URL")
@@ -46,6 +46,7 @@ async fn main() -> anyhow::Result<()> {
     // Create contract client
     let contract_client = Arc::new(ContractClient::new(
         config.multiverse_address,
+        config.univ2_factory_address,
         config.provider.clone(),
         config.signer.clone(),
     ));

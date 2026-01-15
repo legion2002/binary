@@ -11,6 +11,8 @@ import { TESTNET_RPC_URL, TESTNET_CHAIN_ID } from './testnet'
 export interface ContractAddresses {
   multiverse: string
   oracle: string
+  uniV2Factory?: string
+  uniV2Router?: string
 }
 
 export interface DeployOptions {
@@ -49,9 +51,24 @@ export async function deployContracts(options: DeployOptions): Promise<ContractA
     }
   )
 
+  // Deploy UniswapV2 contracts
+  execSync(
+    `forge script script/DeployUniV2.s.sol:DeployUniV2 \
+      --rpc-url ${rpcUrl} \
+      --broadcast \
+      --private-key "${privateKey}" \
+      ${verbosity}`,
+    {
+      stdio: verbose ? 'inherit' : 'pipe',
+      cwd: `${projectRoot}/contracts`,
+    }
+  )
+
   // Parse broadcast JSON to get contract addresses
   const addresses = parseBroadcastAddresses(projectRoot, chainId)
-  return addresses
+  const uniV2Addresses = parseUniV2BroadcastAddresses(projectRoot, chainId)
+  
+  return { ...addresses, ...uniV2Addresses }
 }
 
 /**
@@ -93,9 +110,28 @@ export async function deployContractsTestnet(options: {
     }
   )
 
+  // Deploy UniswapV2 contracts to testnet
+  console.log('  Deploying UniswapV2 contracts to Tempo testnet...')
+  execSync(
+    `${forgeCmd} script script/DeployUniV2.s.sol:DeployUniV2 \
+      --rpc-url ${TESTNET_RPC_URL} \
+      --chain ${TESTNET_CHAIN_ID} \
+      --broadcast \
+      --private-key "${privateKey}" \
+      --skip-simulation \
+      --slow \
+      -vvv`,
+    {
+      stdio: verbose ? 'inherit' : 'pipe',
+      cwd: `${projectRoot}/contracts`,
+    }
+  )
+
   // Parse broadcast JSON to get contract addresses
   const addresses = parseBroadcastAddresses(projectRoot, TESTNET_CHAIN_ID)
-  return addresses
+  const uniV2Addresses = parseUniV2BroadcastAddresses(projectRoot, TESTNET_CHAIN_ID)
+  
+  return { ...addresses, ...uniV2Addresses }
 }
 
 export function parseBroadcastAddresses(projectRoot: string, specificChainId?: number): ContractAddresses {
@@ -144,6 +180,48 @@ export function parseBroadcastAddresses(projectRoot: string, specificChainId?: n
   }
 
   return { multiverse, oracle }
+}
+
+export function parseUniV2BroadcastAddresses(projectRoot: string, specificChainId?: number): { uniV2Factory?: string; uniV2Router?: string } {
+  // If specific chain ID provided, try that first
+  // Otherwise try dev chain ID first (1337), then Tempo testnet (42431)
+  const chainIds = specificChainId
+    ? [String(specificChainId), '1337', '42431']
+    : ['1337', '42431']
+  let broadcastPath: string | undefined
+
+  for (const chainId of chainIds) {
+    const path = join(projectRoot, `contracts/broadcast/DeployUniV2.s.sol/${chainId}/run-latest.json`)
+    if (existsSync(path)) {
+      broadcastPath = path
+      break
+    }
+  }
+
+  if (!broadcastPath) {
+    console.warn('UniV2 broadcast file not found, skipping UniV2 addresses')
+    return {}
+  }
+
+  const broadcastJson = JSON.parse(readFileSync(broadcastPath, 'utf-8'))
+  const transactions = broadcastJson.transactions as Array<{
+    contractName?: string
+    contractAddress?: string
+  }>
+
+  let uniV2Factory: string | undefined
+  let uniV2Router: string | undefined
+
+  for (const tx of transactions) {
+    if (tx.contractName === 'UniswapV2Factory' && tx.contractAddress) {
+      uniV2Factory = tx.contractAddress
+    }
+    if (tx.contractName === 'UniswapV2Router02' && tx.contractAddress) {
+      uniV2Router = tx.contractAddress
+    }
+  }
+
+  return { uniV2Factory, uniV2Router }
 }
 
 export function getProjectRoot(): string {

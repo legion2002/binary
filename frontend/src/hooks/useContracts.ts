@@ -2,6 +2,10 @@ import type { Address } from "viem";
 import { useConfig } from "./useConfig";
 import { MULTIVERSE_ABI, TIP20_ABI } from "../config/abis";
 
+// UniV2 addresses (configured via env, deployed per-chain)
+const UNIV2_ROUTER = (import.meta.env.VITE_UNIV2_ROUTER_ADDRESS ?? "0x0000000000000000000000000000000000000000") as Address;
+const UNIV2_FACTORY = (import.meta.env.VITE_UNIV2_FACTORY_ADDRESS ?? "0x0000000000000000000000000000000000000000") as Address;
+
 // Static contract addresses (Tempo system precompiles - never change)
 const STATIC_CONTRACTS = {
   PATH_USD: "0x20C0000000000000000000000000000000000000" as Address,
@@ -13,6 +17,8 @@ const STATIC_CONTRACTS = {
   STABLECOIN_DEX: "0xDec0000000000000000000000000000000000000" as Address,
   USD: "0x20C0000000000000000000000000000000000001" as Address,
   USDC: "0x20C0000000000000000000000000000000000002" as Address,
+  UNIV2_ROUTER,
+  UNIV2_FACTORY,
 } as const;
 
 export interface Contracts {
@@ -27,6 +33,8 @@ export interface Contracts {
   STABLECOIN_DEX: Address;
   USD: Address;
   USDC: Address;
+  UNIV2_ROUTER: Address;
+  UNIV2_FACTORY: Address;
 }
 
 /**
