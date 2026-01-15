@@ -330,6 +330,103 @@ body {
   color: white;
 }
 
+/* LP token toggle (YES/NO pool selector) */
+.lp-token-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* LP action toggle */
+.lp-action-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.lp-toggle-btn {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--bg-tertiary);
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.lp-toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--border-primary);
+}
+
+.lp-toggle-btn:hover {
+  background: var(--bg-hover);
+}
+
+.lp-toggle-btn.active {
+  background: var(--accent-yellow);
+  color: var(--text-primary);
+}
+
+.lp-toggle-btn.active.yes {
+  background: var(--accent-green);
+  color: white;
+}
+
+.lp-toggle-btn.active.no {
+  background: var(--accent-red);
+  color: white;
+}
+
+/* LP balance info */
+.lp-balance-info {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.75rem;
+}
+
+.lp-balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lp-balance-row:not(:last-child) {
+  margin-bottom: 0.5rem;
+}
+
+.lp-balance-row span:first-child {
+  color: var(--text-muted);
+}
+
+.lp-balance-row span:last-child {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* LP action buttons */
+.lp-action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.lp-action-buttons .btn {
+  flex: 1;
+}
+
 /* Verse token balances (below asset selector) */
 .verse-balances {
   display: flex;
@@ -839,6 +936,28 @@ body {
   font-size: 0.75rem;
   color: var(--accent-red);
   margin-top: 0.25rem;
+}
+
+/* Trade Error Display */
+.trade-error {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(220, 53, 69, 0.08);
+  border: 1px solid var(--accent-red);
+  border-radius: 4px;
+}
+
+.trade-error-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-red);
+  margin-bottom: 0.25rem;
+}
+
+.trade-error-message {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 /* Fund Button */
