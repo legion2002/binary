@@ -62,7 +62,7 @@ export const tempoChain = isLocalDevnet ? localDevnet : testnetWithFeeToken;
 // Expires in 24 hours, no spending limits
 const accessKeyConfig = {
   expiry: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours from now
-  limits: null, // No spending limits
+  limits: undefined, // No spending limits
   strict: false, // Don't disconnect if access key is expired, just re-prompt
 };
 
