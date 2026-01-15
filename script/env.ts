@@ -19,7 +19,7 @@
  *   bun run script/env.ts test --with-frontend -- bun --cwd frontend test:e2e
  */
 
-import { spawn } from 'child_process'
+import { spawn, execSync } from 'child_process'
 import { startLocalTempo, type TempoEnvironment } from './lib/tempo'
 import { deployContracts, getProjectRoot, type ContractAddresses } from './lib/deploy'
 import { startBackend, TEST_API_KEY, type BackendProcess } from './lib/backend'
@@ -29,6 +29,10 @@ import { createSeedMarkets, type SeedMarketsResult } from './lib/seed-markets'
 import { seedMarketLiquidity, DEFAULT_SEED_CONFIG, ensureStablecoinRouting, type MarketLiquidityParams } from './lib/seed-liquidity'
 import { initUniV2Config } from './lib/univ2'
 import type { Address } from 'viem'
+
+function updateDeploymentsJson(projectRoot: string): void {
+  execSync('bun run update-deployments', { cwd: projectRoot, stdio: 'inherit' })
+}
 
 // Colors for console output
 const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`
@@ -209,6 +213,12 @@ async function main(): Promise<void> {
         chainId
       )
     }
+    
+    // Update deployments.json with new addresses
+    console.log('')
+    console.log(cyan('Step 3b:') + ' Updating deployments.json...')
+    updateDeploymentsJson(projectRoot)
+    console.log(green('  ✓ deployments.json updated'))
 
     // Step 4: Start backend
     console.log('')
@@ -265,8 +275,6 @@ async function main(): Promise<void> {
       env.frontend = await startFrontend({
         projectRoot,
         rpcUrl: env.tempo?.rpcUrl,
-        uniV2Factory: env.contracts?.uniV2Factory,
-        uniV2Router: env.contracts?.uniV2Router,
         verbose,
       })
       console.log(green('  ✓ Frontend running at ' + env.frontend.url))
@@ -283,8 +291,6 @@ async function main(): Promise<void> {
         env.frontend = await startFrontend({
           projectRoot,
           rpcUrl: env.tempo?.rpcUrl,
-          uniV2Factory: env.contracts?.uniV2Factory,
-          uniV2Router: env.contracts?.uniV2Router,
           verbose,
         })
         console.log(green('  ✓ Frontend running at ' + env.frontend.url))

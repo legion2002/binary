@@ -12,6 +12,7 @@ import { createClient, http, publicActions, walletActions, parseAbi } from 'viem
 import { privateKeyToAccount } from 'viem/accounts'
 import { tempoActions, withFeePayer } from 'viem/tempo'
 import type { Address, Chain } from 'viem'
+import deployments from '../deployments.json'
 
 // Testnet configuration
 const TESTNET_CHAIN_ID = 42431
@@ -106,30 +107,20 @@ async function main() {
   console.log('')
   console.log('Loading configuration...')
   
-  let multiVerseAddress: Address
-  let uniV2Router: Address
-  let uniV2Factory: Address
+  // Load addresses from deployments.json
+  const deployment = deployments[String(TESTNET_CHAIN_ID) as keyof typeof deployments]
+  if (!deployment) {
+    console.error(`  No deployment found for chain ${TESTNET_CHAIN_ID}`)
+    process.exit(1)
+  }
   
-  try {
-    const config = await Bun.file('./.testnet-config.json').json()
-    multiVerseAddress = config.multiverse as Address
-    console.log(`  MultiVerse: ${multiVerseAddress}`)
-  } catch (e) {
-    console.error('  Failed to load .testnet-config.json')
-    process.exit(1)
-  }
-
-  try {
-    const uniV2Config = await Bun.file('./.univ2-config.json').json()
-    uniV2Router = uniV2Config.router as Address
-    uniV2Factory = uniV2Config.factory as Address
-    console.log(`  UniV2 Router: ${uniV2Router}`)
-    console.log(`  UniV2 Factory: ${uniV2Factory}`)
-  } catch (e) {
-    console.error('  Failed to load .univ2-config.json')
-    console.error('  Run the testnet orchestrator first to deploy UniV2')
-    process.exit(1)
-  }
+  const multiVerseAddress = deployment.multiverse as Address
+  const uniV2Router = deployment.uniV2Router as Address
+  const uniV2Factory = deployment.uniV2Factory as Address
+  
+  console.log(`  MultiVerse: ${multiVerseAddress}`)
+  console.log(`  UniV2 Router: ${uniV2Router}`)
+  console.log(`  UniV2 Factory: ${uniV2Factory}`)
 
   // Import UniV2 functions
   const { createPair, addLiquidity, pairExists } = await import('./lib/univ2')

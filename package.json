@@ -22,7 +22,8 @@
     "install:all": "cd backend && cargo fetch && cd ../frontend && bun install && cd ../script && bun install",
     "build": "cd backend && cargo build --release && cd ../frontend && bun run build",
     "lint": "cd backend && cargo clippy && cd ../frontend && bun run lint",
-    "clean": "cd backend && cargo clean && cd ../frontend && rm -rf dist node_modules/.vite && rm -f .univ2-config.json"
+    "clean": "cd backend && cargo clean && cd ../frontend && rm -rf dist node_modules/.vite && rm -f .univ2-config.json",
+    "update-deployments": "bun run script/update-deployments.ts"
   },
   "keywords": ["prediction-markets", "tempo", "blockchain", "uniswap-v2", "amm"],
   "license": "MIT",

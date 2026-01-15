@@ -2,10 +2,9 @@ import { type Address, encodeFunctionData, parseAbi } from "viem";
 import { useSendTransactionSync, useAccount, useReadContract } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { UNIV2_ROUTER } from "./useUniV2";
-import { FEE_TOKEN } from "../config/wagmi";
+import { FEE_TOKEN, deployment } from "../config/wagmi";
 
-const UNIV2_FACTORY = (import.meta.env.VITE_UNIV2_FACTORY_ADDRESS ??
-  "0x0000000000000000000000000000000000000000") as Address;
+const UNIV2_FACTORY = deployment.uniV2Factory;
 
 const ROUTER_ABI = parseAbi([
   "function removeLiquidity(address tokenA, address tokenB, uint liquidity, uint amountAMin, uint amountBMin, address to, uint deadline) external returns (uint amountA, uint amountB)",

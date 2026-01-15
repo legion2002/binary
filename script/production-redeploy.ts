@@ -164,18 +164,18 @@ async function main(): Promise<void> {
     )
   }
 
-  // Step 3: Update Fly secrets
+  // Step 3: Update deployments.json and redeploy backend
   console.log('')
-  console.log(cyan('Step 3:') + ' Updating Fly.io secrets...')
+  console.log(cyan('Step 3:') + ' Updating deployments.json...')
   
-  const secrets = [
-    `MULTIVERSE_ADDRESS=${contracts.multiverse}`,
-    `ORACLE_ADDRESS=${contracts.oracle}`,
-    `UNIV2_FACTORY_ADDRESS=${contracts.uniV2Factory}`,
-  ].join(' ')
-
-  runCommand(`flyctl secrets set ${secrets}`, { cwd: join(projectRoot, 'backend') })
-  console.log(green('  ✓ Fly secrets updated'))
+  runCommand('bun run update-deployments', { cwd: projectRoot })
+  console.log(green('  ✓ deployments.json updated'))
+  
+  // Deploy backend with new deployments.json
+  console.log('')
+  console.log(cyan('Step 3b:') + ' Deploying backend to Fly.io...')
+  runCommand('fly deploy --now', { cwd: join(projectRoot, 'backend') })
+  console.log(green('  ✓ Backend deployed'))
 
   // Step 4: Clear database
   console.log('')
@@ -191,28 +191,7 @@ async function main(): Promise<void> {
     console.log(yellow('  ⚠ Could not clear database (machine may be stopped)'))
   }
 
-  // Step 5: Restart backend
-  console.log('')
-  console.log(cyan('Step 5:') + ' Restarting backend...')
-  
-  // Get machine ID
-  const machinesOutput = runCommand('flyctl machines list --json', {
-    cwd: join(projectRoot, 'backend'),
-    silent: true,
-  })
-  const machines = JSON.parse(machinesOutput)
-  
-  if (machines.length > 0) {
-    const machineId = machines[0].id
-    runCommand(`flyctl machines restart ${machineId}`, { cwd: join(projectRoot, 'backend') })
-    console.log(green('  ✓ Backend restarted'))
-  } else {
-    console.log(yellow('  ⚠ No machines found, deploying...'))
-    runCommand('flyctl deploy --remote-only', { cwd: join(projectRoot, 'backend') })
-    console.log(green('  ✓ Backend deployed'))
-  }
-
-  // Wait for backend to be ready
+  // Step 5: Wait for backend to be ready
   console.log('  Waiting for backend to be healthy...')
   let healthy = false
   for (let i = 0; i < 30; i++) {
@@ -303,33 +282,13 @@ async function main(): Promise<void> {
     console.log(dim('Step 7: Skipping liquidity (--skip-liquidity)'))
   }
 
-  // Step 8: Update deploy.yml
-  console.log('')
-  console.log(cyan('Step 8:') + ' Updating deploy.yml...')
-  
-  const deployYmlPath = join(projectRoot, '.github/workflows/deploy.yml')
-  let deployYml = readFileSync(deployYmlPath, 'utf-8')
-  
-  // Update UniV2 addresses
-  deployYml = deployYml.replace(
-    /VITE_UNIV2_FACTORY_ADDRESS: '0x[a-fA-F0-9]+'/,
-    `VITE_UNIV2_FACTORY_ADDRESS: '${contracts.uniV2Factory}'`
-  )
-  deployYml = deployYml.replace(
-    /VITE_UNIV2_ROUTER_ADDRESS: '0x[a-fA-F0-9]+'/,
-    `VITE_UNIV2_ROUTER_ADDRESS: '${contracts.uniV2Router}'`
-  )
-  
-  writeFileSync(deployYmlPath, deployYml)
-  console.log(green('  ✓ deploy.yml updated'))
-
-  // Step 9: Commit and push (optional)
+  // Step 8: Commit and push deployments.json (optional)
   if (!args.noCommit) {
     console.log('')
-    console.log(cyan('Step 9:') + ' Committing changes...')
+    console.log(cyan('Step 8:') + ' Committing changes...')
     
     try {
-      runCommand('git add .github/workflows/deploy.yml .testnet-config.json .univ2-config.json', {
+      runCommand('git add deployments.json backend/deployments.json frontend/src/deployments.json', {
         cwd: projectRoot,
       })
       runCommand('git commit -m "Update contract addresses for production"', {
@@ -345,7 +304,7 @@ async function main(): Promise<void> {
     }
   } else {
     console.log('')
-    console.log(dim('Step 9: Skipping commit (--no-commit)'))
+    console.log(dim('Step 8: Skipping commit (--no-commit)'))
     console.log(dim('  Remember to commit and push to trigger frontend CI'))
   }
 

@@ -33,9 +33,11 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::from_env().await?;
     let addr = config.server_address();
 
+    tracing::info!("Chain ID: {}", config.chain_id);
     tracing::info!("MultiVerse Address: {:?}", config.multiverse_address);
     tracing::info!("Oracle Address: {:?}", config.oracle_address);
     tracing::info!("UniV2 Factory Address: {:?}", config.univ2_factory_address);
+    tracing::info!("UniV2 Router Address: {:?}", config.univ2_router_address);
 
     // Initialize database
     let database_url = std::env::var("DATABASE_URL")

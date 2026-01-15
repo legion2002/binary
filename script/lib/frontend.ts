@@ -11,8 +11,6 @@ export const FRONTEND_PORT = Number(process.env.FRONTEND_PORT) || 5173
 export interface FrontendOptions {
   projectRoot: string
   rpcUrl?: string
-  uniV2Factory?: string
-  uniV2Router?: string
   verbose?: boolean
 }
 
@@ -24,22 +22,20 @@ export interface FrontendProcess {
 }
 
 export async function startFrontend(options: FrontendOptions): Promise<FrontendProcess> {
-  const { projectRoot, rpcUrl, uniV2Factory, uniV2Router, verbose = false } = options
+  const { projectRoot, rpcUrl, verbose = false } = options
 
   const port = FRONTEND_PORT
   const url = `http://localhost:${port}`
   const frontendDir = join(projectRoot, 'frontend')
 
+  // Frontend reads contract addresses from deployments.json (updated by orchestrator)
   const child = spawn('bun', ['run', 'dev', '--', '--host'], {
     cwd: frontendDir,
     stdio: verbose ? 'inherit' : 'pipe',
     env: {
       ...process.env,
-      // Vite will use these
       VITE_BACKEND_URL: `http://127.0.0.1:3000`,
       ...(rpcUrl && { VITE_RPC_URL: rpcUrl }),
-      ...(uniV2Factory && { VITE_UNIV2_FACTORY_ADDRESS: uniV2Factory }),
-      ...(uniV2Router && { VITE_UNIV2_ROUTER_ADDRESS: uniV2Router }),
     },
   })
 

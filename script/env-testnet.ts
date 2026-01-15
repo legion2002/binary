@@ -24,7 +24,7 @@
  *   DATABASE_URL - Optional. Defaults to sqlite:./testnet.db?mode=rwc
  */
 
-import { spawn } from 'child_process'
+import { spawn, execSync } from 'child_process'
 import { join } from 'path'
 import { tempoModerato, TESTNET_CHAIN_ID } from './lib/testnet'
 import {
@@ -237,6 +237,12 @@ async function main(): Promise<void> {
           TESTNET_CHAIN_ID
         )
       }
+      
+      // Update deployments.json with new addresses
+      console.log('')
+      console.log(cyan('Step 3b:') + ' Updating deployments.json...')
+      execSync('bun run update-deployments', { cwd: projectRoot, stdio: 'inherit' })
+      console.log(green('  ✓ deployments.json updated'))
     }
 
     // Step 4: Start backend
@@ -328,8 +334,6 @@ async function main(): Promise<void> {
       env.frontend = await startFrontend({
         projectRoot,
         rpcUrl: TESTNET_RPC_URL,
-        uniV2Factory: env.contracts?.uniV2Factory,
-        uniV2Router: env.contracts?.uniV2Router,
         verbose,
       })
       console.log(green('  Frontend running at ' + env.frontend.url))

@@ -1,11 +1,10 @@
 import { type Address, encodeFunctionData, parseAbi } from "viem";
 import { useReadContract, useSendTransactionSync, useAccount } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
-import { FEE_TOKEN } from "../config/wagmi";
+import { FEE_TOKEN, deployment } from "../config/wagmi";
 
-// UniV2 Router address (configured via env)
-export const UNIV2_ROUTER = (import.meta.env.VITE_UNIV2_ROUTER_ADDRESS ??
-  "0x0000000000000000000000000000000000000000") as Address;
+// UniV2 Router address from deployments.json
+export const UNIV2_ROUTER = deployment.uniV2Router;
 
 // PATH_USD is used as the routing token for multi-hop swaps
 const PATH_USD = "0x20C0000000000000000000000000000000000000" as Address;

@@ -1,0 +1,16 @@
+{
+  "1337": {
+    "name": "Tempo Local",
+    "multiverse": "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0",
+    "oracle": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
+    "uniV2Factory": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9",
+    "uniV2Router": "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9"
+  },
+  "42431": {
+    "name": "Tempo Moderato",
+    "multiverse": "0x5c60561818666daaadd4227c6484bf1e277497d3",
+    "oracle": "0x874cd923cfcb4300a4dd2e04b334de0625b585aa",
+    "uniV2Factory": "0x2cf016c261d30eb075b9bcba1e1ce18270a9e9f0",
+    "uniV2Router": "0x822f95561c5fc60722448cc23f8f9e5d0905e170"
+  }
+}

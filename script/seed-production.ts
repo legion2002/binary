@@ -21,9 +21,10 @@ import {
   DEFAULT_SEED_CONFIG,
   ensureStablecoinRouting,
 } from './lib/seed-liquidity'
-import { getTestnetClient, TESTNET_RPC_URL, loadTestnetConfig } from './lib/testnet'
+import { getTestnetClient, TESTNET_RPC_URL, TESTNET_CHAIN_ID } from './lib/testnet'
 import { TEST_API_KEY } from './lib/backend'
 import type { Address } from 'viem'
+import deployments from '../deployments.json'
 
 const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`
 const green = (s: string) => `\x1b[32m${s}\x1b[0m`
@@ -62,14 +63,14 @@ async function main() {
   const client = getTestnetClient(privateKey)
   console.log(`  Account:  ${client.account.address}`)
 
-  // Load contract addresses from config
-  const config = loadTestnetConfig()
-  if (!config.multiverse) {
-    console.error(red('Error: No multiverse address in .testnet-config.json'))
-    console.error('Run testnet deployment first or create the config manually.')
+  // Load contract addresses from deployments.json
+  const deployment = deployments[String(TESTNET_CHAIN_ID) as keyof typeof deployments]
+  if (!deployment?.multiverse) {
+    console.error(red('Error: No multiverse address in deployments.json'))
+    console.error('Run bun run update-deployments first.')
     process.exit(1)
   }
-  const multiverseAddress = config.multiverse as Address
+  const multiverseAddress = deployment.multiverse as Address
   console.log(`  MultiVerse: ${multiverseAddress}`)
   console.log('')
 

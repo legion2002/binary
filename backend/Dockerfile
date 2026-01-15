@@ -37,9 +37,14 @@ RUN apt-get update && apt-get install -y \
 # Copy binary from builder
 COPY --from=builder /app/target/release/backend /usr/local/bin/backend
 
+# Copy deployments.json
+COPY deployments.json /app/deployments.json
+
 # Run as non-root user
 RUN useradd -r -s /bin/false backend && chown -R backend:backend /data
 USER backend
+
+WORKDIR /app
 
 EXPOSE 3000
 
