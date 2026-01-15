@@ -23,7 +23,7 @@ function TempoBadge() {
 
   return (
     <div className="tempo-badge" data-testid="tempo-badge">
-      on <span>Tempo{networkName ? ` ${networkName}` : ""}</span>
+      on <span>Rempo{networkName ? ` ${networkName}` : ""}</span>
     </div>
   );
 }
