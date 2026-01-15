@@ -1,6 +1,7 @@
 import { createConfig, createStorage, http } from "wagmi";
 import { tempoTestnet } from "wagmi/chains";
 import { webAuthn, KeyManager } from "wagmi/tempo";
+import { getDeployment } from "./deployments";
 
 // RPC URL - defaults to local devnet, can be overridden via env or CLI
 const RPC_URL = import.meta.env.VITE_RPC_URL || "http://localhost:9545";
@@ -10,6 +11,12 @@ const isTestnet = RPC_URL.includes("moderato.tempo.xyz");
 const FEE_PAYER_URL =
   import.meta.env.VITE_FEE_PAYER_URL ||
   (isTestnet ? "https://sponsor.moderato.tempo.xyz" : undefined);
+
+// Determine chain ID based on RPC URL
+export const CHAIN_ID = isTestnet ? 42431 : 1337;
+
+// Load deployment addresses for this chain
+export const deployment = getDeployment(CHAIN_ID);
 
 // Token addresses on Tempo
 // AlphaUSD - the stablecoin users trade with
@@ -52,19 +59,10 @@ const testnetWithFeeToken = {
 export const tempoChain = isLocalDevnet ? localDevnet : testnetWithFeeToken;
 
 // Access key configuration - enables signing without passkey prompts
-// Expires in 24 hours, with high spending limits
+// Expires in 24 hours, no spending limits
 const accessKeyConfig = {
   expiry: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours from now
-  limits: [
-    {
-      token: USD_TOKEN as `0x${string}`,
-      limit: BigInt("1000000000000000"), // 1 billion USD (6 decimals)
-    },
-    {
-      token: PATH_USD as `0x${string}`,
-      limit: BigInt("1000000000000000"), // 1 billion PATH_USD (6 decimals)
-    },
-  ],
+  limits: null, // No spending limits
   strict: false, // Don't disconnect if access key is expired, just re-prompt
 };
 

@@ -101,7 +101,7 @@ export interface SeedLiquidityConfig {
 }
 
 export const DEFAULT_SEED_CONFIG: SeedLiquidityConfig = {
-  seedAmount: BigInt(20000) * BigInt(1e6), // 20000 tokens (10x liquidity)
+  seedAmount: BigInt(20000) * BigInt(1e6), // 20000 tokens
 }
 
 export interface MarketLiquidityParams {
