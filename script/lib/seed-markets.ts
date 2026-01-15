@@ -14,8 +14,8 @@ import { PATH_USD, ALPHA_USD } from './tempo'
 // Seed market definitions - each market now includes both PATH_USD and ALPHA_USD
 const SEED_MARKETS = [
   {
-    question: 'Will Tempo mainnet launch in 2026?',
-    resolutionDeadline: Math.floor(new Date('2027-1-1').getTime() / 1000), // End of 2026
+    question: 'Will gakonst start a list with A 2 3 in Lisbon?',
+    resolutionDeadline: Math.floor(Date.now() / 1000) + 4 * 24 * 60 * 60, // 4 days from now
     assets: [PATH_USD, ALPHA_USD],
   },
   {
