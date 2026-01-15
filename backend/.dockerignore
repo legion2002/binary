@@ -1,0 +1,11 @@
+# flyctl launch added from .gitignore
+**/target
+**/.claude
+
+**/.env
+
+# SQLite database files
+**/*.db
+**/*.db-shm
+**/*.db-wal
+fly.toml

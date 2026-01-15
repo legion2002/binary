@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.75-slim-bookworm AS builder
+FROM rust:1.87-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy manifests
+# Copy manifests first for dependency caching
 COPY Cargo.toml Cargo.lock ./
 
 # Create dummy main.rs for dependency caching
@@ -24,29 +24,23 @@ COPY src ./src
 # Build the application
 RUN touch src/main.rs && cargo build --release
 
-# Runtime stage
+# Runtime stage - minimal image
 FROM debian:bookworm-slim
-
-WORKDIR /app
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /data
 
 # Copy binary from builder
 COPY --from=builder /app/target/release/backend /usr/local/bin/backend
 
-# Create data directory for SQLite
-RUN mkdir -p /data
+# Run as non-root user
+RUN useradd -r -s /bin/false backend && chown -R backend:backend /data
+USER backend
 
-# Expose port
 EXPOSE 3000
-
-# Set environment variables
-ENV HOST=0.0.0.0
-ENV PORT=3000
-ENV DATABASE_URL=sqlite:///data/markets.db
 
 CMD ["backend"]

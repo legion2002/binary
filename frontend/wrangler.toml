@@ -1,13 +1,19 @@
 # Cloudflare Pages configuration for Binary Markets Frontend
-# Deploy: cd frontend && bun run build && wrangler pages deploy dist
+#
+# First-time setup:
+#   cd frontend
+#   bun run build
+#   npx wrangler pages project create binary-markets
+#   npx wrangler pages deploy dist
+#
+# Subsequent deploys:
+#   bun run build && npx wrangler pages deploy dist
+#
+# Set environment variables in Cloudflare Dashboard:
+#   Pages > binary-markets > Settings > Environment variables
+#   - VITE_RPC_URL = https://rpc.moderato.tempo.xyz
+#   - VITE_API_URL = https://binary-markets-api.fly.dev
+#   - VITE_FEE_PAYER_URL = https://sponsor.moderato.tempo.xyz
 
 name = "binary-markets"
-compatibility_date = "2024-01-01"
-
-[site]
-bucket = "./dist"
-
-# Environment variables for production build
-# Set these in Cloudflare Dashboard > Pages > Settings > Environment variables:
-# - VITE_RPC_URL = https://rpc.moderato.tempo.xyz
-# - VITE_SERVER_URL = https://binary-markets-api.fly.dev
+compatibility_date = "2024-12-01"

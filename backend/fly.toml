@@ -1,33 +1,39 @@
-# Fly.io configuration for Binary Markets Backend
-# Deploy: cd backend && fly launch (first time) or fly deploy (updates)
+# fly.toml app configuration file generated for binary-markets-api on 2026-01-15T02:30:23Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "binary-markets-api"
-primary_region = "sjc"
+app = 'binary-markets-api'
+primary_region = 'iad'
 
 [build]
-  dockerfile = "Dockerfile"
 
 [env]
-  HOST = "0.0.0.0"
-  PORT = "3000"
-  RPC_URL = "https://rpc.moderato.tempo.xyz"
-  DATABASE_URL = "sqlite:///data/markets.db?mode=rwc"
+  DATABASE_URL = 'sqlite:///data/markets.db?mode=rwc'
+  HOST = '0.0.0.0'
+  PORT = '3000'
+  RPC_URL = 'https://rpc.moderato.tempo.xyz'
+  RUST_LOG = 'info,backend=debug'
+
+[[mounts]]
+  source = 'data'
+  destination = '/data'
 
 [http_service]
   internal_port = 3000
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 0
-  processes = ["app"]
+  min_machines_running = 1
+  processes = ['app']
 
-[[http_service.checks]]
-  grace_period = "10s"
-  interval = "30s"
-  method = "GET"
-  timeout = "5s"
-  path = "/markets"
+  [http_service.concurrency]
+    type = 'requests'
+    hard_limit = 250
+    soft_limit = 200
 
-[mounts]
-  source = "backend_data"
-  destination = "/data"
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 512
