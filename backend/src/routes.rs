@@ -100,23 +100,60 @@ pub async fn get_markets(
         }
     };
 
-    // Convert to response format
-    // Note: probability and resolution are None in list view for performance
-    // Use the detail endpoint (/markets/:marketHash) for full data
-    let market_responses: Vec<MarketResponse> = markets
-        .into_iter()
-        .map(|m| MarketResponse {
+    // Convert to response format with live probabilities
+    let mut market_responses: Vec<MarketResponse> = Vec::with_capacity(markets.len());
+    
+    for m in markets {
+        // Parse market hash for contract calls
+        let market_hash_bytes: Option<FixedBytes<32>> = m.market_hash
+            .strip_prefix("0x")
+            .and_then(|s| hex::decode(s).ok())
+            .and_then(|bytes| <Vec<u8> as TryInto<[u8; 32]>>::try_into(bytes).ok())
+            .map(FixedBytes::from);
+
+        // Fetch verse tokens and calculate probability
+        let (yes_probability, no_probability) = if let Some(hash_bytes) = market_hash_bytes {
+            // Get verse tokens for this market
+            let verse_tokens = state.db.get_verse_tokens_for_market(&m.market_hash).await.unwrap_or_default();
+            
+            // Collect pairs from all verse tokens
+            let mut pairs: Vec<PairInfo> = Vec::new();
+            for verse in &verse_tokens {
+                let yes_addr: Option<Address> = verse.yes_verse.parse().ok();
+                let no_addr: Option<Address> = verse.no_verse.parse().ok();
+                
+                if let (Some(yes), Some(no)) = (yes_addr, no_addr) {
+                    if let Ok(live_pairs) = state.contract_client.get_market_pairs(hash_bytes, yes, PATH_USD_ADDRESS).await {
+                        pairs.extend(live_pairs);
+                    }
+                    if let Ok(live_pairs) = state.contract_client.get_market_pairs(hash_bytes, no, PATH_USD_ADDRESS).await {
+                        pairs.extend(live_pairs);
+                    }
+                }
+            }
+            
+            let (yes_prob, no_prob) = calculate_probability_from_pairs(&pairs);
+            if yes_prob == 0.5 && no_prob == 0.5 && pairs.iter().all(|p| p.price.is_none()) {
+                (None, None)
+            } else {
+                (Some(yes_prob), Some(no_prob))
+            }
+        } else {
+            (None, None)
+        };
+
+        market_responses.push(MarketResponse {
             market_hash: m.market_hash,
             question_hash: m.question_hash,
             question: m.question_text,
             resolution_deadline: m.resolution_deadline,
             oracle: m.oracle,
             block_number: m.block_number,
-            yes_probability: None,
-            no_probability: None,
+            yes_probability,
+            no_probability,
             resolution: None,
-        })
-        .collect();
+        });
+    }
 
     let count = market_responses.len();
 

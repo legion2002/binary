@@ -1,7 +1,5 @@
 import { useState } from "react";
 import type { Address } from "viem";
-import { useQuery } from "@tanstack/react-query";
-import { fetchMarket } from "../api/client";
 import { usePriceQuotes } from "../hooks/usePriceQuotes";
 import { useVerseTokens } from "../hooks/useVerseTokens";
 import { STABLECOINS } from "../hooks/useStablecoinBalances";
@@ -27,29 +25,41 @@ export function MarketCard({ market }: MarketCardProps) {
     setSelectedBalance(balance);
   };
 
-  const { data: marketDetail } = useQuery({
-    queryKey: ["market", market.marketHash],
-    queryFn: () => fetchMarket(market.marketHash),
-    enabled: isExpanded,
-  });
-
-  // Query verse tokens directly from the contract (more reliable than backend)
-  const { data: verseTokens } = useVerseTokens(
-    isExpanded ? selectedAsset : undefined,
-    isExpanded ? market.marketHash : undefined
+  // Always fetch verse tokens for default asset to show probability in collapsed view
+  const { data: defaultVerseTokens } = useVerseTokens(
+    DEFAULT_ASSET,
+    market.marketHash
   );
+
+  // Query verse tokens for selected asset when expanded (may differ from default)
+  const { data: selectedVerseTokens } = useVerseTokens(
+    isExpanded && selectedAsset !== DEFAULT_ASSET ? selectedAsset : undefined,
+    isExpanded && selectedAsset !== DEFAULT_ASSET ? market.marketHash : undefined
+  );
+
+  // Use selected asset's verse tokens when expanded, otherwise use default
+  const verseTokens = isExpanded && selectedAsset !== DEFAULT_ASSET 
+    ? selectedVerseTokens 
+    : defaultVerseTokens;
 
   const selectedStablecoin = STABLECOINS.find(
     (s) => s.address.toLowerCase() === selectedAsset.toLowerCase()
   );
 
-  const { yesPrice, noPrice, yesProbability, noProbability, isLoading: priceLoading } =
-    usePriceQuotes(verseTokens?.yesVerse, verseTokens?.noVerse, selectedAsset);
+  // Always fetch prices using default asset for consistent probability display
+  const { yesProbability, noProbability } =
+    usePriceQuotes(defaultVerseTokens?.yesVerse, defaultVerseTokens?.noVerse, DEFAULT_ASSET);
 
-  // Use backend's mid-price probability when expanded, fall back to list API probability
-  const displayProbability = isExpanded && marketDetail?.yesProbability != null
-    ? Math.round(marketDetail.yesProbability * 100)
-    : (market.yesProbability != null ? Math.round(market.yesProbability * 100) : 50);
+  // Fetch prices for selected asset when expanded (for trading display)
+  const { yesPrice, noPrice, isLoading: priceLoading } =
+    usePriceQuotes(
+      isExpanded ? verseTokens?.yesVerse : undefined, 
+      isExpanded ? verseTokens?.noVerse : undefined, 
+      selectedAsset
+    );
+
+  // Always use live probability from default asset prices
+  const displayProbability = Math.round(yesProbability);
 
   const formatDeadline = (timestamp: number) => {
     return new Date(timestamp * 1000).toLocaleDateString("en-US", {
