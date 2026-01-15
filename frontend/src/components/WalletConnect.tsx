@@ -20,9 +20,10 @@ export function WalletConnect() {
     const webAuthnConnector = connectors.find((c) => c.id === "webAuthn");
     
     if (webAuthnConnector) {
+      // Access key is configured at the connector level in wagmi config
       const capabilities = isSignUp 
-        ? { type: 'sign-up' as const, label: `Binary ${new Date().toLocaleDateString()}`, grantAccessKey: true }
-        : { type: 'sign-in' as const, selectAccount: true, grantAccessKey: true };
+        ? { type: 'sign-up' as const, label: `Binary ${new Date().toLocaleDateString()}` }
+        : { type: 'sign-in' as const, selectAccount: true };
       
       connect(
         { 

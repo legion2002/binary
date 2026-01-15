@@ -20,8 +20,11 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.3",
-    "viem": "^2.44.2",
-    "wagmi": "^3.3.2"
+    "viem": "https://pkg.pr.new/viem@fcd86e9",
+    "wagmi": "https://pkg.pr.new/wagmi@18067c9"
+  },
+  "overrides": {
+    "viem": "https://pkg.pr.new/viem@fcd86e9"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

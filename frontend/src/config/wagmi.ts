@@ -49,6 +49,23 @@ const testnetWithFeeToken = {
 // Pick the right chain based on RPC URL
 export const tempoChain = isLocalDevnet ? localDevnet : testnetWithFeeToken;
 
+// Access key configuration - enables signing without passkey prompts
+// Expires in 24 hours, with spending limit of 1000 USD per transaction
+const accessKeyConfig = {
+  expiry: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours from now
+  limits: [
+    {
+      token: USD_TOKEN as `0x${string}`,
+      limit: BigInt(1000 * 1e6), // 1000 USD (6 decimals)
+    },
+    {
+      token: PATH_USD as `0x${string}`,
+      limit: BigInt(1000 * 1e6), // 1000 PATH_USD (6 decimals)
+    },
+  ],
+  strict: false, // Don't disconnect if access key is expired, just re-prompt
+};
+
 // Wagmi config with native Tempo support via webAuthn connector
 export const wagmiConfig = isLocalDevnet
   ? createConfig({
@@ -56,6 +73,7 @@ export const wagmiConfig = isLocalDevnet
       connectors: [
         webAuthn({
           keyManager: KeyManager.localStorage(),
+          grantAccessKey: accessKeyConfig,
         }),
       ],
       storage: createStorage({ storage: localStorage }),
@@ -69,6 +87,7 @@ export const wagmiConfig = isLocalDevnet
       connectors: [
         webAuthn({
           keyManager: KeyManager.localStorage(),
+          grantAccessKey: accessKeyConfig,
         }),
       ],
       storage: createStorage({ storage: localStorage }),
