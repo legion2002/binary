@@ -50,17 +50,17 @@ const testnetWithFeeToken = {
 export const tempoChain = isLocalDevnet ? localDevnet : testnetWithFeeToken;
 
 // Access key configuration - enables signing without passkey prompts
-// Expires in 24 hours, with spending limit of 1000 USD per transaction
+// Expires in 24 hours, with high spending limits
 const accessKeyConfig = {
   expiry: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours from now
   limits: [
     {
       token: USD_TOKEN as `0x${string}`,
-      limit: BigInt(1000 * 1e6), // 1000 USD (6 decimals)
+      limit: BigInt("1000000000000000"), // 1 billion USD (6 decimals)
     },
     {
       token: PATH_USD as `0x${string}`,
-      limit: BigInt(1000 * 1e6), // 1000 PATH_USD (6 decimals)
+      limit: BigInt("1000000000000000"), // 1 billion PATH_USD (6 decimals)
     },
   ],
   strict: false, // Don't disconnect if access key is expired, just re-prompt
