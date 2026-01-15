@@ -138,28 +138,21 @@ export async function deployUniV2(
 
   const broadcast = JSON.parse(readFileSync(broadcastPath, 'utf-8'))
   const transactions = broadcast.transactions as Array<{
+    transactionType?: string
     contractName?: string
     contractAddress?: string
   }>
 
-  let factory: Address | undefined
-  let router: Address | undefined
+  // UniV2 deployment uses inline assembly `create`, so contractName is null
+  // Parse by order: Factory is deployed first, Router second
+  const createTxs = transactions.filter(tx => tx.transactionType === 'CREATE' && tx.contractAddress)
 
-  for (const tx of transactions) {
-    if (tx.contractName === 'UniswapV2Factory' && tx.contractAddress) {
-      factory = tx.contractAddress as Address
-    }
-    if (tx.contractName === 'UniswapV2Router02' && tx.contractAddress) {
-      router = tx.contractAddress as Address
-    }
+  if (createTxs.length < 2) {
+    throw new Error(`Expected 2 CREATE transactions, got ${createTxs.length}`)
   }
 
-  if (!factory) {
-    throw new Error('UniswapV2Factory address not found in broadcast')
-  }
-  if (!router) {
-    throw new Error('UniswapV2Router02 address not found in broadcast')
-  }
+  const factory = createTxs[0].contractAddress as Address
+  const router = createTxs[1].contractAddress as Address
 
   // Use PATH_USD as WETH equivalent
   const weth = PATH_USD as Address

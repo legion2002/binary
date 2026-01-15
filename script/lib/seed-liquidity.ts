@@ -212,7 +212,8 @@ export async function seedMarketLiquidity(
     })
     console.log(`      ✓ Added ${Number(liquidityPerPair) / 1e6} YES + ${Number(liquidityPerPair) / 1e6} PATH_USD`)
   } catch (e: any) {
-    console.warn(`      Failed to add YES liquidity:`, e.message?.slice(0, 50))
+    console.warn(`      Failed to add YES liquidity:`, e.shortMessage || e.message?.slice(0, 100))
+    if (e.cause) console.warn(`        Cause:`, e.cause?.shortMessage || String(e.cause).slice(0, 100))
   }
 
   console.log(`    Adding liquidity to NO/PATH_USD pair...`)
@@ -225,7 +226,8 @@ export async function seedMarketLiquidity(
     })
     console.log(`      ✓ Added ${Number(liquidityPerPair) / 1e6} NO + ${Number(liquidityPerPair) / 1e6} PATH_USD`)
   } catch (e: any) {
-    console.warn(`      Failed to add NO liquidity:`, e.message?.slice(0, 50))
+    console.warn(`      Failed to add NO liquidity:`, e.shortMessage || e.message?.slice(0, 100))
+    if (e.cause) console.warn(`        Cause:`, e.cause?.shortMessage || String(e.cause).slice(0, 100))
   }
 
   console.log(`    ✓ Market liquidity seeded on UniV2`)

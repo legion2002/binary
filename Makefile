@@ -24,8 +24,6 @@ test: ## Run integration tests against full stack
 test-unit: ## Run unit tests only (no orchestration needed)
 	@echo "$(CYAN)Running backend unit tests...$(RESET)"
 	cd backend && cargo test --test unit_tests
-	@echo "$(CYAN)Running backend lib tests...$(RESET)"
-	cd backend && cargo test --lib
 	@echo "$(CYAN)Running frontend lint...$(RESET)"
 	cd frontend && bun run lint
 

@@ -51,12 +51,24 @@ export async function deployContracts(options: DeployOptions): Promise<ContractA
     }
   )
 
+  // Build UniswapV2 contracts explicitly (they use older Solc versions and aren't built by default)
+  execSync(
+    `forge build lib/v2-core/contracts/UniswapV2Factory.sol lib/v2-core/contracts/UniswapV2Pair.sol lib/v2-periphery/contracts/UniswapV2Router02.sol`,
+    {
+      stdio: verbose ? 'inherit' : 'pipe',
+      cwd: `${projectRoot}/contracts`,
+    }
+  )
+
   // Deploy UniswapV2 contracts
+  // Use --slow to send transactions one at a time (avoids tempo-foundry divide-by-zero bug
+  // when transactions are discarded)
   execSync(
     `forge script script/DeployUniV2.s.sol:DeployUniV2 \
       --rpc-url ${rpcUrl} \
       --broadcast \
       --private-key "${privateKey}" \
+      --slow \
       ${verbosity}`,
     {
       stdio: verbose ? 'inherit' : 'pipe',
@@ -205,20 +217,21 @@ export function parseUniV2BroadcastAddresses(projectRoot: string, specificChainI
 
   const broadcastJson = JSON.parse(readFileSync(broadcastPath, 'utf-8'))
   const transactions = broadcastJson.transactions as Array<{
+    transactionType?: string
     contractName?: string
     contractAddress?: string
   }>
 
+  // UniV2 deployment uses inline assembly `create`, so contractName is null
+  // Parse by order: Factory is deployed first, Router second
+  const createTxs = transactions.filter(tx => tx.transactionType === 'CREATE' && tx.contractAddress)
+  
   let uniV2Factory: string | undefined
   let uniV2Router: string | undefined
 
-  for (const tx of transactions) {
-    if (tx.contractName === 'UniswapV2Factory' && tx.contractAddress) {
-      uniV2Factory = tx.contractAddress
-    }
-    if (tx.contractName === 'UniswapV2Router02' && tx.contractAddress) {
-      uniV2Router = tx.contractAddress
-    }
+  if (createTxs.length >= 2) {
+    uniV2Factory = createTxs[0].contractAddress
+    uniV2Router = createTxs[1].contractAddress
   }
 
   return { uniV2Factory, uniV2Router }

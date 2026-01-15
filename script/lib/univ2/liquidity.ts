@@ -82,12 +82,16 @@ export async function ensureRouterApproval(
   if ((allowance as bigint) < amount) {
     // Use Tempo token.approve if available, otherwise use writeContract
     try {
-      await client.token.approve({
+      const hash = await client.token.approve({
         token,
         spender: router,
         amount: MAX_APPROVAL,
         feeToken: PATH_USD,
       })
+      // Wait for approval to be confirmed
+      if (hash) {
+        await client.waitForTransactionReceipt({ hash })
+      }
     } catch {
       const hash = await client.writeContract({
         address: token,
@@ -124,6 +128,9 @@ export async function addLiquidity(
   // Approve router for both tokens
   await ensureRouterApproval(client, tokenA, amountA)
   await ensureRouterApproval(client, tokenB, amountB)
+
+  // Brief delay to ensure approvals are confirmed
+  await new Promise(r => setTimeout(r, 500))
 
   // Add liquidity
   const hash = await client.writeContract({

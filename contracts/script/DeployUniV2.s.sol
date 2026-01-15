@@ -19,8 +19,8 @@ contract DeployUniV2 is Script {
         vm.startBroadcast();
 
         // Deploy Factory with deployer as feeToSetter
-        // Get bytecode from artifact
-        bytes memory factoryBytecode = vm.getCode("UniswapV2Factory.sol:UniswapV2Factory");
+        // Get bytecode from artifact path relative to project root
+        bytes memory factoryBytecode = vm.getCode("out/UniswapV2Factory.sol/UniswapV2Factory.json");
         bytes memory factoryInitCode = abi.encodePacked(factoryBytecode, abi.encode(msg.sender));
         
         address factory;
@@ -31,7 +31,7 @@ contract DeployUniV2 is Script {
         console.log("UniswapV2Factory deployed at:", factory);
 
         // Deploy Router02 with factory and PATH_USD as WETH
-        bytes memory routerBytecode = vm.getCode("UniswapV2Router02.sol:UniswapV2Router02");
+        bytes memory routerBytecode = vm.getCode("out/UniswapV2Router02.sol/UniswapV2Router02.json");
         bytes memory routerInitCode = abi.encodePacked(routerBytecode, abi.encode(factory, PATH_USD));
         
         address router;

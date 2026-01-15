@@ -7,6 +7,22 @@ import { FEE_TOKEN } from "../config/wagmi";
 export const UNIV2_ROUTER = (import.meta.env.VITE_UNIV2_ROUTER_ADDRESS ??
   "0x0000000000000000000000000000000000000000") as Address;
 
+// PATH_USD is used as the routing token for multi-hop swaps
+const PATH_USD = "0x20C0000000000000000000000000000000000000" as Address;
+
+/**
+ * Build swap path - routes through PATH_USD if neither token is PATH_USD
+ */
+function buildSwapPath(tokenIn: Address, tokenOut: Address): Address[] {
+  // If either token is PATH_USD, direct path works
+  if (tokenIn.toLowerCase() === PATH_USD.toLowerCase() || 
+      tokenOut.toLowerCase() === PATH_USD.toLowerCase()) {
+    return [tokenIn, tokenOut];
+  }
+  // Otherwise route through PATH_USD
+  return [tokenIn, PATH_USD, tokenOut];
+}
+
 // Router ABI (minimal - just what we need)
 const ROUTER_ABI = parseAbi([
   "function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)",
@@ -72,11 +88,12 @@ export function useUniV2BuyQuote({
   amountOut,
   query,
 }: BuyQuoteParams) {
+  const path = buildSwapPath(tokenIn, tokenOut);
   const result = useReadContract({
     address: UNIV2_ROUTER,
     abi: ROUTER_ABI,
     functionName: "getAmountsIn",
-    args: [amountOut, [tokenIn, tokenOut]],
+    args: [amountOut, path],
     query: {
       enabled:
         query?.enabled !== false &&
@@ -104,11 +121,12 @@ export function useUniV2SellQuote({
   amountIn,
   query,
 }: SellQuoteParams) {
+  const path = buildSwapPath(tokenIn, tokenOut);
   const result = useReadContract({
     address: UNIV2_ROUTER,
     abi: ROUTER_ABI,
     functionName: "getAmountsOut",
-    args: [amountIn, [tokenIn, tokenOut]],
+    args: [amountIn, path],
     query: {
       enabled:
         query?.enabled !== false &&
@@ -168,6 +186,9 @@ export function useUniV2BuySync() {
         args: [UNIV2_ROUTER, params.maxAmountIn],
       });
 
+      // Build swap path (routes through PATH_USD if needed)
+      const path = buildSwapPath(params.tokenIn, params.tokenOut);
+
       // Encode the swap call (buy exact amount out, pay up to maxAmountIn)
       const swapData = encodeFunctionData({
         abi: ROUTER_ABI,
@@ -175,7 +196,7 @@ export function useUniV2BuySync() {
         args: [
           params.amountOut,
           params.maxAmountIn,
-          [params.tokenIn, params.tokenOut],
+          path,
           account,
           deadline,
         ],
@@ -261,6 +282,9 @@ export function useUniV2SellSync() {
         args: [UNIV2_ROUTER, params.amountIn],
       });
 
+      // Build swap path (routes through PATH_USD if needed)
+      const path = buildSwapPath(params.tokenIn, params.tokenOut);
+
       // Encode the swap call (sell exact amount in, receive at least minAmountOut)
       const swapData = encodeFunctionData({
         abi: ROUTER_ABI,
@@ -268,7 +292,7 @@ export function useUniV2SellSync() {
         args: [
           params.amountIn,
           params.minAmountOut,
-          [params.tokenIn, params.tokenOut],
+          path,
           account,
           deadline,
         ],
