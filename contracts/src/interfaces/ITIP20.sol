@@ -4,7 +4,6 @@ pragma solidity ^0.8.13;
 /// @title The interface for TIP-20 compliant tokens
 /// @notice A token standard that extends ERC-20 with additional features including transfer policies, memo support, and pause functionality
 interface ITIP20 {
-
     /// @notice Error when attempting an operation while the contract is paused.
     error ContractPaused();
 
@@ -236,5 +235,4 @@ interface ITIP20 {
         external
         view
         returns (address rewardRecipient, uint256 rewardPerToken, uint256 rewardBalance);
-
 }

@@ -407,7 +407,12 @@ contract MultiVerse {
     function markets(bytes32 marketHash)
         public
         view
-        returns (uint32 resolutionDeadline, address oracle, bytes32 questionHash, Resolution resolution)
+        returns (
+            uint32 resolutionDeadline,
+            address oracle,
+            bytes32 questionHash,
+            Resolution resolution
+        )
     {
         MarketInfo storage market = _markets[marketHash];
         return (market.resolutionDeadline, market.oracle, market.questionHash, market.resolution);

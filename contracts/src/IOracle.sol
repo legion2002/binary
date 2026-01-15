@@ -7,12 +7,12 @@ pragma solidity ^0.8.20;
  * @notice Interface for oracles that resolve binary prediction markets
  * @dev Oracles are responsible for providing YES/NO resolutions to markets.
  *      They are the source of truth for determining which outcome occurred.
- *      
+ *
  *      Implementation requirements:
  *      - Must return a binary resolution (YES = true, NO = false)
  *      - Should revert if market is unknown or unresolved
  *      - Resolution should be immutable once set
- *      
+ *
  *      Example implementations:
  *      - Chainlink: Use price feeds to resolve price-based markets
  *      - UMA: Use optimistic oracle for general purpose resolution

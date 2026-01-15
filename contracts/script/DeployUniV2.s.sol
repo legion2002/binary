@@ -7,7 +7,7 @@ import "forge-std/Script.sol";
  * @title DeployUniV2
  * @notice Deploys UniswapV2 Factory and Router02 contracts
  * @dev Uses PATH_USD as the "WETH" equivalent since Tempo is stablecoin-native
- * 
+ *
  * Due to Solidity version incompatibilities between Factory (0.5.16) and Router (0.6.6),
  * we deploy them using bytecode from the built artifacts.
  */
@@ -22,7 +22,7 @@ contract DeployUniV2 is Script {
         // Get bytecode from artifact path relative to project root
         bytes memory factoryBytecode = vm.getCode("out/UniswapV2Factory.sol/UniswapV2Factory.json");
         bytes memory factoryInitCode = abi.encodePacked(factoryBytecode, abi.encode(msg.sender));
-        
+
         address factory;
         assembly {
             factory := create(0, add(factoryInitCode, 0x20), mload(factoryInitCode))
@@ -32,8 +32,9 @@ contract DeployUniV2 is Script {
 
         // Deploy Router02 with factory and PATH_USD as WETH
         bytes memory routerBytecode = vm.getCode("out/UniswapV2Router02.sol/UniswapV2Router02.json");
-        bytes memory routerInitCode = abi.encodePacked(routerBytecode, abi.encode(factory, PATH_USD));
-        
+        bytes memory routerInitCode =
+            abi.encodePacked(routerBytecode, abi.encode(factory, PATH_USD));
+
         address router;
         assembly {
             router := create(0, add(routerInitCode, 0x20), mload(routerInitCode))

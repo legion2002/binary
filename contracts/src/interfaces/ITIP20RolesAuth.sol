@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 interface ITIP20RolesAuth {
-
     error Unauthorized();
 
     event RoleMembershipUpdated(
@@ -19,5 +18,4 @@ interface ITIP20RolesAuth {
     function renounceRole(bytes32 role) external;
 
     function setRoleAdmin(bytes32 role, bytes32 adminRole) external;
-
 }
