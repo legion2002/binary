@@ -16,6 +16,7 @@
     "testnet:redeploy": "bun run script/env-testnet.ts --redeploy",
     "testnet:liquidity": "bun run script/seed-testnet-liquidity.ts",
     "production:liquidity": "bun run script/seed-production.ts",
+    "production:redeploy": "bun run script/production-redeploy.ts",
     "deploy:backend": "cd backend && fly deploy --cwd backend",
     "deploy:frontend": "cd frontend && bun run build && wrangler pages deploy dist --project-name=binary-markets",
     "install:all": "cd backend && cargo fetch && cd ../frontend && bun install && cd ../script && bun install",

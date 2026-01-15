@@ -1,7 +1,7 @@
 {
-  "factory": "0x150d16769fbe8c7ad3e7483ba2d698b1b91bd5bf",
-  "router": "0x131718ce934b94921be34abe69ef8d33e450f527",
+  "factory": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9",
+  "router": "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9",
   "weth": "0x20C0000000000000000000000000000000000000",
-  "chainId": 42431,
-  "deployedAt": "2026-01-15T07:59:29.776Z"
+  "chainId": 1337,
+  "deployedAt": "2026-01-15T08:56:18.224Z"
 }

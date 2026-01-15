@@ -620,6 +620,12 @@ body {
   padding: 0.25rem 0;
 }
 
+.split-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 /* Status Badge */
 .status-badge {
   display: inline-block;

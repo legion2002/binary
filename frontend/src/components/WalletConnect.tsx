@@ -21,8 +21,8 @@ export function WalletConnect() {
     
     if (webAuthnConnector) {
       const capabilities = isSignUp 
-        ? { type: 'sign-up' as const, label: `Binary ${new Date().toLocaleDateString()}` }
-        : { type: 'sign-in' as const, selectAccount: true };
+        ? { type: 'sign-up' as const, label: `Binary ${new Date().toLocaleDateString()}`, grantAccessKey: true }
+        : { type: 'sign-in' as const, selectAccount: true, grantAccessKey: true };
       
       connect(
         { 

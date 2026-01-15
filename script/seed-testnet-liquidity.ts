@@ -138,7 +138,7 @@ async function main() {
   console.log('')
   console.log('Step 1: Setting up stablecoin routing...')
   
-  const routingAmount = BigInt(1000) * BigInt(1e6) // 1000 tokens
+  const routingAmount = BigInt(10000) * BigInt(1e6) // 10000 tokens (10x liquidity)
 
   // Check if AlphaUSD/PathUSD pair exists
   const routingPairExists = await pairExists(client, ALPHA_USD as Address, PATH_USD as Address)
@@ -186,8 +186,8 @@ async function main() {
   console.log('')
   console.log('Step 3: Seeding market liquidity with UniV2...')
 
-  const seedAmount = BigInt(500) * BigInt(1e6) // 500 tokens to split
-  const liquidityPerPair = seedAmount / 2n // 250 per pair (YES and NO)
+  const seedAmount = BigInt(5000) * BigInt(1e6) // 5000 tokens to split (10x liquidity)
+  const liquidityPerPair = seedAmount / 2n // 2500 per pair (YES and NO)
 
   for (const market of markets) {
     console.log('')

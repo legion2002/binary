@@ -42,7 +42,7 @@ import {
  */
 export async function ensureStablecoinRouting(client: AnyTempoClient): Promise<void> {
   const account = client.account.address
-  const routingLiquidity = BigInt(10000) * BigInt(1e6) // 10k tokens per pair
+  const routingLiquidity = BigInt(100000) * BigInt(1e6) // 100k tokens per pair (10x liquidity)
 
   console.log('  Ensuring UniV2 contracts are deployed...')
   await ensureUniV2Deployed(client)
@@ -101,7 +101,7 @@ export interface SeedLiquidityConfig {
 }
 
 export const DEFAULT_SEED_CONFIG: SeedLiquidityConfig = {
-  seedAmount: BigInt(2000) * BigInt(1e6), // 2000 tokens
+  seedAmount: BigInt(20000) * BigInt(1e6), // 20000 tokens (10x liquidity)
 }
 
 export interface MarketLiquidityParams {

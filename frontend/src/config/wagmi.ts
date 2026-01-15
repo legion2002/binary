@@ -6,10 +6,10 @@ import { webAuthn, KeyManager } from "wagmi/tempo";
 const RPC_URL = import.meta.env.VITE_RPC_URL || "http://localhost:9545";
 
 // Fee payer URL - defaults to local, uses testnet sponsor when on testnet
-const isTestnet = RPC_URL.includes("testnet.tempo.xyz");
+const isTestnet = RPC_URL.includes("moderato.tempo.xyz");
 const FEE_PAYER_URL =
   import.meta.env.VITE_FEE_PAYER_URL ||
-  (isTestnet ? "https://sponsor.testnet.tempo.xyz" : undefined);
+  (isTestnet ? "https://sponsor.moderato.tempo.xyz" : undefined);
 
 // Token addresses on Tempo
 // AlphaUSD - the stablecoin users trade with

@@ -3,6 +3,8 @@ import { parseUnits, formatUnits, type Address } from "viem";
 import { useAccount } from "wagmi";
 import { useBuyQuote, useBuySync, useSellQuote, useSellSync } from "../hooks/useTempoDex";
 import { useSplit } from "../hooks/useSplit";
+import { useAddLiquidity } from "../hooks/useAddLiquidity";
+import { useTokenBalance } from "../hooks/useBalances";
 
 type TradeMode = "trade-yes" | "trade-no" | "split";
 type ActionType = "buy" | "sell";
@@ -26,7 +28,7 @@ export function TradePanel({
   selectedAsset,
   selectedBalance,
 }: TradePanelProps) {
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const [mode, setMode] = useState<TradeMode>("trade-yes");
   const [action, setAction] = useState<ActionType>("buy");
   const [amount, setAmount] = useState("");
@@ -35,11 +37,28 @@ export function TradePanel({
   const { mutate: buy, isPending: isBuyPending, error: buyError } = useBuySync();
   const { mutate: sell, isPending: isSellPending, error: sellError } = useSellSync();
   const { split, isPending: isSplitPending } = useSplit();
+  const { addLiquidity, isPending: isLiquidityPending } = useAddLiquidity();
+
+  // Fetch YES/NO token balances for sell validation
+  const { data: yesTokenBalance } = useTokenBalance({
+    account: address,
+    token: (yesTokenAddress ?? "0x0000000000000000000000000000000000000000") as Address,
+    enabled: !!yesTokenAddress && !!address,
+  });
+  const { data: noTokenBalance } = useTokenBalance({
+    account: address,
+    token: (noTokenAddress ?? "0x0000000000000000000000000000000000000000") as Address,
+    enabled: !!noTokenAddress && !!address,
+  });
 
   const displayError = tradeError || (buyError?.message) || (sellError?.message);
 
   const parsedAmount = amount ? parseUnits(amount, 6) : 0n;
-  const exceedsBalance = parsedAmount > selectedBalance;
+  
+  // For buying: check USD balance. For selling: check token balance.
+  const currentTokenBalance = mode === "trade-yes" ? (yesTokenBalance ?? 0n) : (noTokenBalance ?? 0n);
+  const relevantBalance = action === "sell" ? currentTokenBalance : selectedBalance;
+  const exceedsBalance = parsedAmount > relevantBalance;
 
   const currentToken = mode === "trade-yes" ? yesTokenAddress : noTokenAddress;
 
@@ -105,11 +124,27 @@ export function TradePanel({
   };
 
   const handleMaxClick = () => {
-    const maxAmount = Number(selectedBalance) / 1e6;
+    const maxAmount = Number(relevantBalance) / 1e6;
     setAmount(maxAmount.toString());
   };
 
-  const isPending = isBuyPending || isSellPending || isSplitPending;
+  const handleProvideLiquidity = async () => {
+    if (!yesTokenAddress || !noTokenAddress || !amount || !isConnected) return;
+    setTradeError(null);
+    try {
+      await addLiquidity({
+        tokenA: yesTokenAddress as Address,
+        tokenB: noTokenAddress as Address,
+        amountA: parsedAmount,
+        amountB: parsedAmount,
+      });
+    } catch (err) {
+      console.error("[TradePanel] Add liquidity error:", err);
+      setTradeError(err instanceof Error ? err.message : "Add liquidity failed");
+    }
+  };
+
+  const isPending = isBuyPending || isSellPending || isSplitPending || isLiquidityPending;
   const isQuoteLoading = buyQuoteLoading || sellQuoteLoading;
 
   const getQuoteDisplay = () => {
@@ -162,7 +197,7 @@ export function TradePanel({
               type="button"
               className="btn-max"
               onClick={handleMaxClick}
-              disabled={!isConnected || isPending || selectedBalance === 0n}
+              disabled={!isConnected || isPending || relevantBalance === 0n}
             >
               Max
             </button>
@@ -218,21 +253,37 @@ export function TradePanel({
       )}
 
       {mode === "split" ? (
-        <button
-          className="btn btn-primary"
-          onClick={handleTrade}
-          disabled={!isConnected || !amount || isPending || parseFloat(amount || "0") <= 0 || exceedsBalance}
-        >
-          {isPending ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="spinner" /> Processing...
-            </span>
-          ) : !isConnected ? (
-            "Connect Wallet"
-          ) : (
-            "Split USD"
-          )}
-        </button>
+        <div className="split-action-buttons">
+          <button
+            className="btn btn-primary"
+            onClick={handleTrade}
+            disabled={!isConnected || !amount || isPending || parseFloat(amount || "0") <= 0 || exceedsBalance}
+          >
+            {isSplitPending ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="spinner" /> Processing...
+              </span>
+            ) : !isConnected ? (
+              "Connect Wallet"
+            ) : (
+              "Split USD"
+            )}
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={handleProvideLiquidity}
+            disabled={!isConnected || !amount || isPending || parseFloat(amount || "0") <= 0 || !yesTokenAddress || !noTokenAddress}
+            title="Add equal YES and NO tokens as liquidity to earn trading fees"
+          >
+            {isLiquidityPending ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="spinner" /> Processing...
+              </span>
+            ) : (
+              "Provide Liquidity"
+            )}
+          </button>
+        </div>
       ) : (
         <div className="trade-action-buttons">
           <button
