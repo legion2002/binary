@@ -11,6 +11,8 @@ import { TESTNET_RPC_URL, TESTNET_CHAIN_ID } from './testnet'
 export interface ContractAddresses {
   multiverse: string
   oracle: string
+  uniV2Factory?: string
+  uniV2Router?: string
 }
 
 export interface DeployOptions {
@@ -49,9 +51,36 @@ export async function deployContracts(options: DeployOptions): Promise<ContractA
     }
   )
 
+  // Build UniswapV2 contracts explicitly (they use older Solc versions and aren't built by default)
+  execSync(
+    `forge build lib/v2-core/contracts/UniswapV2Factory.sol lib/v2-core/contracts/UniswapV2Pair.sol lib/v2-periphery/contracts/UniswapV2Router02.sol`,
+    {
+      stdio: verbose ? 'inherit' : 'pipe',
+      cwd: `${projectRoot}/contracts`,
+    }
+  )
+
+  // Deploy UniswapV2 contracts
+  // Use --slow to send transactions one at a time (avoids tempo-foundry divide-by-zero bug
+  // when transactions are discarded)
+  execSync(
+    `forge script script/DeployUniV2.s.sol:DeployUniV2 \
+      --rpc-url ${rpcUrl} \
+      --broadcast \
+      --private-key "${privateKey}" \
+      --slow \
+      ${verbosity}`,
+    {
+      stdio: verbose ? 'inherit' : 'pipe',
+      cwd: `${projectRoot}/contracts`,
+    }
+  )
+
   // Parse broadcast JSON to get contract addresses
   const addresses = parseBroadcastAddresses(projectRoot, chainId)
-  return addresses
+  const uniV2Addresses = parseUniV2BroadcastAddresses(projectRoot, chainId)
+  
+  return { ...addresses, ...uniV2Addresses }
 }
 
 /**
@@ -93,9 +122,28 @@ export async function deployContractsTestnet(options: {
     }
   )
 
+  // Deploy UniswapV2 contracts to testnet
+  console.log('  Deploying UniswapV2 contracts to Tempo testnet...')
+  execSync(
+    `${forgeCmd} script script/DeployUniV2.s.sol:DeployUniV2 \
+      --rpc-url ${TESTNET_RPC_URL} \
+      --chain ${TESTNET_CHAIN_ID} \
+      --broadcast \
+      --private-key "${privateKey}" \
+      --skip-simulation \
+      --slow \
+      -vvv`,
+    {
+      stdio: verbose ? 'inherit' : 'pipe',
+      cwd: `${projectRoot}/contracts`,
+    }
+  )
+
   // Parse broadcast JSON to get contract addresses
   const addresses = parseBroadcastAddresses(projectRoot, TESTNET_CHAIN_ID)
-  return addresses
+  const uniV2Addresses = parseUniV2BroadcastAddresses(projectRoot, TESTNET_CHAIN_ID)
+  
+  return { ...addresses, ...uniV2Addresses }
 }
 
 export function parseBroadcastAddresses(projectRoot: string, specificChainId?: number): ContractAddresses {
@@ -144,6 +192,49 @@ export function parseBroadcastAddresses(projectRoot: string, specificChainId?: n
   }
 
   return { multiverse, oracle }
+}
+
+export function parseUniV2BroadcastAddresses(projectRoot: string, specificChainId?: number): { uniV2Factory?: string; uniV2Router?: string } {
+  // If specific chain ID provided, try that first
+  // Otherwise try dev chain ID first (1337), then Tempo testnet (42431)
+  const chainIds = specificChainId
+    ? [String(specificChainId), '1337', '42431']
+    : ['1337', '42431']
+  let broadcastPath: string | undefined
+
+  for (const chainId of chainIds) {
+    const path = join(projectRoot, `contracts/broadcast/DeployUniV2.s.sol/${chainId}/run-latest.json`)
+    if (existsSync(path)) {
+      broadcastPath = path
+      break
+    }
+  }
+
+  if (!broadcastPath) {
+    console.warn('UniV2 broadcast file not found, skipping UniV2 addresses')
+    return {}
+  }
+
+  const broadcastJson = JSON.parse(readFileSync(broadcastPath, 'utf-8'))
+  const transactions = broadcastJson.transactions as Array<{
+    transactionType?: string
+    contractName?: string
+    contractAddress?: string
+  }>
+
+  // UniV2 deployment uses inline assembly `create`, so contractName is null
+  // Parse by order: Factory is deployed first, Router second
+  const createTxs = transactions.filter(tx => tx.transactionType === 'CREATE' && tx.contractAddress)
+  
+  let uniV2Factory: string | undefined
+  let uniV2Router: string | undefined
+
+  if (createTxs.length >= 2) {
+    uniV2Factory = createTxs[0].contractAddress
+    uniV2Router = createTxs[1].contractAddress
+  }
+
+  return { uniV2Factory, uniV2Router }
 }
 
 export function getProjectRoot(): string {

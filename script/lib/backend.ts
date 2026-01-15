@@ -61,6 +61,8 @@ export async function startBackend(options: BackendOptions): Promise<BackendProc
     PORT: String(port),
     MULTIVERSE_ADDRESS: contracts.multiverse,
     ORACLE_ADDRESS: contracts.oracle,
+    UNIV2_FACTORY_ADDRESS: contracts.uniV2Factory,
+    UNIV2_ROUTER_ADDRESS: contracts.uniV2Router,
     RPC_URL: rpcUrl,
     PRIVATE_KEY: TEST_PRIVATE_KEY,
     DATABASE_URL: mode === 'dev' ? 'sqlite:./dev.db?mode=rwc' : 'sqlite::memory:',

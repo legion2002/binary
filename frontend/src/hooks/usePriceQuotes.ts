@@ -1,5 +1,5 @@
 import { type Address, parseUnits, formatUnits } from "viem";
-import { Hooks } from "wagmi/tempo";
+import { useBuyQuote } from "./useTempoDex";
 
 // Default quote token (AlphaUSD)
 const DEFAULT_QUOTE_TOKEN = "0x20C0000000000000000000000000000000000001" as Address;
@@ -20,7 +20,7 @@ export function usePriceQuotes(
 ): PriceQuotesResult {
   const tokenIn = quoteToken ?? DEFAULT_QUOTE_TOKEN;
 
-  const { data: yesBuyQuote, isLoading: yesLoading } = Hooks.dex.useBuyQuote({
+  const { data: yesBuyQuote, isLoading: yesLoading } = useBuyQuote({
     tokenIn,
     tokenOut: (yesTokenAddress ?? tokenIn) as Address,
     amountOut: ONE_TOKEN,
@@ -29,7 +29,7 @@ export function usePriceQuotes(
     },
   });
 
-  const { data: noBuyQuote, isLoading: noLoading } = Hooks.dex.useBuyQuote({
+  const { data: noBuyQuote, isLoading: noLoading } = useBuyQuote({
     tokenIn,
     tokenOut: (noTokenAddress ?? tokenIn) as Address,
     amountOut: ONE_TOKEN,

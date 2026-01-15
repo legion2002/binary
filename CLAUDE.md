@@ -129,7 +129,8 @@ bun run test:e2e
 |----------|---------|
 | TIP-20 Factory | `0x20Fc000000000000000000000000000000000000` |
 | PATH_USD | `0x20C0000000000000000000000000000000000000` |
-| Stablecoin DEX | `0xDEc0000000000000000000000000000000000000` |
+| UniV2 Factory | Deployed dynamically (see `.univ2-config.json`) |
+| UniV2 Router | Deployed dynamically (see `.univ2-config.json`) |
 
 ## Contract Deployment
 
@@ -167,7 +168,7 @@ bun run testnet:backend
 3. Deploys contracts only if not already deployed (or `--redeploy` flag used)
 4. Starts backend with persistent SQLite database
 5. Seeds markets via admin API (idempotent - duplicates ignored)
-6. Seeds DEX liquidity (pair creation is idempotent)
+6. Seeds UniV2 liquidity (pair creation is idempotent)
 7. Starts frontend (unless `--skip-frontend`)
 
 ### Persistent Files
@@ -228,10 +229,34 @@ FORGE_PATH=/path/to/tempo-foundry/target/release/forge bun run testnet
 - **Testnet faucet (viem)**: Call `client.faucet.fund({ account: address })` after extending client with `tempoActions()`. Funds 1M of each stablecoin.
 - **Test private key**: `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` (address: `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`) - prefunded on local devnet.
 
-## Stablecoin DEX Gotchas
+## UniswapV2 AMM
 
-- **Minimum order size**: The Stablecoin DEX requires a minimum order size of 100 tokens (100_000_000 with 6 decimals). Orders below this fail with `BelowMinimumOrderSize` error (`0x46628371`).
-- **DEX tick range**: The DEX only supports ±2% from peg (tick range ±2000), meaning prices from $0.98 to $1.02. This limits prediction market probability ranges to ~49-51% when using mid-prices.
-- **Use viem/tempo native actions**: Prefer `client.token.approve()`, `client.dex.placeSync()`, `client.dex.createPair()` over raw `writeContract()` calls. Raw calls may fail with `InsufficientAllowance` (`0x13be252b`) even with correct approvals.
-- **Common DEX error signatures**: `0x46628371` = `BelowMinimumOrderSize(uint128)`, `0x13be252b` = `InsufficientAllowance()`, `0xbb55fd27` = `InsufficientLiquidity()`.
-- **DEX pairs must exist before trading**: Operations like `dex.placeSync()` fail with `PairDoesNotExist` error if the token pair hasn't been created first. Use `client.dex.createPair({ base: token, feeToken: PATH_USD })` before placing orders. Pair creation is idempotent (ignores `PairAlreadyExists`).
+The prediction markets use UniswapV2 for token swaps and liquidity, replacing the previous Stablecoin DEX precompile.
+
+### Deployed Contracts
+- **UniV2 Factory**: Deployed via `DeployUniV2.s.sol`
+- **UniV2 Router02**: Deployed via `DeployUniV2.s.sol`
+- **WETH equivalent**: PATH_USD (`0x20C0...0000`) is used as the WETH address
+
+### Key Differences from Stablecoin DEX
+- **AMM vs Orderbook**: UniV2 uses constant-product AMM (`x*y=k`) instead of limit orderbook
+- **Probability from reserves**: Price = `quote_reserve / base_reserve`, probability = `yes_price / (yes_price + no_price)`
+- **Liquidity provision**: Use `addLiquidity()` instead of placing limit orders
+- **No tick constraints**: Full price range supported (unlike DEX's ±2% tick range)
+
+### Scripts
+- `script/lib/univ2/` - UniV2 deployment, pair creation, liquidity, and swap functions
+- `createPair(tokenA, tokenB)` - Create trading pair
+- `addLiquidity({ tokenA, tokenB, amountA, amountB })` - Provide liquidity
+- `swapExactTokensForTokens(...)` - Execute swaps
+
+### Environment Variables
+- `VITE_UNIV2_ROUTER_ADDRESS` - Frontend UniV2 Router address
+- `VITE_UNIV2_FACTORY_ADDRESS` - Frontend UniV2 Factory address  
+- `UNIV2_FACTORY_ADDRESS` - Backend UniV2 Factory address
+
+### Implementation Notes
+- **UniV2 config file**: Deployed addresses are persisted to `.univ2-config.json` for idempotent redeployment. Delete this file to force redeploy.
+- **Deploying UniV2 with forge**: Uses `vm.getCode()` to load bytecode from artifacts since Factory (0.5.16) and Router (0.6.6) have incompatible Solidity versions.
+- **UniV2 Router deadline**: Always pass a deadline parameter (e.g., `BigInt(Math.floor(Date.now() / 1000) + 1800)` for 30 min).
+- **50/50 probability seeding**: Add equal liquidity to YES/PATH_USD and NO/PATH_USD pairs (1:1 ratio) for initial 50/50 market probability.

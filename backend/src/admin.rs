@@ -1,6 +1,6 @@
 use crate::contract::ContractClient;
 use crate::db::Database;
-use crate::tempo_orderbook::{OrderbookInfo, PATH_USD_ADDRESS};
+use crate::tempo_amm::{PairInfo, PATH_USD_ADDRESS};
 use alloy::primitives::{Address, FixedBytes};
 use axum::{
     extract::State,
@@ -52,7 +52,7 @@ pub struct OpenMarketResponse {
     pub oracle: String,
     pub transaction_hash: String,
     pub verse_tokens: Vec<VerseTokenInfo>,
-    pub orderbooks: Vec<OrderbookInfo>,
+    pub pairs: Vec<PairInfo>,
 }
 
 #[derive(Debug, Serialize)]
@@ -224,47 +224,47 @@ pub async fn open_market(
         }
     }
 
-    // Get orderbook info for created verse tokens
+    // Get AMM pair info for created verse tokens
     // Parse quote token address (defaults to pathUSD)
     let quote_token = request.quote_token
         .as_ref()
         .and_then(|addr| addr.parse::<Address>().ok())
         .unwrap_or(PATH_USD_ADDRESS);
 
-    let mut orderbooks = Vec::new();
+    let mut pairs = Vec::new();
     for &asset in &assets {
-        // Try to get orderbook info for each asset's verse tokens
+        // Try to get pair info for each asset's verse tokens
         match state
             .contract_client
-            .get_market_orderbooks(market_hash, asset, quote_token)
+            .get_market_pairs(market_hash, asset, quote_token)
             .await
         {
             Ok(infos) => {
-                // Store orderbook info in database
+                // Store pair info in database
                 if let Err(e) = state
                     .db
-                    .insert_orderbook_market(
+                    .insert_pair_market(
                         market_hash,
                         asset,
                         quote_token,
-                        infos.iter().find(|i| i.pair_type == "YES/QUOTE").map(|i| i.pair_key.clone()),
-                        infos.iter().find(|i| i.pair_type == "NO/QUOTE").map(|i| i.pair_key.clone()),
+                        infos.iter().find(|i| i.pair_type == "YES/QUOTE").map(|i| i.pair_address.clone()),
+                        infos.iter().find(|i| i.pair_type == "NO/QUOTE").map(|i| i.pair_address.clone()),
                     )
                     .await
                 {
-                    tracing::error!("Failed to store orderbook info in database: {}", e);
+                    tracing::error!("Failed to store pair info in database: {}", e);
                 }
-                orderbooks.extend(infos);
+                pairs.extend(infos);
             }
             Err(e) => {
-                tracing::debug!("No orderbook info available for asset {:?}: {}", asset, e);
+                tracing::debug!("No pair info available for asset {:?}: {}", asset, e);
             }
         }
     }
 
     tracing::info!(
-        "Market created with {} orderbook pairs",
-        orderbooks.len()
+        "Market created with {} AMM pairs",
+        pairs.len()
     );
 
     // Return success response
@@ -278,7 +278,7 @@ pub async fn open_market(
             oracle: format!("{:?}", state.oracle_address),
             transaction_hash: format!("{:?}", tx_hash),
             verse_tokens,
-            orderbooks,
+            pairs,
         }),
     )
         .into_response()
@@ -319,7 +319,7 @@ pub struct AddMarketResponse {
     pub oracle: String,
     pub resolution: String,
     pub verse_tokens: Vec<AddMarketVerseToken>,
-    pub orderbooks: Vec<OrderbookInfo>,
+    pub pairs: Vec<PairInfo>,
 }
 
 /// POST /admin/markets/add
@@ -451,14 +451,14 @@ pub async fn add_market(
         }
     };
 
-    // Store verse tokens and fetch orderbook info
+    // Store verse tokens and fetch pair info
     let quote_token = request.quote_token
         .as_ref()
         .and_then(|addr| addr.parse::<Address>().ok())
         .unwrap_or(PATH_USD_ADDRESS);
 
     let mut verse_tokens = Vec::new();
-    let mut orderbooks = Vec::new();
+    let mut pairs = Vec::new();
 
     for (asset, yes_verse, no_verse) in verse_events {
         // Store verse tokens in database
@@ -476,39 +476,39 @@ pub async fn add_market(
             no_verse: format!("{:?}", no_verse),
         });
 
-        // Fetch orderbook info for this asset
+        // Fetch pair info for this asset
         match state
             .contract_client
-            .get_market_orderbooks(market_hash, asset, quote_token)
+            .get_market_pairs(market_hash, asset, quote_token)
             .await
         {
             Ok(infos) => {
-                // Store orderbook info in database
+                // Store pair info in database
                 if let Err(e) = state
                     .db
-                    .insert_orderbook_market(
+                    .insert_pair_market(
                         market_hash,
                         asset,
                         quote_token,
-                        infos.iter().find(|i| i.pair_type == "YES/QUOTE").map(|i| i.pair_key.clone()),
-                        infos.iter().find(|i| i.pair_type == "NO/QUOTE").map(|i| i.pair_key.clone()),
+                        infos.iter().find(|i| i.pair_type == "YES/QUOTE").map(|i| i.pair_address.clone()),
+                        infos.iter().find(|i| i.pair_type == "NO/QUOTE").map(|i| i.pair_address.clone()),
                     )
                     .await
                 {
-                    tracing::error!("Failed to store orderbook info in database: {}", e);
+                    tracing::error!("Failed to store pair info in database: {}", e);
                 }
-                orderbooks.extend(infos);
+                pairs.extend(infos);
             }
             Err(e) => {
-                tracing::debug!("No orderbook info available for asset {:?}: {}", asset, e);
+                tracing::debug!("No pair info available for asset {:?}: {}", asset, e);
             }
         }
     }
 
     tracing::info!(
-        "Market added with {} verse tokens and {} orderbook pairs",
+        "Market added with {} verse tokens and {} AMM pairs",
         verse_tokens.len(),
-        orderbooks.len()
+        pairs.len()
     );
 
     // Return success response
@@ -522,7 +522,7 @@ pub async fn add_market(
             oracle: market_info.oracle,
             resolution: market_info.resolution,
             verse_tokens,
-            orderbooks,
+            pairs,
         }),
     )
         .into_response()

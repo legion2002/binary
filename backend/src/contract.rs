@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::bindings::r#multi_verse::MultiVerse;
 use crate::bindings::r#multi_verse::MultiVerse::VerseTokensCreated;
-use crate::tempo_orderbook::{StablecoinExchangeClient, OrderbookInfo, get_market_orderbook_info};
+use crate::tempo_amm::{UniV2Client, PairInfo, get_market_pair_info};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,6 +31,7 @@ pub struct VerseAddresses {
 
 pub struct ContractClient {
     multiverse_address: Address,
+    univ2_factory_address: Address,
     provider: DynProvider,
     signer: PrivateKeySigner,
 }
@@ -38,11 +39,13 @@ pub struct ContractClient {
 impl ContractClient {
     pub fn new(
         multiverse_address: Address,
+        univ2_factory_address: Address,
         provider: DynProvider,
         signer: PrivateKeySigner,
     ) -> Self {
         Self {
             multiverse_address,
+            univ2_factory_address,
             provider,
             signer,
         }
@@ -233,40 +236,44 @@ impl ContractClient {
         }
     }
 
-    /// Get orderbook info for market tokens
-    /// Returns orderbook state for YES and NO verse tokens
-    pub async fn get_market_orderbooks(
+    /// Get AMM pair info for market tokens
+    /// Returns pair state for YES and NO verse tokens
+    pub async fn get_market_pairs(
         &self,
         market_hash: FixedBytes<32>,
         asset: Address,
         quote_token: Address,
-    ) -> Result<Vec<OrderbookInfo>, String> {
+    ) -> Result<Vec<PairInfo>, String> {
         // Get verse token addresses
         let (yes_token, no_token) = self.get_verse_addresses_raw(asset, market_hash).await
             .map_err(|e| format!("Failed to get verse addresses: {}", e))?;
 
-        // Create orderbook client
-        let client = StablecoinExchangeClient::new(Arc::new(self.provider.clone()));
+        // Create UniV2 client
+        let client = UniV2Client::new(Arc::new(self.provider.clone()), self.univ2_factory_address);
 
-        // Get orderbook info for both tokens
-        get_market_orderbook_info(&client, yes_token, no_token, quote_token)
+        // Get pair info for both tokens
+        get_market_pair_info(&client, yes_token, no_token, quote_token)
             .await
-            .map_err(|e| format!("Failed to get orderbook info: {}", e))
+            .map_err(|e| format!("Failed to get pair info: {}", e))
     }
 
-    /// Quote a swap on the Tempo DEX
+    /// Get price from UniV2 pair
     #[allow(dead_code)]
-    pub async fn quote_swap(
+    pub async fn get_price(
         &self,
         token_in: Address,
         token_out: Address,
-        amount_in: u128,
-    ) -> Result<u128, String> {
-        let client = StablecoinExchangeClient::new(Arc::new(self.provider.clone()));
+    ) -> Result<f64, String> {
+        let client = UniV2Client::new(Arc::new(self.provider.clone()), self.univ2_factory_address);
 
-        client.quote_swap_exact_in(token_in, token_out, amount_in)
+        let pair_address = client.get_pair(token_in, token_out)
             .await
-            .map_err(|e| format!("Failed to quote swap: {}", e))
+            .map_err(|e| format!("Failed to get pair: {}", e))?
+            .ok_or("Pair does not exist")?;
+
+        client.get_price(token_in, token_out, pair_address)
+            .await
+            .map_err(|e| format!("Failed to get price: {}", e))
     }
 
     /// Helper to get raw verse addresses (returns Address instead of String)

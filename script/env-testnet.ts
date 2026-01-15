@@ -46,6 +46,7 @@ import {
   DEFAULT_SEED_CONFIG,
   ensureStablecoinRouting,
 } from './lib/seed-liquidity'
+import { initUniV2Config } from './lib/univ2'
 import type { Address } from 'viem'
 
 // Colors for console output
@@ -226,6 +227,16 @@ async function main(): Promise<void> {
       console.log(green('  Contracts deployed'))
       console.log(`    MultiVerse: ${env.contracts.multiverse}`)
       console.log(`    Oracle:     ${env.contracts.oracle}`)
+      if (env.contracts.uniV2Factory && env.contracts.uniV2Router) {
+        console.log(`    UniV2 Factory: ${env.contracts.uniV2Factory}`)
+        console.log(`    UniV2 Router:  ${env.contracts.uniV2Router}`)
+        // Initialize UniV2 config for liquidity seeding
+        initUniV2Config(
+          env.contracts.uniV2Factory as Address,
+          env.contracts.uniV2Router as Address,
+          TESTNET_CHAIN_ID
+        )
+      }
     }
 
     // Step 4: Start backend
@@ -317,6 +328,8 @@ async function main(): Promise<void> {
       env.frontend = await startFrontend({
         projectRoot,
         rpcUrl: TESTNET_RPC_URL,
+        uniV2Factory: env.contracts?.uniV2Factory,
+        uniV2Router: env.contracts?.uniV2Router,
         verbose,
       })
       console.log(green('  Frontend running at ' + env.frontend.url))
@@ -358,6 +371,8 @@ async function startBackendTestnet(options: {
     PORT: String(port),
     MULTIVERSE_ADDRESS: contracts.multiverse,
     ORACLE_ADDRESS: contracts.oracle,
+    UNIV2_FACTORY_ADDRESS: contracts.uniV2Factory,
+    UNIV2_ROUTER_ADDRESS: contracts.uniV2Router,
     RPC_URL: TESTNET_RPC_URL,
     PRIVATE_KEY: process.env.PRIVATE_KEY,
     DATABASE_URL: process.env.DATABASE_URL || 'sqlite:./testnet.db?mode=rwc',

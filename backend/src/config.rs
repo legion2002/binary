@@ -9,6 +9,7 @@ pub struct Config {
     pub port: u16,
     pub multiverse_address: Address,
     pub oracle_address: Address,
+    pub univ2_factory_address: Address,
     pub provider: DynProvider,
     pub signer: PrivateKeySigner,
     pub admin_api_key_hash: String,
@@ -42,6 +43,11 @@ impl Config {
             .parse()
             .expect("ORACLE_ADDRESS must be a valid Ethereum address");
 
+        let univ2_factory_address = env::var("UNIV2_FACTORY_ADDRESS")
+            .expect("UNIV2_FACTORY_ADDRESS must be set")
+            .parse()
+            .expect("UNIV2_FACTORY_ADDRESS must be a valid Ethereum address");
+
         let rpc_url = env::var("RPC_URL").expect("RPC_URL must be set");
 
         let provider = ProviderBuilder::new().connect(&rpc_url).await?.erased();
@@ -61,6 +67,7 @@ impl Config {
             port,
             multiverse_address,
             oracle_address,
+            univ2_factory_address,
             provider,
             signer,
             admin_api_key_hash,

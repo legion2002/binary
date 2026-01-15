@@ -1,21 +1,18 @@
 /**
- * Seed liquidity for prediction markets on the Stablecoin DEX
+ * Seed liquidity for prediction markets using UniswapV2
  *
  * Strategy:
- * - The Tempo DEX only supports ±2% from peg (tick range ±2000)
- * - For prediction markets, we seed YES/NO tokens at prices near 1.0
+ * - UniV2 AMM provides constant-product liquidity
+ * - For prediction markets, we seed YES/NO tokens against PATH_USD
  * - Probability is derived from relative prices: yesProbability = yesPrice / (yesPrice + noPrice)
  * - For 50/50 markets, both YES and NO should have the same price (~1.0)
  *
  * Flow:
- * 1. Ensure stablecoin routing pairs exist (AlphaUSD/pathUSD, etc.)
- * 2. Split stablecoins into YES/NO tokens
- * 3. Create DEX pairs for YES/quote and NO/quote
- * 4. Place symmetric bid/ask orders around the peg
- *
- * Important: The DEX routes all swaps through pathUSD. When a user swaps
- * YES → AlphaUSD, it actually routes: YES → pathUSD → AlphaUSD.
- * This means we need liquidity on AlphaUSD/pathUSD pair for routing to work!
+ * 1. Ensure UniV2 contracts are deployed
+ * 2. Ensure stablecoin routing pairs exist (AlphaUSD/PATH_USD, etc.)
+ * 3. Split stablecoins into YES/NO tokens
+ * 4. Create UniV2 pairs for YES/PATH_USD and NO/PATH_USD
+ * 5. Add liquidity at 1:1 ratio (50/50 probability)
  */
 
 import {
@@ -27,21 +24,28 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTempoClient = any
 
-// Stablecoin DEX precompile address
-const STABLECOIN_DEX = '0xDEc0000000000000000000000000000000000000' as const
-
 // Token addresses (imported from tempo.ts)
 import { PATH_USD, ALPHA_USD } from './tempo'
 export { PATH_USD, ALPHA_USD }
 
+// UniV2 imports
+import {
+  ensureUniV2Deployed,
+  createPair,
+  addLiquidity,
+  pairExists,
+} from './univ2'
+
 /**
  * Ensure stablecoin routing pairs have liquidity
- * The DEX routes all swaps through pathUSD, so we need liquidity on
- * standard stablecoin pairs like AlphaUSD/pathUSD for routing to work.
+ * UniV2 pairs for stablecoin routing (e.g., AlphaUSD/PATH_USD)
  */
 export async function ensureStablecoinRouting(client: AnyTempoClient): Promise<void> {
   const account = client.account.address
   const routingLiquidity = BigInt(10000) * BigInt(1e6) // 10k tokens per pair
+
+  console.log('  Ensuring UniV2 contracts are deployed...')
+  await ensureUniV2Deployed(client)
 
   console.log('  Ensuring stablecoin routing liquidity...')
 
@@ -61,71 +65,29 @@ export async function ensureStablecoinRouting(client: AnyTempoClient): Promise<v
     console.log('    (Mint not available, assuming account is funded)')
   }
 
-  // Create AlphaUSD/pathUSD pair if it doesn't exist
-  try {
-    await client.dex.createPair({
-      base: ALPHA_USD as `0x${string}`,
-      feeToken: PATH_USD,
-    })
-    console.log('    Created AlphaUSD/pathUSD pair')
-  } catch (e: unknown) {
-    const error = e as Error
-    if (error.message?.includes('PAIR_EXISTS') || error.message?.includes('PairAlreadyExists')) {
-      console.log('    AlphaUSD/pathUSD pair already exists')
-    } else {
-      console.log('    AlphaUSD pair creation failed:', error.message?.slice(0, 50))
-    }
+  // Create AlphaUSD/PATH_USD pair if it doesn't exist
+  const exists = await pairExists(client, ALPHA_USD as Address, PATH_USD as Address)
+  if (!exists) {
+    console.log('    Creating AlphaUSD/PATH_USD pair...')
+    await createPair(client, ALPHA_USD as Address, PATH_USD as Address)
+    console.log('    Created AlphaUSD/PATH_USD pair')
+  } else {
+    console.log('    AlphaUSD/PATH_USD pair already exists')
   }
 
-  // Approve DEX to spend both tokens
-  const maxApproval = BigInt(2) ** BigInt(128) - 1n
-  await client.token.approve({
-    token: PATH_USD as `0x${string}`,
-    spender: STABLECOIN_DEX,
-    amount: maxApproval,
-    feeToken: PATH_USD,
-  })
-  await client.token.approve({
-    token: ALPHA_USD as `0x${string}`,
-    spender: STABLECOIN_DEX,
-    amount: maxApproval,
-    feeToken: PATH_USD,
-  })
-
-  // Wait for approvals
-  await new Promise(r => setTimeout(r, 500))
-
-  // Place orders at tick=0 (1:1 price) for AlphaUSD/pathUSD
-  // Bids: buy AlphaUSD with pathUSD
-  // Asks: sell AlphaUSD for pathUSD
-  // Use place() instead of placeSync() to avoid event parsing issues on testnet
+  // Add liquidity to the pair
   try {
-    await client.dex.place({
-      token: ALPHA_USD as `0x${string}`,
-      amount: routingLiquidity,
-      type: 'buy',
-      tick: -10, // Slightly below peg
-      feeToken: PATH_USD,
+    await addLiquidity(client, {
+      tokenA: ALPHA_USD as Address,
+      tokenB: PATH_USD as Address,
+      amountA: routingLiquidity,
+      amountB: routingLiquidity,
     })
-    await client.dex.place({
-      token: ALPHA_USD as `0x${string}`,
-      amount: routingLiquidity,
-      type: 'sell',
-      tick: 10, // Slightly above peg
-      feeToken: PATH_USD,
-    })
-    console.log('    ✓ Placed AlphaUSD/pathUSD routing liquidity')
+    console.log('    ✓ Added AlphaUSD/PATH_USD routing liquidity')
   } catch (e: any) {
-    // Ignore if orders already exist or get matched
-    if (!e.message?.includes('OrderPlaced')) {
-      console.log('    ✓ Routing liquidity placement attempted')
-    }
+    console.log('    ✓ Routing liquidity addition attempted:', e.message?.slice(0, 50))
   }
 }
-
-// DEX constants
-const PRICE_SCALE = 100_000
-const TICK_SPACING = 10
 
 // ABIs (only for operations not covered by tempo actions)
 const multiVerseAbi = parseAbi([
@@ -136,22 +98,10 @@ const multiVerseAbi = parseAbi([
 export interface SeedLiquidityConfig {
   /** Amount of each stablecoin to use for seeding (in base units, 6 decimals) */
   seedAmount: bigint
-  /** Number of price levels to seed on each side */
-  numLevels: number
-  /** Tick step between levels (must be multiple of TICK_SPACING=10) */
-  tickStep: number
-  /** Amount per order level (in base units) */
-  amountPerLevel: bigint
 }
 
-// Minimum order size on the DEX is 100 tokens (100_000_000 with 6 decimals)
-const MIN_ORDER_SIZE = 100_000_000n
-
 export const DEFAULT_SEED_CONFIG: SeedLiquidityConfig = {
-  seedAmount: BigInt(2000) * BigInt(1e6), // 2000 tokens (enough for 5 levels * 2 sides * 2 tokens)
-  numLevels: 3, // Fewer levels to stay above minimum
-  tickStep: 20, // 2 basis points per level
-  amountPerLevel: BigInt(150) * BigInt(1e6), // 150 tokens per level (above 100 min)
+  seedAmount: BigInt(2000) * BigInt(1e6), // 2000 tokens
 }
 
 export interface MarketLiquidityParams {
@@ -161,33 +111,15 @@ export interface MarketLiquidityParams {
 }
 
 /**
- * Convert a price to a tick value
- * Formula: tick = (price - 1) * PRICE_SCALE
- */
-export function priceToTick(price: number): number {
-  const tick = Math.round((price - 1) * PRICE_SCALE)
-  // Round to nearest tick spacing
-  return Math.round(tick / TICK_SPACING) * TICK_SPACING
-}
-
-/**
- * Convert a tick to a price value
- * Formula: price = 1 + tick / PRICE_SCALE
- */
-export function tickToPrice(tick: number): number {
-  return 1 + tick / PRICE_SCALE
-}
-
-/**
- * Seed liquidity for a single market
+ * Seed liquidity for a single market using UniV2
  */
 export async function seedMarketLiquidity(
   client: AnyTempoClient,
   params: MarketLiquidityParams,
   config: SeedLiquidityConfig = DEFAULT_SEED_CONFIG
 ): Promise<{
-  yesOrderIds: bigint[]
-  noOrderIds: bigint[]
+  yesPair: Address
+  noPair: Address
 }> {
   const { marketHash, multiVerseAddress, quoteToken } = params
   const account = client.account.address
@@ -243,170 +175,64 @@ export async function seedMarketLiquidity(
     feeToken: PATH_USD,
   })
 
-  // Step 5: Create DEX pairs for YES and NO tokens
-  console.log(`    Creating DEX pairs...`)
-  try {
-    await client.dex.createPair({
-      base: yesVerse,
-      feeToken: PATH_USD,
-    })
-    console.log(`      Created YES/quote pair`)
-  } catch (e: unknown) {
-    const error = e as Error
-    if (error.message?.includes('PAIR_EXISTS') || error.message?.includes('PairAlreadyExists')) {
-      console.log(`      YES/quote pair already exists`)
-    } else {
-      throw e
-    }
-  }
-
-  try {
-    await client.dex.createPair({
-      base: noVerse,
-      feeToken: PATH_USD,
-    })
-    console.log(`      Created NO/quote pair`)
-  } catch (e: unknown) {
-    const error = e as Error
-    if (error.message?.includes('PAIR_EXISTS') || error.message?.includes('PairAlreadyExists')) {
-      console.log(`      NO/quote pair already exists`)
-    } else {
-      throw e
-    }
-  }
-
-  // Step 5: Mint additional PATH_USD for bid orders (bids require quote token)
-  console.log(`    Minting PATH_USD for bid orders...`)
+  // Step 5: Mint PATH_USD for liquidity (need to provide both sides)
+  console.log(`    Minting PATH_USD for liquidity...`)
   try {
     await client.token.mint({
       token: PATH_USD as `0x${string}`,
       to: account,
-      amount: config.seedAmount,
+      amount: config.seedAmount * 2n, // Need PATH_USD for both YES and NO pairs
     })
   } catch (e) {
     console.log(`    (Mint not available for PATH_USD, assuming account is funded)`)
   }
 
-  // Step 6: Approve DEX to spend YES, NO, and PATH_USD tokens
-  // Use client.token.approve for proper TIP-20 approval handling
-  const maxApproval = BigInt(2) ** BigInt(128) - 1n // Max uint128
-  console.log(`    Approving DEX to spend tokens...`)
-  await client.token.approve({
-    token: yesVerse,
-    spender: STABLECOIN_DEX,
-    amount: maxApproval,
-    feeToken: PATH_USD,
-  })
-  await client.token.approve({
-    token: noVerse,
-    spender: STABLECOIN_DEX,
-    amount: maxApproval,
-    feeToken: PATH_USD,
-  })
-  await client.token.approve({
-    token: PATH_USD as `0x${string}`,
-    spender: STABLECOIN_DEX,
-    amount: maxApproval,
-    feeToken: PATH_USD,
-  })
-  
-  // Wait for approvals to be confirmed
-  await new Promise(r => setTimeout(r, 1000))
+  // Step 6: Create UniV2 pairs and add liquidity
+  console.log(`    Creating UniV2 pairs...`)
 
-  // Step 7: Place orders for YES and NO tokens
-  // We place symmetric orders around tick=0 (price=1.0)
-  // For 50/50 probability: YES and NO should have same prices
-  const yesOrderIds: bigint[] = []
-  const noOrderIds: bigint[] = []
+  // Create YES/PATH_USD pair
+  const yesPair = await createPair(client, yesVerse as Address, PATH_USD as Address)
+  console.log(`      YES/PATH_USD pair: ${yesPair}`)
 
-  console.log(`    Placing ${config.numLevels} levels of orders...`)
+  // Create NO/PATH_USD pair
+  const noPair = await createPair(client, noVerse as Address, PATH_USD as Address)
+  console.log(`      NO/PATH_USD pair: ${noPair}`)
 
-  for (let level = 0; level < config.numLevels; level++) {
-    // Calculate ticks for this level
-    // Bids are below peg (negative ticks), asks are above peg (positive ticks)
-    const bidOffset = (level + 1) * config.tickStep
-    const askOffset = (level + 1) * config.tickStep
+  // Step 7: Add liquidity at 1:1 ratio (50/50 probability)
+  // Half of seed amount goes to each pair
+  const liquidityPerPair = config.seedAmount / 2n
 
-    const bidTick = -bidOffset as unknown as number
-    const askTick = askOffset as unknown as number
-
-    // Calculate amount with decay (less liquidity at outer levels)
-    // But ensure we stay above minimum order size
-    const decay = Math.pow(0.9, level) // 10% decay per level (gentler)
-    const rawAmount = BigInt(Math.floor(Number(config.amountPerLevel) * decay))
-    const levelAmount = rawAmount > MIN_ORDER_SIZE ? rawAmount : MIN_ORDER_SIZE
-
-    // Place YES bids (buy YES with quote token)
-    // Use place() instead of placeSync() to avoid event parsing issues on testnet
-    try {
-      await client.dex.place({
-        token: yesVerse,
-        amount: levelAmount,
-        type: 'buy',
-        tick: bidTick,
-        feeToken: PATH_USD,
-      })
-      yesOrderIds.push(BigInt(level * 4 + 1)) // Placeholder ID
-    } catch (e: any) {
-      if (!e.message?.includes('OrderPlaced')) {
-        console.warn(`      Failed to place YES bid at tick ${bidTick}:`, e.message?.slice(0, 50))
-      }
-    }
-
-    // Place YES asks (sell YES for quote token)
-    try {
-      await client.dex.place({
-        token: yesVerse,
-        amount: levelAmount,
-        type: 'sell',
-        tick: askTick,
-        feeToken: PATH_USD,
-      })
-      yesOrderIds.push(BigInt(level * 4 + 2))
-    } catch (e: any) {
-      if (!e.message?.includes('OrderPlaced')) {
-        console.warn(`      Failed to place YES ask at tick ${askTick}:`, e.message?.slice(0, 50))
-      }
-    }
-
-    // Place NO bids (buy NO with quote token)
-    try {
-      await client.dex.place({
-        token: noVerse,
-        amount: levelAmount,
-        type: 'buy',
-        tick: bidTick,
-        feeToken: PATH_USD,
-      })
-      noOrderIds.push(BigInt(level * 4 + 3))
-    } catch (e: any) {
-      if (!e.message?.includes('OrderPlaced')) {
-        console.warn(`      Failed to place NO bid at tick ${bidTick}:`, e.message?.slice(0, 50))
-      }
-    }
-
-    // Place NO asks (sell NO for quote token)
-    try {
-      await client.dex.place({
-        token: noVerse,
-        amount: levelAmount,
-        type: 'sell',
-        tick: askTick,
-        feeToken: PATH_USD,
-      })
-      noOrderIds.push(BigInt(level * 4 + 4))
-    } catch (e: any) {
-      if (!e.message?.includes('OrderPlaced')) {
-        console.warn(`      Failed to place NO ask at tick ${askTick}:`, e.message?.slice(0, 50))
-      }
-    }
-
-    console.log(`      Level ${level + 1}: bid@${tickToPrice(bidTick).toFixed(4)} ask@${tickToPrice(askTick).toFixed(4)} amount=${Number(levelAmount) / 1e6}`)
+  console.log(`    Adding liquidity to YES/PATH_USD pair...`)
+  try {
+    await addLiquidity(client, {
+      tokenA: yesVerse as Address,
+      tokenB: PATH_USD as Address,
+      amountA: liquidityPerPair,
+      amountB: liquidityPerPair,
+    })
+    console.log(`      ✓ Added ${Number(liquidityPerPair) / 1e6} YES + ${Number(liquidityPerPair) / 1e6} PATH_USD`)
+  } catch (e: any) {
+    console.warn(`      Failed to add YES liquidity:`, e.shortMessage || e.message?.slice(0, 100))
+    if (e.cause) console.warn(`        Cause:`, e.cause?.shortMessage || String(e.cause).slice(0, 100))
   }
 
-  console.log(`    ✓ Placed ${yesOrderIds.length} YES orders and ${noOrderIds.length} NO orders`)
+  console.log(`    Adding liquidity to NO/PATH_USD pair...`)
+  try {
+    await addLiquidity(client, {
+      tokenA: noVerse as Address,
+      tokenB: PATH_USD as Address,
+      amountA: liquidityPerPair,
+      amountB: liquidityPerPair,
+    })
+    console.log(`      ✓ Added ${Number(liquidityPerPair) / 1e6} NO + ${Number(liquidityPerPair) / 1e6} PATH_USD`)
+  } catch (e: any) {
+    console.warn(`      Failed to add NO liquidity:`, e.shortMessage || e.message?.slice(0, 100))
+    if (e.cause) console.warn(`        Cause:`, e.cause?.shortMessage || String(e.cause).slice(0, 100))
+  }
 
-  return { yesOrderIds, noOrderIds }
+  console.log(`    ✓ Market liquidity seeded on UniV2`)
+
+  return { yesPair, noPair }
 }
 
 /**
@@ -429,3 +255,7 @@ export async function seedMarketsLiquidity(
 
   console.log(`✓ Liquidity seeding complete`)
 }
+
+// Legacy exports for backwards compatibility (these are no longer used but kept for reference)
+export const priceToTick = (price: number): number => Math.round((price - 1) * 100_000)
+export const tickToPrice = (tick: number): number => 1 + tick / 100_000

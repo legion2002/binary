@@ -4,3 +4,12 @@
 [submodule "contracts/lib/solady"]
 	path = contracts/lib/solady
 	url = https://github.com/vectorized/solady
+[submodule "contracts/lib/v2-core"]
+	path = contracts/lib/v2-core
+	url = https://github.com/Uniswap/v2-core
+[submodule "contracts/lib/v2-periphery"]
+	path = contracts/lib/v2-periphery
+	url = https://github.com/Uniswap/v2-periphery
+[submodule "contracts/lib/solidity-lib"]
+	path = contracts/lib/solidity-lib
+	url = https://github.com/Uniswap/solidity-lib

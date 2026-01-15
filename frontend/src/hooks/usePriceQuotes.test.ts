@@ -3,17 +3,13 @@ import { renderHook } from "@testing-library/react";
 import { usePriceQuotes } from "./usePriceQuotes";
 import { parseUnits } from "viem";
 
-vi.mock("wagmi/tempo", () => ({
-  Hooks: {
-    dex: {
-      useBuyQuote: vi.fn(),
-    },
-  },
+vi.mock("./useTempoDex", () => ({
+  useBuyQuote: vi.fn(),
 }));
 
-import { Hooks } from "wagmi/tempo";
+import { useBuyQuote } from "./useTempoDex";
 
-const mockUseBuyQuote = Hooks.dex.useBuyQuote as ReturnType<typeof vi.fn>;
+const mockUseBuyQuote = useBuyQuote as ReturnType<typeof vi.fn>;
 
 describe("usePriceQuotes", () => {
   beforeEach(() => {
