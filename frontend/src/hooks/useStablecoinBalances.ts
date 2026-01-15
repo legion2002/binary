@@ -88,8 +88,16 @@ export function useStablecoinBalances() {
   const isLoading =
     alphaQuery.isLoading || pathQuery.isLoading || betaQuery.isLoading || thetaQuery.isLoading;
 
+  const refetch = () => {
+    alphaQuery.refetch();
+    pathQuery.refetch();
+    betaQuery.refetch();
+    thetaQuery.refetch();
+  };
+
   return {
     balances,
     isLoading,
+    refetch,
   };
 }

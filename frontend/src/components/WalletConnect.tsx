@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { FundButton } from "./FundButton";
 
 export function WalletConnect() {
   const { address, isConnected } = useAccount();
@@ -51,6 +52,7 @@ export function WalletConnect() {
         >
           {copied ? "Copied!" : formatAddress(address)}
         </span>
+        <FundButton />
         <button
           className="wallet-btn"
           onClick={() => disconnect()}

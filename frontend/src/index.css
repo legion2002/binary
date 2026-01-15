@@ -834,3 +834,222 @@ body {
   color: var(--accent-red);
   margin-top: 0.25rem;
 }
+
+/* Fund Button */
+.fund-button-container {
+  position: relative;
+}
+
+.fund-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--accent-yellow-dim);
+  border: 1px solid var(--accent-yellow);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.fund-btn:hover:not(:disabled) {
+  background: var(--accent-yellow);
+}
+
+.fund-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.fund-btn-content {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.fund-icon {
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.spinner-small {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-primary);
+  border-top-color: var(--accent-yellow);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.fund-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  min-width: 280px;
+  margin-top: 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.fund-dropdown-section {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.fund-dropdown-section:last-of-type {
+  border-bottom: none;
+}
+
+.fund-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.fund-token-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fund-token-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.fund-token-option:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-secondary);
+}
+
+.fund-token-option.selected {
+  background: var(--accent-yellow-dim);
+  border-color: var(--accent-yellow);
+}
+
+.fund-token-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+}
+
+.fund-token-symbol {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fund-token-name {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.fund-token-balance {
+  font-weight: 500;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.fund-amount-input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-primary);
+}
+
+.fund-amount-prefix {
+  padding: 0.5rem 0 0.5rem 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.fund-amount-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem 0.5rem 0.25rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.fund-amount-input::-webkit-inner-spin-button,
+.fund-amount-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.fund-amount-presets {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.fund-preset-btn {
+  flex: 1;
+  padding: 0.375rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.fund-preset-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-secondary);
+}
+
+.fund-preset-btn.selected {
+  background: var(--accent-yellow-dim);
+  border-color: var(--accent-yellow);
+  color: var(--text-primary);
+}
+
+.fund-dropdown-footer {
+  padding: 0.75rem;
+  border-top: 1px solid var(--border-primary);
+}
+
+.fund-action-btn {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--accent-yellow);
+  border: 1px solid var(--accent-yellow-hover);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.fund-action-btn:hover:not(:disabled) {
+  background: var(--accent-yellow-hover);
+}
+
+.fund-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
