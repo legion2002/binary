@@ -41,6 +41,8 @@ const localDevnet = {
 
 const testnetWithFeeToken = {
   ...tempoTestnet,
+  id: 42431, // Moderato chain ID (tempoTestnet defaults to Andantino 42429)
+  name: "Tempo Testnet (Moderato)",
   rpcUrls: {
     default: { http: [RPC_URL] },
   },
