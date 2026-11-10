@@ -375,6 +375,7 @@ async function startBackendTestnet(options: {
     PORT: String(port),
     MULTIVERSE_ADDRESS: contracts.multiverse,
     ORACLE_ADDRESS: contracts.oracle,
+    ...(contracts.councilOracle ? { COUNCIL_ORACLE_ADDRESS: contracts.councilOracle } : {}),
     UNIV2_FACTORY_ADDRESS: contracts.uniV2Factory,
     UNIV2_ROUTER_ADDRESS: contracts.uniV2Router,
     RPC_URL: TESTNET_RPC_URL,

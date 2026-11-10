@@ -197,6 +197,18 @@ Retrieve detailed information about a specific market.
 curl "http://127.0.0.1:3000/markets/0x123abc..."
 ```
 
+
+**Council oracle markets** (opened with `MARKET_ORACLE=council`) also carry `council`, so anyone can check what the market is pinned to: recompute `questionHash = sha256(JCS({"question": question, "salt": questionSalt}))` and compare it, and `councilHash`, with `CouncilOracle.markets(marketHash)` on chain. `queryId` names the council query that resolved it (null until then).
+
+```json
+"council": {
+  "councilHash": "0x...",
+  "questionSalt": "0x0123456789abcdef0123456789abcdef",
+  "questionHash": "0x...",
+  "queryId": "qry_01J..."
+}
+```
+
 #### 3. Get Verse Tokens for Market
 
 Retrieve all verse tokens associated with a specific market.
@@ -337,6 +349,10 @@ curl -X POST http://127.0.0.1:3000/admin/markets/open \
   }'
 ```
 
+With `MARKET_ORACLE=council` the market is opened with the CouncilOracle, registered with it (`registerMarket`) and the response carries `council` (`councilHash`, `questionSalt`, `questionHash`). If registration fails the market stays open and the response is `500` with those values; resolving the market registers it.
+
+Markets opened before the switch or imported with `/admin/markets/add` have no stored question salt and cannot be resolved through the council.
+
 #### 5. Add Existing Market
 
 Add an existing on-chain market to the database. This is useful for markets created by others that you want to track.
@@ -407,6 +423,67 @@ curl -X POST http://127.0.0.1:3000/admin/markets/add \
   }'
 ```
 
+#### 6. Resolve Market Through the Council
+
+**Endpoint:** `POST /admin/markets/:marketHash/resolve`
+
+Only when the backend runs with `MARKET_ORACLE=council` and the market was opened with the council oracle. Asks the AI council (Witan) to decide the market question from the given evidence (a paid query), verifies the signed decision record against `COUNCIL_SIGNERS`, submits it to `CouncilOracle.resolve`, then calls `MultiVerse.resolve`. Registers the market with the oracle first if opening it could not. The call takes as long as the council does (up to `COUNCIL_TIMEOUT_SECS`).
+
+**Headers:**
+```
+Authorization: Bearer <API_KEY>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "evidence": [
+    {"party": "yes", "text": "The official results page lists Team A as the winner."},
+    {"party": "no", "text": "No counter-evidence."}
+  ]
+}
+```
+
+**Request Fields:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `evidence` | array | Yes | One entry per party of the council config, in any order |
+| `evidence[].party` | string | Yes | Party name, `[a-z0-9_-]{1,32}` |
+| `evidence[].text` | string | Yes | Evidence text, within the council's per-party limit |
+
+**Response:** `200 OK`
+```json
+{
+  "marketHash": "0x123abc...",
+  "queryId": "qry_01J...",
+  "queryIdHash": "0x...",
+  "outcome": "YES",
+  "digest": "0x...",
+  "signer": "0x...",
+  "oracleTransactionHash": "0x...",
+  "multiverseTransactionHash": "0x...",
+  "multiverseError": null,
+  "record": { "query_id": "qry_01J...", "council_hash": "0x...", "evidence_root": "0x...", "outcome": {"type": "binary", "value": "yes"}, "...": "..." }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: council oracle not configured, invalid market hash, empty evidence, or the market uses another oracle
+- `401 Unauthorized`: Missing or invalid API key
+- `404 Not Found`: Market not in the database
+- `409 Conflict`: already resolved, registered with another council or question, or no stored council question
+- `422 Unprocessable Entity`: the council decided neither yes nor no (`{"error", "queryId", "outcome"}`); the market stays open and can be resolved again with a new query
+- `502 Bad Gateway`: the council query, its verification or the on-chain call failed
+
+**Example Request:**
+```bash
+curl -X POST http://127.0.0.1:3000/admin/markets/0x123abc.../resolve \
+  -H 'Authorization: Bearer a1b2c3d4e5f6...' \
+  -H 'Content-Type: application/json' \
+  -d '{"evidence": [{"party": "yes", "text": "..."}, {"party": "no", "text": "..."}]}'
+```
+
 ## Database Schema
 
 The backend uses SQLite to store indexed market data:
@@ -420,7 +497,11 @@ CREATE TABLE markets (
     oracle TEXT NOT NULL,
     block_number INTEGER NOT NULL,
     indexed_at INTEGER NOT NULL,
-    question_text TEXT
+    question_text TEXT,
+    council_hash TEXT,           -- council oracle markets: council config hash
+    council_question_salt TEXT,  -- question salt
+    council_question_hash TEXT,  -- sha256(JCS({"question","salt"})), registered on chain
+    council_query_id TEXT        -- council query that resolved the market
 );
 ```
 
@@ -475,6 +556,20 @@ DATABASE_URL=sqlite:///path/to/markets.db
 
 # Admin Authentication
 ADMIN_API_KEY_HASH=$2b$12$...  # Bcrypt hash from generate_api_key
+
+# Oracle selection: "trusted" (default) or "council" (resolve through the Witan AI council)
+MARKET_ORACLE=council
+COUNCIL_ORACLE_ADDRESS=0x...  # CouncilOracle (or "councilOracle" in deployments.json)
+COUNCIL_HASH=0x...            # council config hash new markets are pinned to
+COUNCIL_SIGNERS=0x...         # trusted council record signers, comma-separated (required)
+COUNCIL_URL=https://...       # council API base URL (falls back to WITAN_URL)
+COUNCIL_CLI=witan             # witan CLI binary
+COUNCIL_PRIVATE_KEY=0x...     # Tempo key that pays for council queries over MPP
+COUNCIL_NETWORK=moderato      # Tempo network the CLI pays on (moderato | tempo)
+COUNCIL_MAX_PRICE=0.10        # optional: most to pay per query in USD
+COUNCIL_QUERY_DIR=./council-queries  # where query files (question, salts, evidence) are kept
+COUNCIL_TIMEOUT_SECS=300      # optional
+COUNCIL_ALLOW_DEV=0           # 1 accepts a local council's test attestations
 ```
 
 **Note on Tempo:** The backend now uses Tempo's native Stablecoin DEX for orderbook-based trading. The DEX is available at the precompile address `0xDEc0000000000000000000000000000000000000` on Tempo networks.

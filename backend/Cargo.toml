@@ -33,6 +33,10 @@ thiserror = "2.0"
 # Hex encoding/decoding
 hex = "0.4"
 
+# Council oracle: decision records are RFC 8785 (JCS) JSON hashed with SHA-256
+serde_json_canonicalizer = "0.4"
+sha2 = "0.10"
+
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
 chrono = "0.4"

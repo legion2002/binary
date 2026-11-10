@@ -198,6 +198,47 @@ binary/
 
 ---
 
+## Oracle: Witan council
+
+Markets can resolve from a decision of Witan, a council of AI models that decides a question and signs the result. The council oracle sits next to the trusted oracle: set `MARKET_ORACLE=council` on the backend to open new markets with it.
+
+### How it works
+
+1. **Market creation.** `POST /admin/markets/open` picks a random 16-byte question salt and computes the salted question hash `sha256(JCS({"question": q, "salt": salt}))` (RFC 8785 canonical JSON). It opens the market on the MultiVerse with `CouncilOracle` as its oracle and calls `CouncilOracle.registerMarket(marketHash, councilHash, questionHash)`, which pins the market to one council config (`COUNCIL_HASH`) and that question, once. The salt and hashes are stored and published in the market API, so anyone can recompute them.
+2. **Resolution.** `POST /admin/markets/:marketHash/resolve` with evidence per party runs `witan query open --question-salt <salt> ...` (paid per call over MPP on Tempo), checks the record with `witan query verify` against the pinned signers, repeats the contract's checks locally, and sends `CouncilOracle.resolve(marketHash, recordJcs, commitmentsJcs, signature)`. Then it calls `MultiVerse.resolve`.
+3. **On chain**, `CouncilOracle.resolve`:
+   - hashes the record bytes with SHA-256 (the record's digest) and recovers the EIP-191 signer, which must be a trusted signer;
+   - requires `"council_hash"` to equal the registered council;
+   - recomputes `evidence_root = sha256({"commitments":[...],"question_hash":"0x..."})` from the registered question hash and the record's commitments, and requires the record's `"evidence_root"` to match, which proves the council decided this exact question;
+   - reads `"outcome"`: `{"type":"binary","value":"yes"}` resolves YES, `"no"` resolves NO. Anything else (an invalid decision) reverts, the market stays open, and it can be resolved with a new query.
+
+   The resolution is final once set. The contract reads fields by byte pattern; `contracts/src/CouncilOracle.sol` documents why the first match is always the real field.
+
+### Trust model
+
+- **Signer pinned on chain.** Only records signed by an address the owner trusts (`setSigner`) resolve markets. Witan v1 runs without a hardware TEE, so the council's signer key is the trust root: whoever holds it can sign any outcome.
+- **Council config pinned by hash.** The models, voting rule and outcome type are fixed by the council hash registered for the market. Use a council with a binary outcome.
+- **Question pinned by salted hash.** The council cannot be asked a different question for the market. The salt keeps short questions from being guessed from public records until the backend publishes it.
+- **The resolver chooses the evidence.** Evidence goes to the council encrypted and is not on chain; a resolver could give the council slanted evidence. That is why only resolvers (`setResolver`) may submit records. Each query file (question, salts and evidence) is kept in `COUNCIL_QUERY_DIR` and checks against the record's commitments.
+
+### Setup
+
+```bash
+# Deploy CouncilOracle alongside the other contracts (deployer = owner and resolver)
+COUNCIL_SIGNER=0x<council signer> forge script script/Deploy.s.sol:Deploy --broadcast ...
+
+# Backend (see backend/.env.example)
+MARKET_ORACLE=council
+COUNCIL_ORACLE_ADDRESS=0x...        # or "councilOracle" in deployments.json
+COUNCIL_HASH=0x...                  # council config every new market is pinned to
+COUNCIL_SIGNERS=0x...               # trusted record signers, comma-separated
+COUNCIL_URL=https://...             # council API (or WITAN_URL)
+COUNCIL_PRIVATE_KEY=0x...           # Tempo key that pays for queries
+COUNCIL_CLI=witan                   # path to the witan CLI
+```
+
+---
+
 ## API Documentation
 
 See [backend/API.md](backend/API.md) for full API documentation.
@@ -210,6 +251,12 @@ curl http://127.0.0.1:3000/markets
 
 # Get single market
 curl http://127.0.0.1:3000/markets/{marketHash}
+
+# Resolve a council oracle market (admin)
+curl -X POST http://127.0.0.1:3000/admin/markets/{marketHash}/resolve \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"evidence": [{"party": "yes", "text": "..."}, {"party": "no", "text": "..."}]}'
 
 # Create market (admin)
 curl -X POST http://127.0.0.1:3000/admin/markets/open \

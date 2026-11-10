@@ -5,6 +5,9 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::sync::Arc;
+
+use crate::council::CouncilSettings;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,6 +17,9 @@ pub struct ChainDeployment {
     pub oracle: String,
     pub uni_v2_factory: String,
     pub uni_v2_router: String,
+    /// CouncilOracle address, when deployed
+    #[serde(default)]
+    pub council_oracle: Option<String>,
 }
 
 #[derive(Clone)]
@@ -22,7 +28,10 @@ pub struct Config {
     pub port: u16,
     pub chain_id: u64,
     pub multiverse_address: Address,
+    /// Oracle new markets are opened with: TrustedOracle, or CouncilOracle when MARKET_ORACLE=council
     pub oracle_address: Address,
+    /// Council settings when MARKET_ORACLE=council
+    pub council: Option<Arc<CouncilSettings>>,
     pub univ2_factory_address: Address,
     pub univ2_router_address: Address,
     pub provider: DynProvider,
@@ -57,7 +66,7 @@ impl Config {
 
         // Load deployment addresses
         // Priority: env vars (for local dev) > deployments.json (for production)
-        let (multiverse_address, oracle_address, univ2_factory_address, univ2_router_address) = 
+        let (multiverse_address, oracle_address, univ2_factory_address, univ2_router_address, deployed_council_oracle) =
             if let (Ok(mv), Ok(or), Ok(uf), Ok(ur)) = (
                 env::var("MULTIVERSE_ADDRESS"),
                 env::var("ORACLE_ADDRESS"),
@@ -70,6 +79,7 @@ impl Config {
                     or.parse().expect("Invalid ORACLE_ADDRESS"),
                     uf.parse().expect("Invalid UNIV2_FACTORY_ADDRESS"),
                     ur.parse().expect("Invalid UNIV2_ROUTER_ADDRESS"),
+                    None,
                 )
             } else {
                 // Fall back to deployments.json
@@ -91,8 +101,33 @@ impl Config {
                     deployment.oracle.parse().expect("Invalid oracle in deployments.json"),
                     deployment.uni_v2_factory.parse().expect("Invalid uniV2Factory in deployments.json"),
                     deployment.uni_v2_router.parse().expect("Invalid uniV2Router in deployments.json"),
+                    deployment.council_oracle.clone().filter(|s| !s.is_empty()),
                 )
             };
+
+        // Oracle selection: MARKET_ORACLE=council opens markets with the CouncilOracle and
+        // resolves them through the AI council; anything else keeps the TrustedOracle.
+        let market_oracle = env::var("MARKET_ORACLE").unwrap_or_else(|_| "trusted".to_string());
+        let (oracle_address, council) = match market_oracle.as_str() {
+            "council" => {
+                let address: Address = env::var("COUNCIL_ORACLE_ADDRESS")
+                    .ok()
+                    .or(deployed_council_oracle)
+                    .expect("MARKET_ORACLE=council needs COUNCIL_ORACLE_ADDRESS (or councilOracle in deployments.json)")
+                    .parse()
+                    .expect("Invalid COUNCIL_ORACLE_ADDRESS");
+                let settings = CouncilSettings::from_env(address)?;
+                tracing::info!(
+                    "Council oracle {:?}, council {}, {} pinned signer(s)",
+                    address,
+                    crate::council::hex32(settings.council_hash),
+                    settings.signers.len()
+                );
+                (address, Some(Arc::new(settings)))
+            }
+            "trusted" => (oracle_address, None),
+            other => anyhow::bail!("MARKET_ORACLE must be 'trusted' or 'council', got {other:?}"),
+        };
 
         // Load private key for signing transactions
         let private_key = env::var("PRIVATE_KEY").expect("PRIVATE_KEY must be set");
@@ -110,6 +145,7 @@ impl Config {
             chain_id,
             multiverse_address,
             oracle_address,
+            council,
             univ2_factory_address,
             univ2_router_address,
             provider,

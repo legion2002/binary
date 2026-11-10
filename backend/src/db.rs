@@ -12,6 +12,14 @@ pub struct Market {
     pub block_number: i64,
     pub indexed_at: i64,
     pub question_text: Option<String>,
+    /// Council config hash the market is pinned to (council oracle markets only)
+    pub council_hash: Option<String>,
+    /// Question salt: question hash = sha256(JCS({"question","salt"}))
+    pub council_question_salt: Option<String>,
+    /// Salted question hash registered with the council oracle
+    pub council_question_hash: Option<String>,
+    /// Council query whose decision resolved the market
+    pub council_query_id: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -80,6 +88,18 @@ impl Database {
         )
         .execute(&pool)
         .await;
+
+        // Council oracle columns (same ignore-if-exists pattern)
+        for column in [
+            "council_hash",
+            "council_question_salt",
+            "council_question_hash",
+            "council_query_id",
+        ] {
+            let _ = sqlx::query(&format!("ALTER TABLE markets ADD COLUMN {column} TEXT"))
+                .execute(&pool)
+                .await;
+        }
 
         // Create verse_tokens table
         sqlx::query(
@@ -182,7 +202,8 @@ impl Database {
     pub async fn get_all_markets(&self) -> anyhow::Result<Vec<Market>> {
         let markets = sqlx::query_as::<_, Market>(
             r#"
-            SELECT market_hash, question_hash, resolution_deadline, oracle, block_number, indexed_at, question_text
+            SELECT market_hash, question_hash, resolution_deadline, oracle, block_number, indexed_at, question_text,
+                   council_hash, council_question_salt, council_question_hash, council_query_id
             FROM markets
             ORDER BY block_number DESC
             "#,
@@ -201,7 +222,8 @@ impl Database {
     ) -> anyhow::Result<Vec<Market>> {
         let markets = sqlx::query_as::<_, Market>(
             r#"
-            SELECT market_hash, question_hash, resolution_deadline, oracle, block_number, indexed_at, question_text
+            SELECT market_hash, question_hash, resolution_deadline, oracle, block_number, indexed_at, question_text,
+                   council_hash, council_question_salt, council_question_hash, council_query_id
             FROM markets
             ORDER BY block_number DESC
             LIMIT ? OFFSET ?
@@ -219,7 +241,8 @@ impl Database {
     pub async fn get_market(&self, market_hash: &str) -> anyhow::Result<Option<Market>> {
         let market = sqlx::query_as::<_, Market>(
             r#"
-            SELECT market_hash, question_hash, resolution_deadline, oracle, block_number, indexed_at, question_text
+            SELECT market_hash, question_hash, resolution_deadline, oracle, block_number, indexed_at, question_text,
+                   council_hash, council_question_salt, council_question_hash, council_query_id
             FROM markets
             WHERE market_hash = ?
             "#,
@@ -271,6 +294,39 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
+        Ok(())
+    }
+
+    /// Store the council and salted question a council oracle market is pinned to
+    pub async fn set_council_question(
+        &self,
+        market_hash: FixedBytes<32>,
+        council_hash: &str,
+        question_salt: &str,
+        question_hash: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE markets SET council_hash = ?, council_question_salt = ?, council_question_hash = ?
+            WHERE market_hash = ?
+            "#,
+        )
+        .bind(council_hash)
+        .bind(question_salt)
+        .bind(question_hash)
+        .bind(format!("0x{}", hex::encode(market_hash)))
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Record the council query that resolved a market
+    pub async fn set_council_query(&self, market_hash: &str, query_id: &str) -> anyhow::Result<()> {
+        sqlx::query("UPDATE markets SET council_query_id = ? WHERE market_hash = ?")
+            .bind(query_id)
+            .bind(market_hash)
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 

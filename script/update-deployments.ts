@@ -20,6 +20,7 @@ interface Deployment {
   name: string
   multiverse: string
   oracle: string
+  councilOracle?: string
   uniV2Factory: string
   uniV2Router: string
 }
@@ -36,7 +37,10 @@ function getProjectRoot(): string {
   return cwd
 }
 
-function parseDeployBroadcast(projectRoot: string, chainId: string): { multiverse?: string; oracle?: string } {
+function parseDeployBroadcast(
+  projectRoot: string,
+  chainId: string
+): { multiverse?: string; oracle?: string; councilOracle?: string } {
   const path = join(projectRoot, `contracts/broadcast/Deploy.s.sol/${chainId}/run-latest.json`)
   if (!existsSync(path)) return {}
 
@@ -45,6 +49,7 @@ function parseDeployBroadcast(projectRoot: string, chainId: string): { multivers
 
   let multiverse: string | undefined
   let oracle: string | undefined
+  let councilOracle: string | undefined
 
   for (const tx of txs) {
     if (tx.contractName === 'MultiVerse' && tx.contractAddress) {
@@ -53,9 +58,12 @@ function parseDeployBroadcast(projectRoot: string, chainId: string): { multivers
     if (tx.contractName === 'TrustedOracle' && tx.contractAddress) {
       oracle = tx.contractAddress
     }
+    if (tx.contractName === 'CouncilOracle' && tx.contractAddress) {
+      councilOracle = tx.contractAddress
+    }
   }
 
-  return { multiverse, oracle }
+  return { multiverse, oracle, councilOracle }
 }
 
 function parseUniV2Broadcast(projectRoot: string, chainId: string): { uniV2Factory?: string; uniV2Router?: string } {
@@ -112,6 +120,9 @@ function updateDeployments(chainIds?: string[]): void {
       name: existing.name,
       multiverse: deploy.multiverse || existing.multiverse,
       oracle: deploy.oracle || existing.oracle,
+      ...(deploy.councilOracle || existing.councilOracle
+        ? { councilOracle: deploy.councilOracle || existing.councilOracle }
+        : {}),
       uniV2Factory: univ2.uniV2Factory || existing.uniV2Factory,
       uniV2Router: univ2.uniV2Router || existing.uniV2Router,
     }
@@ -122,6 +133,7 @@ function updateDeployments(chainIds?: string[]): void {
       console.log(`Updated chain ${chainId} (${updated.name}):`)
       if (deploy.multiverse) console.log(`  multiverse: ${deploy.multiverse}`)
       if (deploy.oracle) console.log(`  oracle: ${deploy.oracle}`)
+      if (deploy.councilOracle) console.log(`  councilOracle: ${deploy.councilOracle}`)
       if (univ2.uniV2Factory) console.log(`  uniV2Factory: ${univ2.uniV2Factory}`)
       if (univ2.uniV2Router) console.log(`  uniV2Router: ${univ2.uniV2Router}`)
     }

@@ -3,11 +3,12 @@ mod auth;
 mod bindings;
 mod config;
 mod contract;
+mod council;
 mod db;
 mod routes;
 mod tempo_amm;
 
-use admin::{add_market, open_market, AdminState};
+use admin::{add_market, open_market, resolve_market, AdminState};
 use auth::require_admin_api_key;
 use axum::{middleware, routing::{get, post}, Router};
 use config::Config;
@@ -66,6 +67,7 @@ async fn main() -> anyhow::Result<()> {
         contract_client,
         db,
         oracle_address: config.oracle_address,
+        council: config.council.clone(),
     };
 
     // Configure CORS
@@ -78,6 +80,7 @@ async fn main() -> anyhow::Result<()> {
     let admin_routes = Router::new()
         .route("/markets/open", post(open_market))
         .route("/markets/add", post(add_market))
+        .route("/markets/:marketHash/resolve", post(resolve_market))
         .route_layer(middleware::from_fn_with_state(
             config.admin_api_key_hash.clone(),
             require_admin_api_key,
