@@ -10,7 +10,7 @@ import {LibString} from "solady/utils/LibString.sol";
 /**
  * @title CouncilOracle
  * @author Binary Protocol
- * @notice Resolves binary markets from signed decision records of an AI council (Witan).
+ * @notice Resolves binary markets from signed decision records of an AI council (Gavel).
  * @dev A council service decides a question with a panel of AI models and signs a decision
  *      record: RFC 8785 (JCS) canonical JSON. This contract accepts a record only when
  *
@@ -209,7 +209,7 @@ contract CouncilOracle is IOracle, Ownable {
         if (!_stringField(record, "council_hash", 66).eq(_hex32(m.councilHash))) {
             revert CouncilMismatch();
         }
-        // Exact bytes of Witan's evidence root preimage. The fixed-length suffix pins
+        // Exact bytes of Gavel's evidence root preimage. The fixed-length suffix pins
         // question_hash: a different commitmentsJcs cannot shift it into a match.
         bytes32 expectedRoot = sha256(
             // forge-lint: disable-next-line(encode-packed-collision)

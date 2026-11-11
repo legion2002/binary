@@ -7,9 +7,9 @@ import {MultiVerse} from "../src/MultiVerse.sol";
 import {Ownable} from "solady/auth/Ownable.sol";
 import {LibString} from "solady/utils/LibString.sol";
 
-/// @dev Records here follow Witan's decision record exactly (RFC 8785 JCS, keys sorted).
-///      test/fixtures/council_record.json holds records built and signed by Witan's own
-///      witan-core code; the other tests build the same shape and sign it with vm.sign.
+/// @dev Records here follow Gavel's decision record exactly (RFC 8785 JCS, keys sorted).
+///      test/fixtures/council_record.json holds records built and signed by Gavel's own
+///      gavel-core code; the other tests build the same shape and sign it with vm.sign.
 contract CouncilOracleTest is Test {
     CouncilOracle oracle;
 
@@ -54,7 +54,7 @@ contract CouncilOracleTest is Test {
         );
     }
 
-    /// @dev JCS of a record without proof.signature, as Witan serializes it.
+    /// @dev JCS of a record without proof.signature, as Gavel serializes it.
     function record(bytes32 council, bytes32 root, string memory outcome, address proofSigner)
         internal
         pure
@@ -91,7 +91,7 @@ contract CouncilOracleTest is Test {
         return record(COUNCIL, rootFor(questionHash, COMMITMENTS), outcome, signer);
     }
 
-    /// @dev Witan's proof.signature: EIP-191 over the 32-byte sha256 digest, r||s||v, v = 27/28.
+    /// @dev Gavel's proof.signature: EIP-191 over the 32-byte sha256 digest, r||s||v, v = 27/28.
     function sign(uint256 pk, bytes memory rec) internal pure returns (bytes memory) {
         bytes32 digest = sha256(rec);
         bytes32 eth = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
@@ -105,7 +105,7 @@ contract CouncilOracleTest is Test {
     }
 
     // ============================================
-    // FIXTURE: RECORDS SIGNED BY WITAN'S OWN CODE
+    // FIXTURE: RECORDS SIGNED BY GAVEL'S OWN CODE
     // ============================================
 
     function loadFixture() internal view returns (string memory json) {
@@ -180,7 +180,7 @@ contract CouncilOracleTest is Test {
         fixtureResolve(o, market, json, which);
     }
 
-    function test_fixture_question_hash_matches_witan() public view {
+    function test_fixture_question_hash_matches_gavel() public view {
         // The fixture question contains quotes, which JCS escapes as \".
         string memory json = loadFixture();
         bytes32 qh = sha256(

@@ -1,4 +1,4 @@
-//! Market resolution through an AI council (Witan).
+//! Market resolution through an AI council (Gavel).
 //!
 //! A council of AI models decides the market question and signs a decision record
 //! (RFC 8785 canonical JSON). The backend opens the query with the council CLI, verifies the
@@ -6,7 +6,7 @@
 //! the signature, the council config hash and the salted question hash on chain.
 //!
 //! Names stay generic ("council") so the council service can be swapped or renamed; the CLI
-//! is the Witan CLI (`witan`).
+//! is the Gavel CLI (`gavel`).
 
 use alloy::primitives::{keccak256, Address, Signature, B256};
 use rand::RngCore;
@@ -62,9 +62,9 @@ pub struct CouncilSettings {
     pub oracle_address: Address,
     /// Council config hash every market is pinned to (COUNCIL_HASH).
     pub council_hash: B256,
-    /// Council CLI binary (COUNCIL_CLI, default "witan").
+    /// Council CLI binary (COUNCIL_CLI, default "gavel").
     pub cli: String,
-    /// Council API base URL (COUNCIL_URL, else WITAN_URL); passed to the CLI as --url.
+    /// Council API base URL (COUNCIL_URL, else GAVEL_URL); passed to the CLI as --url.
     pub url: Option<String>,
     /// Trusted record signers (COUNCIL_SIGNERS, comma-separated). Never empty.
     pub signers: Vec<Address>,
@@ -108,8 +108,8 @@ impl CouncilSettings {
         Ok(Self {
             oracle_address,
             council_hash,
-            cli: var("COUNCIL_CLI").unwrap_or_else(|| "witan".to_string()),
-            url: var("COUNCIL_URL").or_else(|| var("WITAN_URL")),
+            cli: var("COUNCIL_CLI").unwrap_or_else(|| "gavel".to_string()),
+            url: var("COUNCIL_URL").or_else(|| var("GAVEL_URL")),
             signers,
             private_key: var("COUNCIL_PRIVATE_KEY"),
             network: var("COUNCIL_NETWORK"),
@@ -411,12 +411,12 @@ async fn run_cli(s: &CouncilSettings, args: &[String]) -> anyhow::Result<(i32, V
         .stderr(Stdio::piped())
         .kill_on_drop(true)
         // Only the signers given as flags count.
-        .env_remove("WITAN_SIGNERS");
+        .env_remove("GAVEL_SIGNERS");
     if let Some(key) = &s.private_key {
-        cmd.env("WITAN_PRIVATE_KEY", key);
+        cmd.env("GAVEL_PRIVATE_KEY", key);
     }
     if let Some(network) = &s.network {
-        cmd.env("WITAN_NETWORK", network);
+        cmd.env("GAVEL_NETWORK", network);
     }
     let out = tokio::time::timeout(s.timeout, cmd.output())
         .await
@@ -522,7 +522,7 @@ impl CouncilInfo {
 mod tests {
     use super::*;
 
-    /// Records built and signed by Witan's own witan-core code (see tests/fixtures/README.md).
+    /// Records built and signed by Gavel's own gavel-core code (see tests/fixtures/README.md).
     fn fixture() -> Value {
         serde_json::from_str(include_str!("../tests/fixtures/council_record.json")).unwrap()
     }
@@ -549,7 +549,7 @@ mod tests {
     }
 
     #[test]
-    fn question_hash_matches_witan() {
+    fn question_hash_matches_gavel() {
         let f = fixture();
         let qh = question_hash(
             f["question"].as_str().unwrap(),
@@ -565,7 +565,7 @@ mod tests {
     }
 
     #[test]
-    fn evidence_root_and_commitments_match_witan() {
+    fn evidence_root_and_commitments_match_gavel() {
         let f = fixture();
         let rec = &f["yes"]["record"];
         let root = evidence_root(b256(&f["question_hash"]), &rec["commitments"]);
@@ -580,7 +580,7 @@ mod tests {
     }
 
     #[test]
-    fn proof_matches_witan_record_bytes() {
+    fn proof_matches_gavel_record_bytes() {
         let f = fixture();
         for (name, outcome) in [("yes", Outcome::Yes), ("no", Outcome::No)] {
             let case = &f[name];
@@ -653,7 +653,7 @@ mod tests {
 
     #[test]
     fn cli_args() {
-        let s = settings("witan", Path::new("/q"));
+        let s = settings("gavel", Path::new("/q"));
         let args = open_args(
             &s,
             "--help?",

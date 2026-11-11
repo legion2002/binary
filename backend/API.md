@@ -427,7 +427,7 @@ curl -X POST http://127.0.0.1:3000/admin/markets/add \
 
 **Endpoint:** `POST /admin/markets/:marketHash/resolve`
 
-Only when the backend runs with `MARKET_ORACLE=council` and the market was opened with the council oracle. Asks the AI council (Witan) to decide the market question from the given evidence (a paid query), verifies the signed decision record against `COUNCIL_SIGNERS`, submits it to `CouncilOracle.resolve`, then calls `MultiVerse.resolve`. Registers the market with the oracle first if opening it could not. The call takes as long as the council does (up to `COUNCIL_TIMEOUT_SECS`).
+Only when the backend runs with `MARKET_ORACLE=council` and the market was opened with the council oracle. Asks the AI council (Gavel) to decide the market question from the given evidence (a paid query), verifies the signed decision record against `COUNCIL_SIGNERS`, submits it to `CouncilOracle.resolve`, then calls `MultiVerse.resolve`. Registers the market with the oracle first if opening it could not. The call takes as long as the council does (up to `COUNCIL_TIMEOUT_SECS`).
 
 **Headers:**
 ```
@@ -557,13 +557,13 @@ DATABASE_URL=sqlite:///path/to/markets.db
 # Admin Authentication
 ADMIN_API_KEY_HASH=$2b$12$...  # Bcrypt hash from generate_api_key
 
-# Oracle selection: "trusted" (default) or "council" (resolve through the Witan AI council)
+# Oracle selection: "trusted" (default) or "council" (resolve through the Gavel AI council)
 MARKET_ORACLE=council
 COUNCIL_ORACLE_ADDRESS=0x...  # CouncilOracle (or "councilOracle" in deployments.json)
 COUNCIL_HASH=0x...            # council config hash new markets are pinned to
 COUNCIL_SIGNERS=0x...         # trusted council record signers, comma-separated (required)
-COUNCIL_URL=https://...       # council API base URL (falls back to WITAN_URL)
-COUNCIL_CLI=witan             # witan CLI binary
+COUNCIL_URL=https://...       # council API base URL (falls back to GAVEL_URL)
+COUNCIL_CLI=gavel             # gavel CLI binary
 COUNCIL_PRIVATE_KEY=0x...     # Tempo key that pays for council queries over MPP
 COUNCIL_NETWORK=moderato      # Tempo network the CLI pays on (moderato | tempo)
 COUNCIL_MAX_PRICE=0.10        # optional: most to pay per query in USD
