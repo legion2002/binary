@@ -64,6 +64,7 @@ binary/
 | `/markets/:marketHash/verse-tokens` | GET | None | Get verse tokens for market |
 | `/admin/markets/open` | POST | Bearer | Create new market on-chain |
 | `/admin/markets/add` | POST | Bearer | Add existing on-chain market to DB |
+| `/admin/markets/:marketHash/resolve` | POST | Bearer | Resolve a council oracle market through the Gavel AI council |
 
 ### Admin Request Example
 
@@ -74,6 +75,15 @@ binary/
   "assets": ["0x20C0000000000000000000000000000000000000"]
 }
 ```
+
+## Council Oracle (Gavel)
+
+- `contracts/src/CouncilOracle.sol` resolves markets from signed Gavel decision records (RFC 8785 JCS JSON, digest = sha256 of the record without `proof.signature`, EIP-191 secp256k1 signature). Owner manages trusted signers and resolvers; `registerMarket` pins council hash + salted question hash once; `resolve` is resolver-only and reverts on any outcome but binary yes/no.
+- Keep names generic ("council", `COUNCIL_*`): the council service may be renamed. Mention Gavel only in docs and comments.
+- Backend: `backend/src/council.rs` (hashes, record proof, `gavel` CLI calls, minimal `sol!` binding), enabled with `MARKET_ORACLE=council`. The CouncilOracle binding is hand-written in `council.rs` because `forge bind` output targets a newer alloy than `Cargo.lock`.
+- Evidence goes to the CLI as `party=@file` (never inline). Query files are kept in `COUNCIL_QUERY_DIR`: they are the only copy of the evidence.
+- Fixtures: `contracts/test/fixtures/council_record.json` (copied to `backend/tests/fixtures/`) holds records built and signed by Gavel's own `gavel-core` code; Foundry reads it via `fs_permissions`. Regenerate both together if the record format changes.
+- Deploy: `COUNCIL_SIGNER=0x...` makes `Deploy.s.sol` also deploy CouncilOracle (last, so other addresses don't move); `COUNCIL_RESOLVER` adds a resolver.
 
 ## Frontend Development
 

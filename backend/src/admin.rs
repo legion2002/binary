@@ -1,9 +1,10 @@
 use crate::contract::ContractClient;
+use crate::council::{self, CouncilInfo, CouncilProof, CouncilSettings, Evidence, Outcome};
 use crate::db::Database;
 use crate::tempo_amm::{PairInfo, PATH_USD_ADDRESS};
 use alloy::primitives::{Address, FixedBytes};
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
@@ -15,6 +16,8 @@ pub struct AdminState {
     pub contract_client: Arc<ContractClient>,
     pub db: Arc<Database>,
     pub oracle_address: Address,
+    /// Set when markets are opened with, and resolved through, the council oracle
+    pub council: Option<Arc<CouncilSettings>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -53,6 +56,9 @@ pub struct OpenMarketResponse {
     pub transaction_hash: String,
     pub verse_tokens: Vec<VerseTokenInfo>,
     pub pairs: Vec<PairInfo>,
+    /// Council oracle markets: the council and salted question the market is pinned to
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub council: Option<CouncilInfo>,
 }
 
 #[derive(Debug, Serialize)]
@@ -140,6 +146,14 @@ pub async fn open_market(
         hex::encode(market_hash)
     );
 
+    // Council oracle markets pin a salted question hash: question_hash =
+    // sha256(JCS({"question","salt"})). The salt is kept and published so anyone can check it.
+    let council_question = state.council.as_ref().map(|_| {
+        let salt = council::new_question_salt();
+        let hash = council::question_hash(&request.question, &salt);
+        (salt, hash)
+    });
+
     // Open the market on-chain
     let tx_hash = match state
         .contract_client
@@ -172,6 +186,41 @@ pub async fn open_market(
     {
         tracing::error!("Failed to store market in database: {}", e);
         // Continue anyway - the market is already on-chain
+    }
+
+    // Register the market with the council oracle
+    let mut council_info = None;
+    if let (Some(c), Some((salt, question_hash))) = (&state.council, &council_question) {
+        let council_hash = council::hex32(c.council_hash);
+        let question_hash_hex = council::hex32(*question_hash);
+        if let Err(e) = state
+            .db
+            .set_council_question(market_hash, &council_hash, salt, &question_hash_hex)
+            .await
+        {
+            tracing::error!("Failed to store council question in database: {}", e);
+        }
+        if let Err(e) = state
+            .contract_client
+            .register_council_market(c.oracle_address, market_hash, c.council_hash, *question_hash)
+            .await
+        {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": format!("Market opened but not registered with the council oracle: {}. Resolving the market registers it.", e),
+                    "marketHash": format!("0x{}", hex::encode(market_hash)),
+                    "council": {"councilHash": council_hash, "questionSalt": salt, "questionHash": question_hash_hex},
+                })),
+            )
+                .into_response();
+        }
+        council_info = Some(CouncilInfo {
+            council_hash,
+            question_salt: salt.clone(),
+            question_hash: question_hash_hex,
+            query_id: None,
+        });
     }
 
     // Create verse tokens for each asset
@@ -279,6 +328,7 @@ pub async fn open_market(
             transaction_hash: format!("{:?}", tx_hash),
             verse_tokens,
             pairs,
+            council: council_info,
         }),
     )
         .into_response()
@@ -523,6 +573,191 @@ pub async fn add_market(
             resolution: market_info.resolution,
             verse_tokens,
             pairs,
+        }),
+    )
+        .into_response()
+}
+
+// ============================================================================
+// Resolve Market Endpoint - Resolve a council oracle market through the AI council
+// ============================================================================
+
+#[derive(Debug, Deserialize)]
+pub struct ResolveMarketRequest {
+    /// Evidence for the council, one entry per party (party names: [a-z0-9_-]{1,32})
+    pub evidence: Vec<Evidence>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolveMarketResponse {
+    pub market_hash: String,
+    pub query_id: String,
+    /// keccak256(query_id), indexed in the oracle's ResolutionSet event
+    pub query_id_hash: String,
+    /// "YES" or "NO"
+    pub outcome: String,
+    /// sha256 of the signed record bytes
+    pub digest: String,
+    pub signer: String,
+    pub oracle_transaction_hash: String,
+    /// MultiVerse.resolve, sent after the oracle resolution
+    pub multiverse_transaction_hash: Option<String>,
+    pub multiverse_error: Option<String>,
+    /// The signed decision record
+    pub record: serde_json::Value,
+}
+
+fn error(status: StatusCode, msg: impl Into<String>) -> Response {
+    (status, Json(ErrorResponse { error: msg.into() })).into_response()
+}
+
+/// POST /admin/markets/:marketHash/resolve
+/// Asks the council to decide the market question from the given evidence (a paid query),
+/// verifies the signed record and submits it to the CouncilOracle, then resolves the market.
+pub async fn resolve_market(
+    State(state): State<AdminState>,
+    Path(market_hash): Path<String>,
+    Json(request): Json<ResolveMarketRequest>,
+) -> Response {
+    let Some(settings) = state.council.clone() else {
+        return error(StatusCode::BAD_REQUEST, "Council oracle is not configured (MARKET_ORACLE=council)");
+    };
+    let market_hash = market_hash.to_lowercase();
+    let Some(market_hash_bytes) = council::parse_hash(&market_hash) else {
+        return error(
+            StatusCode::BAD_REQUEST,
+            "Invalid market hash format. Expected 0x-prefixed 32-byte hex string",
+        );
+    };
+    if request.evidence.is_empty() {
+        return error(StatusCode::BAD_REQUEST, "evidence must list at least one party");
+    }
+
+    let market = match state.db.get_market(&market_hash).await {
+        Ok(Some(m)) => m,
+        Ok(None) => return error(StatusCode::NOT_FOUND, format!("Market not found: {}", market_hash)),
+        Err(e) => return error(StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to fetch market: {}", e)),
+    };
+    if market.oracle.parse::<Address>().ok() != Some(settings.oracle_address) {
+        return error(StatusCode::BAD_REQUEST, "Market is not resolved by the council oracle");
+    }
+    let (Some(question), Some(salt), Some(council_hash), Some(question_hash)) = (
+        market.question_text.clone(),
+        market.council_question_salt.clone(),
+        market.council_hash.as_deref().and_then(council::parse_hash),
+        market.council_question_hash.as_deref().and_then(council::parse_hash),
+    ) else {
+        return error(StatusCode::CONFLICT, "Market has no stored council question (question, salt and hashes)");
+    };
+    if council::question_hash(&question, &salt) != question_hash {
+        return error(StatusCode::INTERNAL_SERVER_ERROR, "Stored question does not match its question hash");
+    }
+    // The market stays pinned to the council it was created with.
+    let mut settings = (*settings).clone();
+    settings.council_hash = council_hash;
+
+    // On chain: register if opening the market could not, refuse if already resolved.
+    let on_chain = match state
+        .contract_client
+        .council_market(settings.oracle_address, market_hash_bytes)
+        .await
+    {
+        Ok(m) => m,
+        Err(e) => return error(StatusCode::BAD_GATEWAY, format!("Failed to read the council oracle: {}", e)),
+    };
+    if on_chain.resolved {
+        return error(StatusCode::CONFLICT, "Market is already resolved by the council oracle");
+    }
+    if !on_chain.registered {
+        if let Err(e) = state
+            .contract_client
+            .register_council_market(settings.oracle_address, market_hash_bytes, council_hash, question_hash)
+            .await
+        {
+            return error(StatusCode::BAD_GATEWAY, format!("Failed to register the market: {}", e));
+        }
+    } else if on_chain.councilHash != council_hash || on_chain.questionHash != question_hash {
+        return error(StatusCode::CONFLICT, "Market is registered on chain with another council or question");
+    }
+
+    // Ask the council (paid), then verify the record again through the council API.
+    let stem = format!(
+        "{}-{}",
+        market_hash,
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or_default()
+    );
+    let opened = match council::open_query(&settings, &stem, &question, &salt, &request.evidence).await {
+        Ok(q) => q,
+        Err(e) => return error(StatusCode::BAD_GATEWAY, format!("Council query failed: {}", e)),
+    };
+    if let Err(e) = council::verify_query(&settings, &opened.query_id).await {
+        return error(StatusCode::BAD_GATEWAY, format!("Council record did not verify: {}", e));
+    }
+    let proof = match CouncilProof::from_record(&opened.record) {
+        Ok(p) => p,
+        Err(e) => return error(StatusCode::BAD_GATEWAY, format!("Malformed council record: {}", e)),
+    };
+    if proof.query_id != opened.query_id {
+        return error(StatusCode::BAD_GATEWAY, "Council record is for another query");
+    }
+    if let Err(e) = council::check_record(&opened.record, &proof, council_hash, question_hash, &settings.signers) {
+        return error(StatusCode::BAD_GATEWAY, format!("Council record rejected: {}", e));
+    }
+    tracing::info!(
+        "Council decided market {}: query {}, digest {}",
+        market_hash,
+        proof.query_id,
+        council::hex32(proof.digest)
+    );
+    let outcome = match &proof.outcome {
+        Outcome::Yes => "YES",
+        Outcome::No => "NO",
+        Outcome::Other(o) => {
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(serde_json::json!({
+                    "error": "The council did not decide yes or no. The market stays open; resolve it again with a new query.",
+                    "queryId": proof.query_id,
+                    "outcome": o,
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    let oracle_tx = match state
+        .contract_client
+        .resolve_with_council(settings.oracle_address, market_hash_bytes, &proof)
+        .await
+    {
+        Ok(tx) => tx,
+        Err(e) => return error(StatusCode::BAD_GATEWAY, format!("Council oracle refused the record: {}", e)),
+    };
+    if let Err(e) = state.db.set_council_query(&market_hash, &proof.query_id).await {
+        tracing::error!("Failed to store council query id: {}", e);
+    }
+    let (multiverse_tx, multiverse_error) = match state.contract_client.resolve_market(market_hash_bytes).await {
+        Ok(tx) => (Some(format!("{:?}", tx)), None),
+        Err(e) => (None, Some(e)),
+    };
+
+    (
+        StatusCode::OK,
+        Json(ResolveMarketResponse {
+            market_hash,
+            query_id: proof.query_id.clone(),
+            query_id_hash: council::hex32(proof.query_id_hash()),
+            outcome: outcome.to_string(),
+            digest: council::hex32(proof.digest),
+            signer: format!("{:?}", proof.signer).to_lowercase(),
+            oracle_transaction_hash: format!("{:?}", oracle_tx),
+            multiverse_transaction_hash: multiverse_tx,
+            multiverse_error,
+            record: opened.record,
         }),
     )
         .into_response()

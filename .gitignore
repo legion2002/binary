@@ -28,3 +28,5 @@ pnpm-lock.yaml
 
 contracts/broadcast/
 .playwright-mcp/
+# Council query files (question, salts and evidence sent to the council)
+council-queries/

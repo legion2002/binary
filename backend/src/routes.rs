@@ -1,4 +1,5 @@
 use crate::contract::ContractClient;
+use crate::council::CouncilInfo;
 use crate::db::Database;
 use crate::tempo_amm::{PairInfo, calculate_probability_from_pairs, PATH_USD_ADDRESS};
 use alloy::primitives::{Address, FixedBytes};
@@ -47,6 +48,9 @@ pub struct MarketResponse {
     pub no_probability: Option<f64>,
     // Resolution status: "UNRESOLVED", "YES", "NO", "EVEN"
     pub resolution: Option<String>,
+    // Council oracle markets: council hash, question salt and hash, resolving query
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub council: Option<CouncilInfo>,
 }
 
 #[derive(Debug, Serialize)]
@@ -142,6 +146,7 @@ pub async fn get_markets(
             (None, None)
         };
 
+        let council = CouncilInfo::from_market(&m);
         market_responses.push(MarketResponse {
             market_hash: m.market_hash,
             question_hash: m.question_hash,
@@ -152,6 +157,7 @@ pub async fn get_markets(
             yes_probability,
             no_probability,
             resolution: None,
+            council,
         });
     }
 
@@ -193,6 +199,9 @@ pub struct MarketDetailResponse {
     pub no_probability: Option<f64>,
     // Resolution status: "UNRESOLVED", "YES", "NO", "EVEN"
     pub resolution: Option<String>,
+    // Council oracle markets: council hash, question salt and hash, resolving query
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub council: Option<CouncilInfo>,
 }
 
 /// GET /markets/:marketHash
@@ -313,6 +322,7 @@ pub async fn get_market(
         (Some(yes_prob), Some(no_prob))
     };
 
+    let council = CouncilInfo::from_market(&market);
     (
         StatusCode::OK,
         Json(MarketDetailResponse {
@@ -327,6 +337,7 @@ pub async fn get_market(
             yes_probability,
             no_probability,
             resolution,
+            council,
         }),
     )
         .into_response()

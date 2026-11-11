@@ -11,6 +11,8 @@ import { TESTNET_RPC_URL, TESTNET_CHAIN_ID } from './testnet'
 export interface ContractAddresses {
   multiverse: string
   oracle: string
+  /** CouncilOracle, deployed only when COUNCIL_SIGNER is set */
+  councilOracle?: string
   uniV2Factory?: string
   uniV2Router?: string
 }
@@ -174,6 +176,7 @@ export function parseBroadcastAddresses(projectRoot: string, specificChainId?: n
 
   let multiverse: string | undefined
   let oracle: string | undefined
+  let councilOracle: string | undefined
 
   for (const tx of transactions) {
     if (tx.contractName === 'MultiVerse' && tx.contractAddress) {
@@ -181,6 +184,9 @@ export function parseBroadcastAddresses(projectRoot: string, specificChainId?: n
     }
     if (tx.contractName === 'TrustedOracle' && tx.contractAddress) {
       oracle = tx.contractAddress
+    }
+    if (tx.contractName === 'CouncilOracle' && tx.contractAddress) {
+      councilOracle = tx.contractAddress
     }
   }
 
@@ -191,7 +197,7 @@ export function parseBroadcastAddresses(projectRoot: string, specificChainId?: n
     throw new Error('TrustedOracle address not found in broadcast')
   }
 
-  return { multiverse, oracle }
+  return councilOracle ? { multiverse, oracle, councilOracle } : { multiverse, oracle }
 }
 
 export function parseUniV2BroadcastAddresses(projectRoot: string, specificChainId?: number): { uniV2Factory?: string; uniV2Router?: string } {

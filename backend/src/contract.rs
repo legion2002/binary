@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::bindings::r#multi_verse::MultiVerse;
+use crate::council::{CouncilOracle, CouncilProof};
 use crate::bindings::r#multi_verse::MultiVerse::VerseTokensCreated;
 use crate::tempo_amm::{UniV2Client, PairInfo, get_market_pair_info};
 
@@ -352,5 +353,124 @@ impl ContractClient {
         }
 
         Ok(results)
+    }
+
+    // ========================================================================
+    // Council oracle
+    // ========================================================================
+
+    /// A provider that signs transactions with the backend key
+    async fn signed_provider(&self) -> Result<DynProvider, String> {
+        let wallet = alloy::network::EthereumWallet::from(self.signer.clone());
+        let rpc_url = std::env::var("RPC_URL").map_err(|_| "RPC_URL not set".to_string())?;
+        let provider = ProviderBuilder::new()
+            .with_gas_estimation()
+            .wallet(wallet)
+            .connect(&rpc_url)
+            .await
+            .map_err(|e| format!("Failed to create signed provider: {}", e))?;
+        Ok(provider.erased())
+    }
+
+    /// Readable message for a failed CouncilOracle call, decoding its custom errors
+    fn council_error(e: alloy::contract::Error) -> String {
+        match e.as_decoded_interface_error::<CouncilOracle::CouncilOracleErrors>() {
+            Some(decoded) => format!("CouncilOracle reverted: {:?}", decoded),
+            None => format!("{}", e),
+        }
+    }
+
+    /// Read a market's council registration and resolution from the CouncilOracle
+    pub async fn council_market(
+        &self,
+        oracle: Address,
+        market_hash: FixedBytes<32>,
+    ) -> anyhow::Result<CouncilOracle::marketsReturn> {
+        let contract = CouncilOracle::new(oracle, &self.provider);
+        Ok(contract.markets(market_hash).call().await?)
+    }
+
+    /// Pin a market to a council config and salted question hash (simulated first)
+    pub async fn register_council_market(
+        &self,
+        oracle: Address,
+        market_hash: FixedBytes<32>,
+        council_hash: B256,
+        question_hash: B256,
+    ) -> Result<B256, String> {
+        let provider = self.signed_provider().await?;
+        let contract = CouncilOracle::new(oracle, &provider);
+        let call = contract.registerMarket(market_hash, council_hash, question_hash);
+        call.clone()
+            .call()
+            .await
+            .map_err(|e| format!("registerMarket would revert: {}", Self::council_error(e)))?;
+        let receipt = call
+            .send()
+            .await
+            .map_err(|e| format!("Failed to send registerMarket: {}", e))?
+            .get_receipt()
+            .await
+            .map_err(|e| format!("Failed to get receipt: {}", e))?;
+        if !receipt.status() {
+            return Err(format!("registerMarket reverted: {:?}", receipt.transaction_hash));
+        }
+        tracing::info!("Council market registered. Transaction: {:?}", receipt.transaction_hash);
+        Ok(receipt.transaction_hash)
+    }
+
+    /// Submit a signed council decision record to the CouncilOracle (simulated first)
+    pub async fn resolve_with_council(
+        &self,
+        oracle: Address,
+        market_hash: FixedBytes<32>,
+        proof: &CouncilProof,
+    ) -> Result<B256, String> {
+        let provider = self.signed_provider().await?;
+        let contract = CouncilOracle::new(oracle, &provider);
+        let call = contract.resolve(
+            market_hash,
+            proof.record_jcs.clone().into(),
+            proof.commitments_jcs.clone().into(),
+            proof.signature.clone().into(),
+        );
+        call.clone()
+            .call()
+            .await
+            .map_err(|e| format!("resolve would revert: {}", Self::council_error(e)))?;
+        let receipt = call
+            .send()
+            .await
+            .map_err(|e| format!("Failed to send resolve: {}", e))?
+            .get_receipt()
+            .await
+            .map_err(|e| format!("Failed to get receipt: {}", e))?;
+        if !receipt.status() {
+            return Err(format!("resolve reverted: {:?}", receipt.transaction_hash));
+        }
+        tracing::info!("Council resolution set. Transaction: {:?}", receipt.transaction_hash);
+        Ok(receipt.transaction_hash)
+    }
+
+    /// Finalize a market on the MultiVerse from its oracle (simulated first)
+    pub async fn resolve_market(&self, market_hash: FixedBytes<32>) -> Result<B256, String> {
+        let provider = self.signed_provider().await?;
+        let multiverse = MultiVerse::new(self.multiverse_address, &provider);
+        let call = multiverse.resolve(market_hash);
+        call.clone()
+            .call()
+            .await
+            .map_err(|e| format!("MultiVerse.resolve would revert: {}", e))?;
+        let receipt = call
+            .send()
+            .await
+            .map_err(|e| format!("Failed to send MultiVerse.resolve: {}", e))?
+            .get_receipt()
+            .await
+            .map_err(|e| format!("Failed to get receipt: {}", e))?;
+        if !receipt.status() {
+            return Err(format!("MultiVerse.resolve reverted: {:?}", receipt.transaction_hash));
+        }
+        Ok(receipt.transaction_hash)
     }
 }
