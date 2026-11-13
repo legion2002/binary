@@ -146,6 +146,12 @@ pub async fn get_markets(
             (None, None)
         };
 
+        // The resolution is on chain only; without it a resolved market looks open.
+        let resolution = match market_hash_bytes {
+            Some(hash) => state.contract_client.get_resolution(hash).await.ok(),
+            None => None,
+        };
+
         let council = CouncilInfo::from_market(&m);
         market_responses.push(MarketResponse {
             market_hash: m.market_hash,
@@ -156,7 +162,7 @@ pub async fn get_markets(
             block_number: m.block_number,
             yes_probability,
             no_probability,
-            resolution: None,
+            resolution,
             council,
         });
     }

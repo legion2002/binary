@@ -132,8 +132,8 @@ forge script script/Deploy.s.sol:Deploy \
 |----------|---------|
 | TIP-20 Factory | `0x20Fc000000000000000000000000000000000000` |
 | PATH_USD | `0x20C0000000000000000000000000000000000000` |
-| UniV2 Factory | Deployed dynamically (see `.univ2-config.json`) |
-| UniV2 Router | Deployed dynamically (see `.univ2-config.json`) |
+| UniV2 Factory, Router | Deployed by `bun run testnet`; current addresses in `deployments.json` |
+| MultiVerse, TrustedOracle, CouncilOracle | Current addresses in `deployments.json` |
 
 ### Tempo-Specific Notes
 
@@ -221,6 +221,38 @@ Markets can resolve from a decision of Gavel, a council of AI models that decide
 - **Question pinned by salted hash.** The council cannot be asked a different question for the market. The salt keeps short questions from being guessed from public records until the backend publishes it.
 - **The resolver chooses the evidence.** Evidence goes to the council encrypted and is not on chain; a resolver could give the council slanted evidence. That is why only resolvers (`setResolver`) may submit records. Each query file (question, salts and evidence) is kept in `COUNCIL_QUERY_DIR` and checks against the record's commitments.
 
+### Run it on testnet
+
+1. Install the gavel CLI from your Gavel deployment, so the backend can call it:
+
+   ```bash
+   curl -fsSL "$GAVEL_URL/install" | sh
+   ```
+
+2. Deploy and start everything with markets that resolve through Gavel:
+
+   ```bash
+   MARKET_ORACLE=council GAVEL_URL=https://<gavel host> bun run testnet --redeploy
+   ```
+
+   With `MARKET_ORACLE=council`, `script/env-testnet.ts`:
+   - reads the council hash of Gavel's `market` pack (five members, supermajority, yes or no) and the signer from the council service's attestation (`gavel packs`, `gavel attestation`); set `COUNCIL_HASH` or `COUNCIL_SIGNERS` to choose others;
+   - deploys `CouncilOracle` trusting that signer, next to the MultiVerse, TrustedOracle and UniV2;
+   - opens the seed markets (`script/lib/seed-markets.ts`) pinned to that council and seeds UniV2 liquidity for every verse;
+   - starts the backend with the `COUNCIL_*` settings and the frontend. The deployer key pays for council queries unless `COUNCIL_PRIVATE_KEY` is set.
+
+3. Resolve a market once its answer is known. The `market` pack has one party, `market`: give it the facts in `text`, and the pages that show them in `links`. Members never open links, so the gavel CLI fetches each page's text when it seals the query; a link without text counts as unverified, and the council returns no decision rather than trust one. Keep the text and pages within the pack's 16,000 characters per party (each page is cut to 8,000).
+
+   ```bash
+   curl -X POST http://127.0.0.1:3000/admin/markets/<marketHash>/resolve \
+     -H "Authorization: Bearer $ADMIN_API_KEY" -H 'Content-Type: application/json' \
+     -d '{"evidence": [{"party": "market", "text": "Spain beat Argentina 1-0 in the final on 19 July 2026.", "links": ["https://<match report>"]}]}'
+   ```
+
+   It takes under a minute: the council decides, the backend verifies the signed record, sends `CouncilOracle.resolve` and then `MultiVerse.resolve`. The response has the outcome, the query ID and both transaction hashes. Anyone can check the decision with `gavel verify <query_id>`.
+
+A council market can be resolved any time before its deadline; after the deadline `MultiVerse.resolve` settles it EVEN. If the council's decision is invalid (no supermajority), nothing is submitted and the market can be asked again with better evidence.
+
 ### Setup
 
 ```bash
@@ -256,7 +288,7 @@ curl http://127.0.0.1:3000/markets/{marketHash}
 curl -X POST http://127.0.0.1:3000/admin/markets/{marketHash}/resolve \
   -H 'Authorization: Bearer YOUR_API_KEY' \
   -H 'Content-Type: application/json' \
-  -d '{"evidence": [{"party": "yes", "text": "..."}, {"party": "no", "text": "..."}]}'
+  -d '{"evidence": [{"party": "market", "text": "What happened, with sources"}]}'
 
 # Create market (admin)
 curl -X POST http://127.0.0.1:3000/admin/markets/open \

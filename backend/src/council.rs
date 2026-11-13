@@ -325,6 +325,21 @@ pub fn check_record(
 pub struct Evidence {
     pub party: String,
     pub text: String,
+    /// Source pages for the party's claims. The CLI fetches each page's text when it
+    /// seals the query, since council members never open links and treat a link
+    /// without text as unverified.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<String>,
+}
+
+/// Most links one query may carry (Gavel allows 32 evidence items per party).
+const MAX_LINKS: usize = 32;
+
+/// An http(s) URL of printable ASCII, at most 2048 characters, as Gavel requires.
+fn is_link(url: &str) -> bool {
+    (url.starts_with("https://") || url.starts_with("http://"))
+        && url.len() <= 2048
+        && url.bytes().all(|b| b.is_ascii_graphic())
 }
 
 /// The parts of `query open --json` output the backend uses.
@@ -370,6 +385,7 @@ pub fn open_args(
     question: &str,
     salt: &str,
     party_files: &[(String, PathBuf)],
+    links: &[(String, String)],
     out: &Path,
 ) -> Vec<String> {
     let mut args = global_args(s);
@@ -382,6 +398,9 @@ pub fn open_args(
     ]);
     for (party, path) in party_files {
         args.push(format!("--party={party}=@{}", path.display()));
+    }
+    for (party, url) in links {
+        args.push(format!("--link={party}={url}"));
     }
     args.push(format!("--out={}", out.display()));
     if let Some(max) = &s.max_price {
@@ -455,7 +474,19 @@ pub async fn open_query(
         if evidence[..i].iter().any(|o| o.party == e.party) {
             anyhow::bail!("party {:?} is listed twice", e.party);
         }
+        if e.links.len() > MAX_LINKS {
+            anyhow::bail!("party {:?} has more than {MAX_LINKS} links", e.party);
+        }
+        if let Some(bad) = e.links.iter().find(|u| !is_link(u)) {
+            anyhow::bail!(
+                "link {bad:?} must be an http(s) URL of printable ASCII, at most 2048 characters"
+            );
+        }
     }
+    let links: Vec<(String, String)> = evidence
+        .iter()
+        .flat_map(|e| e.links.iter().map(|u| (e.party.clone(), u.clone())))
+        .collect();
     tokio::fs::create_dir_all(&s.query_dir).await?;
     let mut files = Vec::with_capacity(evidence.len());
     for e in evidence {
@@ -464,7 +495,7 @@ pub async fn open_query(
         files.push((e.party.clone(), path));
     }
     let out = s.query_dir.join(format!("{file_stem}.json"));
-    let result = run_cli(s, &open_args(s, question, salt, &files, &out)).await;
+    let result = run_cli(s, &open_args(s, question, salt, &files, &links, &out)).await;
     // The query file now holds the evidence; the inputs are not needed any more.
     for (_, path) in &files {
         let _ = tokio::fs::remove_file(path).await;
@@ -659,6 +690,7 @@ mod tests {
             "--help?",
             "0x0123456789abcdef0123456789abcdef",
             &[("yes".into(), PathBuf::from("/q/m.yes.txt"))],
+            &[("yes".into(), "https://example.com/report".into())],
             Path::new("/q/m.json"),
         );
         assert_eq!(
@@ -673,6 +705,7 @@ mod tests {
                 "--question=--help?",
                 "--question-salt=0x0123456789abcdef0123456789abcdef",
                 "--party=yes=@/q/m.yes.txt",
+                "--link=yes=https://example.com/report",
                 "--out=/q/m.json",
                 "--max-price=0.05",
             ]
@@ -720,10 +753,12 @@ mod tests {
             Evidence {
                 party: "yes".into(),
                 text: "@/etc/passwd is just text".into(),
+                links: vec!["https://example.com/report".into()],
             },
             Evidence {
                 party: "no".into(),
                 text: "none".into(),
+                links: vec![],
             },
         ];
         let q = open_query(
@@ -738,6 +773,10 @@ mod tests {
         assert_eq!(q.query_id, "qry_01JCOUNCILFIXTURE000000000");
         let args = std::fs::read_to_string(dir.join("args.txt")).unwrap();
         assert!(args.contains("--party=yes=@"), "{args}");
+        assert!(
+            args.contains("--link=yes=https://example.com/report"),
+            "{args}"
+        );
         // Evidence files are removed once the query file holds them.
         assert!(!dir.join("queries/m1.yes.txt").exists());
         verify_query(&s, &q.query_id).await.unwrap();
@@ -746,6 +785,7 @@ mod tests {
         let bad = vec![Evidence {
             party: "Bad Party".into(),
             text: "x".into(),
+            links: vec![],
         }];
         assert!(
             open_query(&s, "m2", "q?", f["question_salt"].as_str().unwrap(), &bad)
@@ -753,6 +793,20 @@ mod tests {
                 .is_err()
         );
         assert!(open_query(&s, "m2", "q?", "0x00", &evidence).await.is_err());
+        let bad_link = vec![Evidence {
+            party: "yes".into(),
+            text: "x".into(),
+            links: vec!["file:///etc/passwd".into()],
+        }];
+        assert!(open_query(
+            &s,
+            "m2",
+            "q?",
+            f["question_salt"].as_str().unwrap(),
+            &bad_link
+        )
+        .await
+        .is_err());
 
         // An unpinned or failed verification is refused.
         std::fs::write(

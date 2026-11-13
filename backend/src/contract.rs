@@ -11,6 +11,30 @@ use crate::council::{CouncilOracle, CouncilProof};
 use crate::bindings::r#multi_verse::MultiVerse::VerseTokensCreated;
 use crate::tempo_amm::{UniV2Client, PairInfo, get_market_pair_info};
 
+alloy::sol! {
+    /// MultiVerse.markets as deployed: it also returns the market's resolution. The generated
+    /// bindings predate that and still call a resolutions() getter the contract no longer has.
+    #[sol(rpc)]
+    interface MultiVerseMarkets {
+        function markets(bytes32 marketHash)
+            external
+            view
+            returns (uint32 resolutionDeadline, address oracle, bytes32 questionHash, uint8 resolution);
+    }
+}
+
+/// Names a MultiVerse.Resolution value.
+fn resolution_name(value: u8) -> &'static str {
+    match value {
+        0 => "NULL",
+        1 => "UNRESOLVED",
+        2 => "YES",
+        3 => "NO",
+        4 => "EVEN",
+        _ => "UNKNOWN",
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -70,28 +94,15 @@ impl ContractClient {
 
     pub async fn get_market(&self, market_hash: FixedBytes<32>) -> anyhow::Result<MarketInfo> {
         tracing::debug!("get_market: Fetching market {:?} from multiverse {:?}", market_hash, self.multiverse_address);
-        let multiverse = MultiVerse::new(self.multiverse_address, &self.provider);
-
+        let multiverse = MultiVerseMarkets::new(self.multiverse_address, &self.provider);
         let market = multiverse.markets(market_hash).call().await?;
-        tracing::debug!("get_market: Got market data, fetching resolution...");
-        let resolution_value = multiverse.resolutions(market_hash).call().await?;
-
-        // Resolution is a u8: 0=NULL, 1=UNRESOLVED, 2=YES, 3=NO, 4=EVEN
-        let resolution_str = match resolution_value {
-            0 => "NULL",
-            1 => "UNRESOLVED",
-            2 => "YES",
-            3 => "NO",
-            4 => "EVEN",
-            _ => "UNKNOWN",
-        };
 
         Ok(MarketInfo {
             market_hash: format!("0x{}", hex::encode(market_hash)),
             question_hash: format!("0x{}", hex::encode(market.questionHash)),
             resolution_deadline: market.resolutionDeadline,
             oracle: format!("{:?}", market.oracle),
-            resolution: resolution_str.to_string(),
+            resolution: resolution_name(market.resolution).to_string(),
         })
     }
 
@@ -291,19 +302,9 @@ impl ContractClient {
     /// Get just the resolution status for a market (more efficient than get_market)
     /// Returns: "NULL", "UNRESOLVED", "YES", "NO", or "EVEN"
     pub async fn get_resolution(&self, market_hash: FixedBytes<32>) -> anyhow::Result<String> {
-        let multiverse = MultiVerse::new(self.multiverse_address, &self.provider);
-        let resolution_value = multiverse.resolutions(market_hash).call().await?;
-
-        let resolution_str = match resolution_value {
-            0 => "NULL",
-            1 => "UNRESOLVED",
-            2 => "YES",
-            3 => "NO",
-            4 => "EVEN",
-            _ => "UNKNOWN",
-        };
-
-        Ok(resolution_str.to_string())
+        let multiverse = MultiVerseMarkets::new(self.multiverse_address, &self.provider);
+        let market = multiverse.markets(market_hash).call().await?;
+        Ok(resolution_name(market.resolution).to_string())
     }
 
     /// Get resolution for multiple markets in parallel

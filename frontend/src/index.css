@@ -752,6 +752,20 @@ body {
   color: var(--text-primary);
 }
 
+.status-badge.council-badge {
+  background: var(--accent-blue-dim);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.council-decision {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .trade-tabs {

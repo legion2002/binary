@@ -53,6 +53,10 @@ const CONFIG_FILE = '.testnet-config.json'
 export interface TestnetConfig {
   multiverse?: string
   oracle?: string
+  /** CouncilOracle, when deployed with MARKET_ORACLE=council */
+  councilOracle?: string
+  uniV2Factory?: string
+  uniV2Router?: string
   deployedAt?: string
   deployerAddress?: string
 }

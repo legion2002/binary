@@ -2,6 +2,15 @@
 
 export type Resolution = 'UNRESOLVED' | 'YES' | 'NO' | 'EVEN';
 
+// Council oracle markets: the Gavel council and salted question the market is pinned to,
+// and the council query whose decision resolved it
+export interface CouncilInfo {
+  councilHash: string;
+  questionSalt: string;
+  questionHash: string;
+  queryId?: string | null;
+}
+
 export interface MarketResponse {
   marketHash: string;
   questionHash: string;
@@ -15,6 +24,7 @@ export interface MarketResponse {
   noProbability?: number | null;
   // Resolution status from on-chain contract
   resolution?: Resolution | null;
+  council?: CouncilInfo | null;
 }
 
 export interface GetMarketsResponse {
@@ -57,6 +67,7 @@ export interface MarketDetailResponse {
   noProbability?: number | null;
   // Resolution status from on-chain contract
   resolution?: Resolution | null;
+  council?: CouncilInfo | null;
 }
 
 export interface ErrorResponse {

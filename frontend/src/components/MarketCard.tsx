@@ -87,6 +87,11 @@ export function MarketCard({ market }: MarketCardProps) {
                 {market.resolution}
               </span>
             )}
+            {market.council && (
+              <span className="status-badge ml-2 council-badge" data-testid="council-badge" title={`Council ${market.council.councilHash}`}>
+                Gavel council
+              </span>
+            )}
           </div>
         </div>
         <div className="text-right">
@@ -152,6 +157,13 @@ export function MarketCard({ market }: MarketCardProps) {
               {market.resolution === "YES" && " YES token holders can redeem $1 per token."}
               {market.resolution === "NO" && " NO token holders can redeem $1 per token."}
               {market.resolution === "EVEN" && " Both YES and NO holders can redeem $0.50 per token."}
+            </div>
+          )}
+
+          {isResolved && market.council?.queryId && (
+            <div className="council-decision" data-testid="council-decision">
+              Decided by a Gavel council · query <code>{market.council.queryId}</code> · signed
+              decision record checked.
             </div>
           )}
         </div>

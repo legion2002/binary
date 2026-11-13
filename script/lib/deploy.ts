@@ -126,6 +126,14 @@ export async function deployContractsTestnet(options: {
 
   // Deploy UniswapV2 contracts to testnet
   console.log('  Deploying UniswapV2 contracts to Tempo testnet...')
+  // DeployUniV2 deploys from the artifacts, built with their own solc versions (0.5.16, 0.6.6)
+  execSync(
+    `${forgeCmd} build lib/v2-core/contracts/UniswapV2Factory.sol lib/v2-core/contracts/UniswapV2Pair.sol lib/v2-periphery/contracts/UniswapV2Router02.sol`,
+    {
+      stdio: verbose ? 'inherit' : 'pipe',
+      cwd: `${projectRoot}/contracts`,
+    }
+  )
   execSync(
     `${forgeCmd} script script/DeployUniV2.s.sol:DeployUniV2 \
       --rpc-url ${TESTNET_RPC_URL} \

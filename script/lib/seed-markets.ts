@@ -11,16 +11,47 @@
 import { TEST_API_KEY } from './backend'
 import { PATH_USD, ALPHA_USD } from './tempo'
 
-// Seed market definitions - each market now includes both PATH_USD and ALPHA_USD
-const SEED_MARKETS = [
+const ts = (date: string) => Math.floor(new Date(date + 'T00:00:00Z').getTime() / 1000)
+
+/**
+ * Seed markets: popular, non-controversial questions, each with PATH_USD and ALPHA_USD verses.
+ * A council oracle market can resolve any time before its deadline (after it, MultiVerse
+ * resolves EVEN), so the first two are already decidable and shows a council resolution.
+ */
+export const SEED_MARKETS = [
   {
-    question: 'Will gakonst start a list with A 2 3 in Lisbon?',
-    resolutionDeadline: Math.floor(Date.now() / 1000) + 4 * 24 * 60 * 60, // 4 days from now
+    question: 'Will Spain win the 2026 FIFA World Cup?',
+    resolutionDeadline: ts('2027-01-01'),
     assets: [PATH_USD, ALPHA_USD],
   },
   {
-    question: 'Will stablecoin market cap exceed $1T by the end of 2026?',
-    resolutionDeadline: Math.floor(new Date('2027-1-1').getTime() / 1000), // End of 2026
+    question: 'Will the 2026 FIFA World Cup final go to extra time?',
+    resolutionDeadline: ts('2027-01-01'),
+    assets: [PATH_USD, ALPHA_USD],
+  },
+  {
+    question: 'Will Grand Theft Auto VI be released before January 1, 2027?',
+    resolutionDeadline: ts('2027-01-01'),
+    assets: [PATH_USD, ALPHA_USD],
+  },
+  {
+    question: 'Will Bitcoin trade above $150,000 at any point before July 1, 2027?',
+    resolutionDeadline: ts('2027-07-01'),
+    assets: [PATH_USD, ALPHA_USD],
+  },
+  {
+    question: 'Will Real Madrid win the 2026-27 UEFA Champions League?',
+    resolutionDeadline: ts('2027-06-30'),
+    assets: [PATH_USD, ALPHA_USD],
+  },
+  {
+    question: 'Will SpaceX catch a Starship upper stage with the launch tower before January 1, 2028?',
+    resolutionDeadline: ts('2028-01-01'),
+    assets: [PATH_USD, ALPHA_USD],
+  },
+  {
+    question: 'Will the total stablecoin supply exceed $1 trillion before January 1, 2028?',
+    resolutionDeadline: ts('2028-01-01'),
     assets: [PATH_USD, ALPHA_USD],
   },
 ]

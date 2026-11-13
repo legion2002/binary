@@ -22,6 +22,8 @@
  *   PRIVATE_KEY - Required. Deployer private key (will be funded via faucet if needed)
  *   ADMIN_API_KEY - Optional. Defaults to test key for dev
  *   DATABASE_URL - Optional. Defaults to sqlite:./testnet.db?mode=rwc
+ *   MARKET_ORACLE - Optional. "council" resolves markets with a Gavel council (see README),
+ *                   with COUNCIL_URL (or GAVEL_URL) set to the Gavel API
  */
 
 import { spawn, execSync } from 'child_process'
@@ -47,6 +49,7 @@ import {
   ensureStablecoinRouting,
 } from './lib/seed-liquidity'
 import { initUniV2Config } from './lib/univ2'
+import { configureGavel } from './lib/gavel'
 import type { Address } from 'viem'
 
 // Colors for console output
@@ -124,6 +127,9 @@ function printSummary(): void {
   console.log(green('  Contracts:'))
   console.log(`    MultiVerse: ${env.contracts?.multiverse}`)
   console.log(`    Oracle:     ${env.contracts?.oracle}`)
+  if (env.contracts?.councilOracle) {
+    console.log(`    Council:    ${env.contracts.councilOracle} (markets resolve through Gavel)`)
+  }
   console.log('')
   console.log(green('  Services:'))
   console.log(`    Backend:    ${env.backend?.url}`)
@@ -178,11 +184,17 @@ async function main(): Promise<void> {
       console.log(green(`  Balance OK: ${Number(balance) / 1e6} PathUSD`))
     }
 
+    const gavel = configureGavel()
+    if (gavel) {
+      console.log(green(`  Gavel council ${gavel.councilHash.slice(0, 10)}... at ${gavel.url}, signer ${gavel.signer}`))
+    }
+
     // Step 2: Check if contracts are deployed
     console.log('')
     console.log(cyan('Step 2:') + ' Checking contract deployment status...')
     let config = loadTestnetConfig()
-    const contractsExist = await checkContractsDeployed(env.client, config)
+    const contractsExist =
+      (await checkContractsDeployed(env.client, config)) && (!gavel || Boolean(config.councilOracle))
 
     if (contractsExist && !args.redeploy) {
       console.log(green('  Contracts already deployed'))
@@ -191,6 +203,11 @@ async function main(): Promise<void> {
       env.contracts = {
         multiverse: config.multiverse!,
         oracle: config.oracle!,
+        ...(config.councilOracle ? { councilOracle: config.councilOracle } : {}),
+        ...(config.uniV2Factory ? { uniV2Factory: config.uniV2Factory, uniV2Router: config.uniV2Router } : {}),
+      }
+      if (config.uniV2Factory && config.uniV2Router) {
+        initUniV2Config(config.uniV2Factory as Address, config.uniV2Router as Address, TESTNET_CHAIN_ID)
       }
     } else {
       // Step 3: Deploy contracts
@@ -219,6 +236,9 @@ async function main(): Promise<void> {
       config = {
         multiverse: env.contracts.multiverse,
         oracle: env.contracts.oracle,
+        councilOracle: env.contracts.councilOracle,
+        uniV2Factory: env.contracts.uniV2Factory,
+        uniV2Router: env.contracts.uniV2Router,
         deployedAt: new Date().toISOString(),
         deployerAddress: account.address,
       }
@@ -227,6 +247,9 @@ async function main(): Promise<void> {
       console.log(green('  Contracts deployed'))
       console.log(`    MultiVerse: ${env.contracts.multiverse}`)
       console.log(`    Oracle:     ${env.contracts.oracle}`)
+      if (env.contracts.councilOracle) {
+        console.log(`    Council:    ${env.contracts.councilOracle}`)
+      }
       if (env.contracts.uniV2Factory && env.contracts.uniV2Router) {
         console.log(`    UniV2 Factory: ${env.contracts.uniV2Factory}`)
         console.log(`    UniV2 Router:  ${env.contracts.uniV2Router}`)
@@ -388,7 +411,8 @@ async function startBackendTestnet(options: {
   const child = spawn('cargo', ['run', '--bin', 'backend'], {
     cwd: backendDir,
     env: envVars,
-    stdio: verbose ? 'inherit' : 'pipe',
+    // Discard stdout: an unread pipe fills up and stalls the backend.
+    stdio: verbose ? 'inherit' : ['ignore', 'ignore', 'pipe'],
   })
 
   child.on('error', (err: Error) => {

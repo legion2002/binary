@@ -74,7 +74,8 @@ export async function startBackend(options: BackendOptions): Promise<BackendProc
   const child = spawn('cargo', ['run', '--bin', 'backend'], {
     cwd: backendDir,
     env,
-    stdio: verbose ? 'inherit' : 'pipe',
+    // Discard stdout: an unread pipe fills up and stalls the backend.
+    stdio: verbose ? 'inherit' : ['ignore', 'ignore', 'pipe'],
   })
 
   // Handle process errors
